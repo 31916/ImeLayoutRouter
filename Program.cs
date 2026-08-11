@@ -113,8 +113,35 @@ class Program
     // Main
     // ============================================================
 
-    static void Main()
+        [STAThread]
+    static void Main(string[] args)
     {
+        if (
+            args.Length > 0
+            && args[0] == "--list-profiles"
+        )
+        {
+            TsfProfileEnumerator.PrintAllProfiles();
+            return;
+        }
+
+        if (
+            args.Length > 0
+            && args[0] == "--active-profile"
+        )
+        {
+            TsfProfileEnumerator.PrintActiveProfile();
+            return;
+        }
+        if (
+            args.Length > 0
+            && args[0] == "--list-candidates"
+        )
+        {
+            TsfProfileEnumerator.PrintSelectableProfiles();
+            return;
+        }
+
         Console.WriteLine(
             "IME Layout Router - Automatic Switch Test"
         );
