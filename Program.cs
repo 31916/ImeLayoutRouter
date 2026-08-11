@@ -133,6 +133,15 @@ class Program
             TsfProfileEnumerator.PrintActiveProfile();
             return;
         }
+        if (
+            args.Length > 0
+            && args[0] == "--list-candidates"
+        )
+        {
+            TsfProfileEnumerator.PrintSelectableProfiles();
+            return;
+        }
+
         Console.WriteLine(
             "IME Layout Router - Automatic Switch Test"
         );
