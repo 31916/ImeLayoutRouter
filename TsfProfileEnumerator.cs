@@ -7,6 +7,10 @@ static class TsfProfileEnumerator
     // CLSID_TF_InputProcessorProfiles
     private static readonly Guid CLSID_TF_InputProcessorProfiles =
         new Guid("33C53A50-F456-4884-B049-85FD643ECFED");
+    
+    // TSFのキーボード入力プロファイルカテゴリ
+    private static readonly Guid GUID_TFCAT_TIP_KEYBOARD =
+        new Guid("34745C63-B2F0-4784-8B67-5E12C8701A31");
 
     private const uint TF_PROFILETYPE_INPUTPROCESSOR = 0x0001;
     private const uint TF_PROFILETYPE_KEYBOARDLAYOUT = 0x0002;
@@ -222,6 +226,103 @@ static class TsfProfileEnumerator
 
         Console.WriteLine();
     }
+
+    public static void PrintActiveProfile()
+    {
+    Console.WriteLine(
+        "IME Layout Router - Active TSF Profile"
+    );
+
+    Console.WriteLine();
+
+    Type? comType =
+        Type.GetTypeFromCLSID(
+            CLSID_TF_InputProcessorProfiles
+        );
+
+    if (comType == null)
+    {
+        Console.WriteLine(
+            "TSF InputProcessorProfiles COM class was not found."
+        );
+
+        return;
+    }
+
+    object? managerObject = null;
+
+    try
+    {
+        managerObject =
+            Activator.CreateInstance(comType);
+
+        if (
+            managerObject
+            is not ITfInputProcessorProfileMgr manager
+        )
+        {
+            Console.WriteLine(
+                "ITfInputProcessorProfileMgr could not be obtained."
+            );
+
+            return;
+        }
+
+        if (
+            managerObject
+            is not ITfInputProcessorProfiles profiles
+        )
+        {
+            Console.WriteLine(
+                "ITfInputProcessorProfiles could not be obtained."
+            );
+
+            return;
+        }
+
+        Guid category =
+            GUID_TFCAT_TIP_KEYBOARD;
+
+        int hr =
+            manager.GetActiveProfile(
+                ref category,
+                out TF_INPUTPROCESSORPROFILE profile
+            );
+
+        // S_FALSE
+        if (hr == 1)
+        {
+            Console.WriteLine(
+                "No active keyboard input profile was found."
+            );
+
+            return;
+        }
+
+        if (hr < 0)
+        {
+            Marshal.ThrowExceptionForHR(hr);
+        }
+
+        PrintProfile(
+            1,
+            profile,
+            profiles
+        );
+    }
+    finally
+    {
+        if (
+            managerObject != null
+            && Marshal.IsComObject(managerObject)
+        )
+        {
+            Marshal.FinalReleaseComObject(
+                managerObject
+            );
+        }
+    }
+}
 
     private static string? GetProfileDescription(
     ITfInputProcessorProfiles profiles,
