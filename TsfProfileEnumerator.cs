@@ -52,6 +52,17 @@ static class TsfProfileEnumerator
 
                 return;
             }
+            if (
+                managerObject
+                is not ITfInputProcessorProfiles profiles
+            )
+            {
+                Console.WriteLine(
+                    "ITfInputProcessorProfiles could not be obtained."
+                );
+
+                return;
+            }
 
             // LANGID = 0
             // → Windowsに登録されている全プロファイル
@@ -87,7 +98,8 @@ static class TsfProfileEnumerator
 
                 PrintProfile(
                     index,
-                    profile
+                    profile,
+                    profiles
                 );
 
                 index++;
@@ -123,7 +135,8 @@ static class TsfProfileEnumerator
 
     private static void PrintProfile(
         int index,
-        TF_INPUTPROCESSORPROFILE profile
+        TF_INPUTPROCESSORPROFILE profile,
+        ITfInputProcessorProfiles profiles
     )
     {
         string typeName =
@@ -150,6 +163,21 @@ static class TsfProfileEnumerator
         Console.WriteLine(
             $"Language ID: 0x{profile.langid:X4}"
         );
+        if (
+            profile.dwProfileType
+            == TF_PROFILETYPE_INPUTPROCESSOR
+        )
+        {
+            string? description =
+                GetProfileDescription(
+                    profiles,
+                    profile
+                );
+
+            Console.WriteLine(
+                $"Description: {description ?? "(not available)"}"
+            );
+        }
 
         Console.WriteLine(
             $"CLSID: {profile.clsid}"
@@ -178,8 +206,48 @@ static class TsfProfileEnumerator
         Console.WriteLine(
             $"Flags: 0x{profile.dwFlags:X8}"
         );
+        bool isActive =
+            (profile.dwFlags & 0x00000001) != 0;
+
+        bool isEnabled =
+            (profile.dwFlags & 0x00000002) != 0;
+
+        Console.WriteLine(
+            $"Active: {isActive}"
+        );
+
+        Console.WriteLine(
+            $"Enabled: {isEnabled}"
+        );
 
         Console.WriteLine();
+    }
+
+    private static string? GetProfileDescription(
+    ITfInputProcessorProfiles profiles,
+    TF_INPUTPROCESSORPROFILE profile
+    )
+    {
+        Guid clsid =
+            profile.clsid;
+
+        Guid profileGuid =
+            profile.guidProfile;
+
+        int hr =
+            profiles.GetLanguageProfileDescription(
+                ref clsid,
+                profile.langid,
+                ref profileGuid,
+                out string description
+            );
+
+        if (hr < 0)
+        {
+            return null;
+        }
+
+        return description;
     }
 }
 
@@ -321,5 +389,88 @@ interface IEnumTfInputProcessorProfiles
     [PreserveSig]
     int Skip(
         uint count
+    );
+}
+
+// ============================================================
+// ITfInputProcessorProfiles
+// IMEの表示名などを取得するためのTSFインターフェース
+// ============================================================
+
+[ComImport]
+[Guid("1F02B6C5-7842-4EE6-8A0B-9A24183A95CA")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface ITfInputProcessorProfiles
+{
+    [PreserveSig]
+    int Register(
+        ref Guid clsid
+    );
+
+    [PreserveSig]
+    int Unregister(
+        ref Guid clsid
+    );
+
+    [PreserveSig]
+    int AddLanguageProfile(
+        ref Guid clsid,
+        ushort langid,
+        ref Guid guidProfile,
+        IntPtr description,
+        uint descriptionLength,
+        IntPtr iconFile,
+        uint iconFileLength,
+        uint iconIndex
+    );
+
+    [PreserveSig]
+    int RemoveLanguageProfile(
+        ref Guid clsid,
+        ushort langid,
+        ref Guid guidProfile
+    );
+
+    [PreserveSig]
+    int EnumInputProcessorInfo(
+        out IntPtr enumerator
+    );
+
+    [PreserveSig]
+    int GetDefaultLanguageProfile(
+        ushort langid,
+        ref Guid category,
+        out Guid clsid,
+        out Guid guidProfile
+    );
+
+    [PreserveSig]
+    int SetDefaultLanguageProfile(
+        ushort langid,
+        ref Guid clsid,
+        ref Guid guidProfile
+    );
+
+    [PreserveSig]
+    int ActivateLanguageProfile(
+        ref Guid clsid,
+        ushort langid,
+        ref Guid guidProfile
+    );
+
+    [PreserveSig]
+    int GetActiveLanguageProfile(
+        ref Guid clsid,
+        out ushort langid,
+        out Guid guidProfile
+    );
+
+    [PreserveSig]
+    int GetLanguageProfileDescription(
+        ref Guid clsid,
+        ushort langid,
+        ref Guid guidProfile,
+        [MarshalAs(UnmanagedType.BStr)]
+        out string description
     );
 }
