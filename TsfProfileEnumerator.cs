@@ -1,5 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
+using System.Globalization;
 
 static class TsfProfileEnumerator
 {
@@ -14,6 +16,7 @@ static class TsfProfileEnumerator
 
     private const uint TF_PROFILETYPE_INPUTPROCESSOR = 0x0001;
     private const uint TF_PROFILETYPE_KEYBOARDLAYOUT = 0x0002;
+    private const ushort JAPANESE_LANGUAGE_ID = 0x0411;
 
     public static void PrintAllProfiles()
     {
@@ -225,6 +228,260 @@ static class TsfProfileEnumerator
         );
 
         Console.WriteLine();
+    }
+
+    private static bool IsEnabled(
+    TF_INPUTPROCESSORPROFILE profile
+    )
+    {
+        return (
+            profile.dwFlags
+            & 0x00000002
+        ) != 0;
+    }
+
+    private static string GetLanguageName(
+        ushort languageId
+    )
+    {
+        try
+        {
+            CultureInfo culture =
+                CultureInfo.GetCultureInfo(
+                    languageId
+                );
+
+            return culture.NativeName;
+        }
+        catch (CultureNotFoundException)
+        {
+            return $"Language 0x{languageId:X4}";
+        }
+    }
+
+    public static void PrintSelectableProfiles()
+    {
+        Console.WriteLine(
+            "IME Layout Router - Selectable Profiles"
+        );
+
+        Console.WriteLine();
+
+        Type? comType =
+            Type.GetTypeFromCLSID(
+                CLSID_TF_InputProcessorProfiles
+            );
+
+        if (comType == null)
+        {
+            Console.WriteLine(
+                "TSF InputProcessorProfiles COM class was not found."
+            );
+
+            return;
+        }
+
+        object? managerObject = null;
+        IEnumTfInputProcessorProfiles? enumerator = null;
+
+        try
+        {
+            managerObject =
+                Activator.CreateInstance(comType);
+
+            if (
+                managerObject
+                is not ITfInputProcessorProfileMgr manager
+            )
+            {
+                Console.WriteLine(
+                    "ITfInputProcessorProfileMgr could not be obtained."
+                );
+
+                return;
+            }
+
+            if (
+                managerObject
+                is not ITfInputProcessorProfiles profiles
+            )
+            {
+                Console.WriteLine(
+                    "ITfInputProcessorProfiles could not be obtained."
+                );
+
+                return;
+            }
+
+            int hr =
+                manager.EnumProfiles(
+                    0,
+                    out enumerator
+                );
+
+            if (hr < 0)
+            {
+                Marshal.ThrowExceptionForHR(hr);
+            }
+
+            var allProfiles =
+                new List<TF_INPUTPROCESSORPROFILE>();
+
+            while (true)
+            {
+                hr =
+                    enumerator.Next(
+                        1,
+                        out TF_INPUTPROCESSORPROFILE profile,
+                        out uint fetched
+                    );
+
+                if (
+                    fetched == 0
+                    || hr != 0
+                )
+                {
+                    break;
+                }
+
+                allProfiles.Add(profile);
+            }
+
+            // ========================================================
+            // Source候補：有効な日本語IME
+            // ========================================================
+
+            Console.WriteLine(
+                "=== Source Japanese IMEs ==="
+            );
+
+            int sourceIndex = 1;
+
+            foreach (
+                TF_INPUTPROCESSORPROFILE profile
+                in allProfiles
+            )
+            {
+                if (
+                    profile.dwProfileType
+                        != TF_PROFILETYPE_INPUTPROCESSOR
+                    ||
+                    profile.langid
+                        != JAPANESE_LANGUAGE_ID
+                    ||
+                    !IsEnabled(profile)
+                )
+                {
+                    continue;
+                }
+
+                string description =
+                    GetProfileDescription(
+                        profiles,
+                        profile
+                    )
+                    ?? "(not available)";
+
+                Console.WriteLine(
+                    $"[{sourceIndex}] {description}"
+                );
+
+                Console.WriteLine(
+                    $"    Language ID: 0x{profile.langid:X4}"
+                );
+
+                Console.WriteLine(
+                    $"    CLSID: {profile.clsid}"
+                );
+
+                Console.WriteLine(
+                    $"    Profile GUID: {profile.guidProfile}"
+                );
+
+                sourceIndex++;
+            }
+
+            if (sourceIndex == 1)
+            {
+                Console.WriteLine(
+                    "(No enabled Japanese IME found)"
+                );
+            }
+
+            Console.WriteLine();
+
+            // ========================================================
+            // Target候補：有効な日本語以外のKeyboard Layout
+            // ========================================================
+
+            Console.WriteLine(
+                "=== Target Keyboard Layouts ==="
+            );
+
+            int targetIndex = 1;
+
+            foreach (
+                TF_INPUTPROCESSORPROFILE profile
+                in allProfiles
+            )
+            {
+                if (
+                    profile.dwProfileType
+                        != TF_PROFILETYPE_KEYBOARDLAYOUT
+                    ||
+                    profile.langid
+                        == JAPANESE_LANGUAGE_ID
+                    ||
+                    !IsEnabled(profile)
+                )
+                {
+                    continue;
+                }
+
+                Console.WriteLine(
+                    $"[{targetIndex}] {GetLanguageName(profile.langid)}"
+                );
+
+                Console.WriteLine(
+                    $"    Language ID: 0x{profile.langid:X4}"
+                );
+
+                Console.WriteLine(
+                    $"    HKL: 0x{profile.hkl.ToInt64():X}"
+                );
+
+                targetIndex++;
+            }
+
+            if (targetIndex == 1)
+            {
+                Console.WriteLine(
+                    "(No enabled target keyboard layout found)"
+                );
+            }
+        }
+        finally
+        {
+            if (
+                enumerator != null
+                && Marshal.IsComObject(enumerator)
+            )
+            {
+                Marshal.FinalReleaseComObject(
+                    enumerator
+                );
+            }
+
+            if (
+                managerObject != null
+                && Marshal.IsComObject(managerObject)
+            )
+            {
+                Marshal.FinalReleaseComObject(
+                    managerObject
+                );
+            }
+        }
     }
 
     public static void PrintActiveProfile()
