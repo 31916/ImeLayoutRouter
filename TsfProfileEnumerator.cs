@@ -229,7 +229,69 @@ static class TsfProfileEnumerator
 
         Console.WriteLine();
     }
+    public static void PrintAutomaticSelection()
+    {
+        Console.WriteLine(
+            "IME Layout Router - Routing Selection"
+        );
 
+        Console.WriteLine();
+
+        RoutingConfiguration? configuration =
+            CreateAutomaticSelection();
+
+        if (configuration == null)
+        {
+            Console.WriteLine(
+                "Automatic selection is not possible."
+            );
+
+            Console.WriteLine(
+                "The user must select Source and Target."
+            );
+
+            return;
+        }
+
+        Console.WriteLine(
+            $"Source: {configuration.Source.DisplayName}"
+        );
+
+        Console.WriteLine(
+            $"Target: {configuration.Target.DisplayName}"
+        );
+
+        Console.WriteLine();
+
+        Console.WriteLine(
+            $"Source Language ID: 0x{configuration.Source.LanguageId:X4}"
+        );
+
+        Console.WriteLine(
+            $"Target Language ID: 0x{configuration.Target.LanguageId:X4}"
+        );
+    }
+
+
+    public static RoutingConfiguration? CreateAutomaticSelection()
+    {
+        var candidates =
+            GetSelectableProfiles();
+
+        if (
+            candidates.Sources.Count != 1
+            ||
+            candidates.Targets.Count != 1
+        )
+        {
+            return null;
+        }
+
+        return new RoutingConfiguration(
+            candidates.Sources[0],
+            candidates.Targets[0]
+        );
+    }
     private static bool IsEnabled(
     TF_INPUTPROCESSORPROFILE profile
     )
