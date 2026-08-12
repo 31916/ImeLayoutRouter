@@ -23,4 +23,32 @@ sealed class InputProfile
     public bool IsEnabled { get; init; }
 
     public bool IsActive { get; init; }
+
+    public bool HasSameIdentityAs(
+    InputProfile other
+    )
+    {
+        if (Type != other.Type)
+        {
+            return false;
+        }
+
+        if (
+            Type
+            == InputProfileType.InputProcessor
+        )
+        {
+            return
+                LanguageId == other.LanguageId
+                &&
+                Clsid == other.Clsid
+                &&
+                ProfileGuid == other.ProfileGuid;
+        }
+
+        return
+            LanguageId == other.LanguageId
+            &&
+            Hkl == other.Hkl;
+    }
 }

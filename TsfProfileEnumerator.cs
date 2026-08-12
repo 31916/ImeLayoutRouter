@@ -561,6 +561,134 @@ static class TsfProfileEnumerator
         };
     }
 
+    public static void PrintRoutingMatchTest()
+    {
+        Console.WriteLine(
+            "IME Layout Router - Routing Match Test"
+        );
+
+        Console.WriteLine();
+
+        RoutingConfiguration? configuration =
+            CreateAutomaticSelection();
+
+        if (configuration == null)
+        {
+            Console.WriteLine(
+                "Routing configuration could not be created."
+            );
+
+            return;
+        }
+
+        InputProfile? active =
+            GetActiveInputProfile();
+
+        if (active == null)
+        {
+            Console.WriteLine(
+                "Active input profile could not be detected."
+            );
+
+            return;
+        }
+
+        Console.WriteLine(
+            $"Active: {active.DisplayName}"
+        );
+
+        Console.WriteLine(
+            $"Configured Source: {configuration.Source.DisplayName}"
+        );
+
+        Console.WriteLine(
+            $"Configured Target: {configuration.Target.DisplayName}"
+        );
+
+        Console.WriteLine();
+
+        Console.WriteLine(
+            $"Matches Source: {active.HasSameIdentityAs(configuration.Source)}"
+        );
+
+        Console.WriteLine(
+            $"Matches Target: {active.HasSameIdentityAs(configuration.Target)}"
+        );
+    }
+
+    public static InputProfile? GetActiveInputProfile()
+    {
+        Type? comType =
+            Type.GetTypeFromCLSID(
+                CLSID_TF_InputProcessorProfiles
+            );
+
+        if (comType == null)
+        {
+            return null;
+        }
+
+        object? managerObject = null;
+
+        try
+        {
+            managerObject =
+                Activator.CreateInstance(
+                    comType
+                );
+
+            if (
+                managerObject
+                is not ITfInputProcessorProfileMgr manager
+            )
+            {
+                return null;
+            }
+
+            if (
+                managerObject
+                is not ITfInputProcessorProfiles profiles
+            )
+            {
+                return null;
+            }
+
+            Guid category =
+                GUID_TFCAT_TIP_KEYBOARD;
+
+            int hr =
+                manager.GetActiveProfile(
+                    ref category,
+                    out TF_INPUTPROCESSORPROFILE profile
+                );
+
+            if (hr != 0)
+            {
+                return null;
+            }
+
+            return ConvertToInputProfile(
+                profile,
+                profiles
+            );
+        }
+        finally
+        {
+            if (
+                managerObject != null
+                &&
+                Marshal.IsComObject(
+                    managerObject
+                )
+            )
+            {
+                Marshal.FinalReleaseComObject(
+                    managerObject
+                );
+            }
+        }
+    }
+
     public static void PrintSelectableProfiles()
     {
         Console.WriteLine(
