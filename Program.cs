@@ -188,6 +188,48 @@ class Program
             return;
        
         }
+        if (
+            args.Length > 0
+            && args[0] == "--load-settings-test"
+        )
+        {
+            RoutingConfiguration? loaded =
+                SettingsService.Load();
+
+            if (loaded == null)
+            {
+                Console.WriteLine(
+                    "Saved routing configuration could not be loaded."
+                );
+
+                return;
+            }
+
+            Console.WriteLine(
+                "=== Loaded Routing ==="
+            );
+
+            Console.WriteLine(
+                $"Source: {loaded.Source.DisplayName}"
+            );
+
+            Console.WriteLine(
+                $"Target: {loaded.Target.DisplayName}"
+            );
+
+            Console.WriteLine();
+
+            Console.WriteLine(
+                $"Source Language ID: 0x{loaded.Source.LanguageId:X4}"
+            );
+
+            Console.WriteLine(
+                $"Target Language ID: 0x{loaded.Target.LanguageId:X4}"
+            );
+
+            return;
+        }
+        
 
 
         RoutingConfiguration? configuration =
