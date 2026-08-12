@@ -167,12 +167,26 @@ class Program
             Console.WriteLine(
                 $"Source: {selected.Source.DisplayName}"
             );
-
             Console.WriteLine(
                 $"Target: {selected.Target.DisplayName}"
             );
 
+            SettingsService.Save(
+                selected
+            );
+
+            Console.WriteLine();
+
+            Console.WriteLine(
+                "Settings saved:"
+            );
+
+            Console.WriteLine(
+                SettingsService.GetSettingsPath()
+            );
+
             return;
+       
         }
 
 
