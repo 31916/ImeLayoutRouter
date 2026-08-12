@@ -149,6 +149,14 @@ class Program
             TsfProfileEnumerator.PrintAutomaticSelection();
             return;
         }
+        if (
+            args.Length > 0
+            && args[0] == "--routing-match-test"
+        )
+        {
+            TsfProfileEnumerator.PrintRoutingMatchTest();
+            return;
+        }
 
 
         Console.WriteLine(
