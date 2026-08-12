@@ -74,12 +74,6 @@ class Program
     // 一番上の親ウィンドウを取得
     const uint GA_ROOT = 2;
 
-    // 日本語
-    const int JAPANESE_LANGUAGE_ID = 0x0411;
-
-    // German (Switzerland)
-    const int SWISS_GERMAN_LANGUAGE_ID = 0x0807;
-
     // ============================================================
     // Windows構造体
     // ============================================================
@@ -158,17 +152,32 @@ class Program
             return;
         }
 
+                RoutingConfiguration? configuration =
+            TsfProfileEnumerator.CreateAutomaticSelection();
+
+        if (configuration == null)
+        {
+            Console.WriteLine(
+                "Routing configuration could not be created."
+            );
+
+            Console.WriteLine(
+                "Source and Target must be selected."
+            );
+
+            return;
+        }
 
         Console.WriteLine(
             "IME Layout Router - Automatic Switch Test"
         );
 
         Console.WriteLine(
-            "Japanese IME: Japanese → Direct Input"
+            $"Source: {configuration.Source.DisplayName}"
         );
 
         Console.WriteLine(
-            "Target: German (Switzerland)"
+            $"Target: {configuration.Target.DisplayName}"
         );
 
         Console.WriteLine();
@@ -179,9 +188,14 @@ class Program
 
         Console.WriteLine();
 
-        int previousLanguageId = -1;
+        int previousLanguageId =
+            -1;
 
-        bool? previousImeOpen = null;
+        IntPtr previousKeyboardLayout =
+            IntPtr.Zero;
+
+        bool? previousImeOpen =
+            null;
 
         while (true)
         {
@@ -206,8 +220,12 @@ class Program
                     foregroundWindow
                 );
 
+            // 実際にフォーカスされている
+            // アプリのKeyboard Layoutを取得する
             IntPtr keyboardLayout =
-                GetKeyboardLayout(threadId);
+                GetKeyboardLayout(
+                    threadId
+                );
 
             int languageId =
                 (int)(
@@ -215,12 +233,21 @@ class Program
                     & 0xFFFF
                 );
 
-            bool? imeOpen = null;
-
-            if (
+            bool sourceIsActive =
                 languageId
-                == JAPANESE_LANGUAGE_ID
-            )
+                == configuration.Source.LanguageId;
+
+            bool targetIsActive =
+                configuration.Target.Type
+                    == InputProfileType.KeyboardLayout
+                &&
+                keyboardLayout
+                    == configuration.Target.Hkl;
+
+            bool? imeOpen =
+                null;
+
+            if (sourceIsActive)
             {
                 imeOpen =
                     GetImeOpenStatus(
@@ -229,28 +256,30 @@ class Program
             }
 
             // ====================================================
-            // 「日本語入力 → Direct Input」を検出
+            // Source:
+            // IME input mode → Direct input
             // ====================================================
 
             bool switchedToDirectInput =
                 previousLanguageId
-                    == JAPANESE_LANGUAGE_ID
+                    == configuration.Source.LanguageId
                 &&
                 previousImeOpen == true
                 &&
-                languageId
-                    == JAPANESE_LANGUAGE_ID
+                sourceIsActive
                 &&
                 imeOpen == false;
 
             if (switchedToDirectInput)
             {
                 Console.WriteLine(
-                    "[Detected] Japanese input → Direct input"
+                    $"[Detected] {configuration.Source.DisplayName}"
+                    + " → Direct input"
                 );
 
                 bool success =
-                    SwitchToSwissGerman(
+                    SwitchToTargetLayout(
+                        configuration.Target,
                         focusedWindow,
                         foregroundWindow
                     );
@@ -258,13 +287,15 @@ class Program
                 if (success)
                 {
                     Console.WriteLine(
-                        "[Switch] German (Switzerland) requested"
+                        $"[Switch] {configuration.Target.DisplayName}"
+                        + " requested"
                     );
                 }
                 else
                 {
                     Console.WriteLine(
-                        "[Error] German (Switzerland) layout was not found."
+                        "[Error] Target keyboard layout "
+                        + "could not be activated."
                     );
                 }
 
@@ -272,22 +303,23 @@ class Program
             }
 
             // ====================================================
-            // 「German (Switzerland) → 日本語IME Direct Input」を検出
+            // Target → Source Direct input
             // ====================================================
 
-            bool switchedFromSwissGermanToJapaneseDirect =
-                previousLanguageId
-                    == SWISS_GERMAN_LANGUAGE_ID
+            bool switchedFromTargetToSourceDirect =
+                previousKeyboardLayout
+                    == configuration.Target.Hkl
                 &&
-                languageId
-                    == JAPANESE_LANGUAGE_ID
+                sourceIsActive
                 &&
                 imeOpen == false;
 
-            if (switchedFromSwissGermanToJapaneseDirect)
+            if (switchedFromTargetToSourceDirect)
             {
                 Console.WriteLine(
-                    "[Detected] German (Switzerland) → Japanese direct input"
+                    $"[Detected] {configuration.Target.DisplayName}"
+                    + $" → {configuration.Source.DisplayName}"
+                    + " direct input"
                 );
 
                 bool success =
@@ -299,10 +331,9 @@ class Program
                 if (success)
                 {
                     Console.WriteLine(
-                        "[Switch] Japanese input mode requested"
+                        "[Switch] IME input mode requested"
                     );
 
-                    // 設定後の状態をもう一度取得
                     imeOpen =
                         GetImeOpenStatus(
                             focusedWindow
@@ -311,7 +342,7 @@ class Program
                 else
                 {
                     Console.WriteLine(
-                        "[Error] Could not open Japanese IME."
+                        "[Error] Could not open source IME."
                     );
                 }
 
@@ -323,20 +354,26 @@ class Program
             // ====================================================
 
             if (
-                languageId != previousLanguageId
+                keyboardLayout
+                    != previousKeyboardLayout
                 ||
-                imeOpen != previousImeOpen
+                imeOpen
+                    != previousImeOpen
             )
             {
                 PrintState(
                     languageId,
                     keyboardLayout,
-                    imeOpen
+                    imeOpen,
+                    configuration
                 );
             }
 
             previousLanguageId =
                 languageId;
+
+            previousKeyboardLayout =
+                keyboardLayout;
 
             previousImeOpen =
                 imeOpen;
@@ -344,10 +381,11 @@ class Program
             Thread.Sleep(100);
         }
     }
+   
 
     // ============================================================
     // フォーカス中のウィンドウを取得
-    // ============================================================
+    // ============================================================ 
 
     static IntPtr GetFocusedWindow(
         uint threadId,
@@ -435,26 +473,25 @@ class Program
     }
 
     // ============================================================
-    // Swiss Germanへ変更
+    // 設定されたTarget Keyboard Layoutへ変更
     // ============================================================
 
-    static bool SwitchToSwissGerman(
+    static bool SwitchToTargetLayout(
+        InputProfile target,
         IntPtr focusedWindow,
         IntPtr foregroundWindow
     )
     {
-        IntPtr targetLayout =
-            FindKeyboardLayout(
-                SWISS_GERMAN_LANGUAGE_ID
-            );
-
-        if (targetLayout == IntPtr.Zero)
+        if (
+            target.Type
+            != InputProfileType.KeyboardLayout
+            ||
+            target.Hkl == IntPtr.Zero
+        )
         {
             return false;
         }
 
-        // 入力欄そのものではなく、
-        // アプリの一番上のウィンドウへ送る
         IntPtr rootWindow =
             GetAncestor(
                 focusedWindow,
@@ -471,7 +508,7 @@ class Program
             rootWindow,
             WM_INPUTLANGCHANGEREQUEST,
             IntPtr.Zero,
-            targetLayout
+            target.Hkl
         );
     }
 
@@ -528,10 +565,11 @@ class Program
     // 状態表示
     // ============================================================
 
-    static void PrintState(
+        static void PrintState(
         int languageId,
         IntPtr keyboardLayout,
-        bool? imeOpen
+        bool? imeOpen,
+        RoutingConfiguration configuration
     )
     {
         Console.WriteLine(
@@ -544,17 +582,17 @@ class Program
 
         if (
             languageId
-            == JAPANESE_LANGUAGE_ID
+            == configuration.Source.LanguageId
         )
         {
             Console.WriteLine(
-                "Input: Japanese"
+                $"Input: {configuration.Source.DisplayName}"
             );
 
             if (imeOpen == true)
             {
                 Console.WriteLine(
-                    "IME Open: True → Japanese input mode"
+                    "IME Open: True → IME input mode"
                 );
             }
             else if (imeOpen == false)
@@ -571,12 +609,12 @@ class Program
             }
         }
         else if (
-            languageId
-            == SWISS_GERMAN_LANGUAGE_ID
+            keyboardLayout
+            == configuration.Target.Hkl
         )
         {
             Console.WriteLine(
-                "Input: German (Switzerland)"
+                $"Input: {configuration.Target.DisplayName}"
             );
 
             Console.WriteLine(
@@ -597,3 +635,4 @@ class Program
         Console.WriteLine();
     }
 }
+   
