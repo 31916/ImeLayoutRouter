@@ -21,12 +21,6 @@ class Program
     static extern IntPtr GetKeyboardLayout(uint threadId);
 
     [DllImport("user32.dll")]
-    static extern int GetKeyboardLayoutList(
-        int nBuff,
-        [Out] IntPtr[]? lpList
-    );
-
-    [DllImport("user32.dll")]
     static extern bool GetGUIThreadInfo(
         uint idThread,
         ref GUITHREADINFO guiThreadInfo
@@ -236,13 +230,6 @@ class Program
             bool sourceIsActive =
                 languageId
                 == configuration.Source.LanguageId;
-
-            bool targetIsActive =
-                configuration.Target.Type
-                    == InputProfileType.KeyboardLayout
-                &&
-                keyboardLayout
-                    == configuration.Target.Hkl;
 
             bool? imeOpen =
                 null;
@@ -510,55 +497,6 @@ class Program
             IntPtr.Zero,
             target.Hkl
         );
-    }
-
-    // ============================================================
-    // インストール済みKeyboard Layoutを検索
-    // ============================================================
-
-    static IntPtr FindKeyboardLayout(
-        int languageId
-    )
-    {
-        int count =
-            GetKeyboardLayoutList(
-                0,
-                null
-            );
-
-        if (count <= 0)
-        {
-            return IntPtr.Zero;
-        }
-
-        IntPtr[] layouts =
-            new IntPtr[count];
-
-        GetKeyboardLayoutList(
-            layouts.Length,
-            layouts
-        );
-
-        foreach (
-            IntPtr layout in layouts
-        )
-        {
-            int currentLanguageId =
-                (int)(
-                    layout.ToInt64()
-                    & 0xFFFF
-                );
-
-            if (
-                currentLanguageId
-                == languageId
-            )
-            {
-                return layout;
-            }
-        }
-
-        return IntPtr.Zero;
     }
 
     // ============================================================
