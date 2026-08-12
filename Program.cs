@@ -233,19 +233,39 @@ class Program
 
 
         RoutingConfiguration? configuration =
-        TsfProfileEnumerator.CreateAutomaticSelection();
+            SettingsService.Load();
 
         if (configuration == null)
         {
             Console.WriteLine(
-                "Routing configuration could not be created."
+                "No valid saved routing configuration was found."
             );
 
             Console.WriteLine(
-                "Source and Target must be selected."
+                "Please select Source and Target."
             );
 
-            return;
+            Console.WriteLine();
+
+            configuration =
+                ConsoleProfileSelector.Select();
+
+            if (configuration == null)
+            {
+                return;
+            }
+
+            SettingsService.Save(
+                configuration
+            );
+
+            Console.WriteLine();
+
+            Console.WriteLine(
+                "Routing configuration saved."
+            );
+
+            Console.WriteLine();
         }
 
         Console.WriteLine(
