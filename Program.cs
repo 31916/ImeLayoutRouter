@@ -145,9 +145,39 @@ class Program
             TsfProfileEnumerator.PrintRoutingMatchTest();
             return;
         }
+        if (
+            args.Length > 0
+            && args[0] == "--configure-test"
+        )
+        {
+            RoutingConfiguration? selected =
+                ConsoleProfileSelector.Select();
 
-                RoutingConfiguration? configuration =
-            TsfProfileEnumerator.CreateAutomaticSelection();
+            if (selected == null)
+            {
+                return;
+            }
+
+            Console.WriteLine();
+
+            Console.WriteLine(
+                "=== Selected Routing ==="
+            );
+
+            Console.WriteLine(
+                $"Source: {selected.Source.DisplayName}"
+            );
+
+            Console.WriteLine(
+                $"Target: {selected.Target.DisplayName}"
+            );
+
+            return;
+        }
+
+
+        RoutingConfiguration? configuration =
+        TsfProfileEnumerator.CreateAutomaticSelection();
 
         if (configuration == null)
         {
