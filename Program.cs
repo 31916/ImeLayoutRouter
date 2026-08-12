@@ -146,48 +146,49 @@ class Program
             return;
         }
         if (
-            args.Length > 0
-            && args[0] == "--configure-test"
-        )
+        args.Length > 0
+        && args[0] == "--configure"
+    )
+    {
+        RoutingConfiguration? selected =
+            ConsoleProfileSelector.Select();
+
+        if (selected == null)
         {
-            RoutingConfiguration? selected =
-                ConsoleProfileSelector.Select();
-
-            if (selected == null)
-            {
-                return;
-            }
-
-            Console.WriteLine();
-
-            Console.WriteLine(
-                "=== Selected Routing ==="
-            );
-
-            Console.WriteLine(
-                $"Source: {selected.Source.DisplayName}"
-            );
-            Console.WriteLine(
-                $"Target: {selected.Target.DisplayName}"
-            );
-
-            SettingsService.Save(
-                selected
-            );
-
-            Console.WriteLine();
-
-            Console.WriteLine(
-                "Settings saved:"
-            );
-
-            Console.WriteLine(
-                SettingsService.GetSettingsPath()
-            );
-
             return;
-       
         }
+
+        Console.WriteLine();
+
+        Console.WriteLine(
+            "=== Selected Routing ==="
+        );
+
+        Console.WriteLine(
+            $"Source: {selected.Source.DisplayName}"
+        );
+
+        Console.WriteLine(
+            $"Target: {selected.Target.DisplayName}"
+        );
+
+        SettingsService.Save(
+            selected
+        );
+
+        Console.WriteLine();
+
+        Console.WriteLine(
+            "Settings saved:"
+        );
+
+        Console.WriteLine(
+            SettingsService.GetSettingsPath()
+        );
+
+        return;
+    }
+       
         if (
             args.Length > 0
             && args[0] == "--load-settings-test"
