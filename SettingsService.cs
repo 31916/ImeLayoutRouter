@@ -86,4 +86,89 @@ static class SettingsService
             json
         );
     }
+
+    public static RoutingConfiguration? Load()
+    {
+        string path =
+            GetSettingsPath();
+
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            string json =
+                File.ReadAllText(
+                    path
+                );
+
+            AppSettings? settings =
+                JsonSerializer.Deserialize<AppSettings>(
+                    json
+                );
+
+            if (
+                settings == null
+                ||
+                settings.Version != 1
+            )
+            {
+                return null;
+            }
+
+            var candidates =
+                TsfProfileEnumerator.GetSelectableProfiles();
+
+            InputProfile? source =
+                candidates.Sources.Find(
+                    profile =>
+                        profile.LanguageId
+                            == settings.Source.LanguageId
+                        &&
+                        profile.Clsid
+                            == settings.Source.Clsid
+                        &&
+                        profile.ProfileGuid
+                            == settings.Source.ProfileGuid
+                );
+
+            InputProfile? target =
+                candidates.Targets.Find(
+                    profile =>
+                        profile.LanguageId
+                            == settings.Target.LanguageId
+                        &&
+                        profile.Hkl.ToInt64()
+                            == settings.Target.Hkl
+                );
+
+            if (
+                source == null
+                ||
+                target == null
+            )
+            {
+                return null;
+            }
+
+            return new RoutingConfiguration(
+                source,
+                target
+            );
+        }
+        catch (
+            JsonException
+        )
+        {
+            return null;
+        }
+        catch (
+            IOException
+        )
+        {
+            return null;
+        }
+    }
 }
