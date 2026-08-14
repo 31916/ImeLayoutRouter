@@ -214,6 +214,13 @@ static class RoutingMonitor
             // IME input mode → Direct input
             // ====================================================
 
+            bool initialDirectInput =
+                previousLanguageId == -1
+                &&
+                sourceIsActive
+                &&
+                imeOpen == false;
+
             bool switchedToDirectInput =
                 previousLanguageId
                     == configuration.Source.LanguageId
@@ -223,6 +230,38 @@ static class RoutingMonitor
                 sourceIsActive
                 &&
                 imeOpen == false;
+
+            if (initialDirectInput)
+            {
+                Console.WriteLine(
+                    $"[Detected] Initial {configuration.Source.DisplayName}"
+                    + " direct input"
+                );
+
+                bool success =
+                    SwitchToTargetLayout(
+                        configuration.Target,
+                        focusedWindow,
+                        foregroundWindow
+                    );
+
+                if (success)
+                {
+                    Console.WriteLine(
+                        $"[Switch] {configuration.Target.DisplayName}"
+                        + " requested"
+                    );
+                }
+                else
+                {
+                    Console.WriteLine(
+                        "[Error] Target keyboard layout "
+                        + "could not be activated."
+                    );
+                }
+
+                Console.WriteLine();
+            }
 
             if (switchedToDirectInput)
             {
