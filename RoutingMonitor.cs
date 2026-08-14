@@ -154,6 +154,9 @@ static class RoutingMonitor
         bool? previousImeOpen =
             null;
 
+        bool sourceHasBeenObserved =
+            false;
+
         while (
             !cancellationToken
                 .IsCancellationRequested
@@ -215,7 +218,7 @@ static class RoutingMonitor
             // ====================================================
 
             bool initialDirectInput =
-                previousLanguageId == -1
+                !sourceHasBeenObserved
                 &&
                 sourceIsActive
                 &&
@@ -363,17 +366,26 @@ static class RoutingMonitor
                     configuration
                 );
             }
+        if (
+            sourceIsActive
+            &&
+            imeOpen.HasValue
+        )
+        {
+            sourceHasBeenObserved =
+                true;
+        }
 
-            previousLanguageId =
-                languageId;
+        previousLanguageId =
+            languageId;
 
-            previousKeyboardLayout =
-                keyboardLayout;
+        previousKeyboardLayout =
+            keyboardLayout;
 
-            previousImeOpen =
-                imeOpen;
+        previousImeOpen =
+            imeOpen;
 
-            Thread.Sleep(100);
+        Thread.Sleep(100);
         }
     }
 
