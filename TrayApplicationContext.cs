@@ -15,7 +15,9 @@ sealed class TrayApplicationContext :
 
     private Task? monitorTask;
 
-    public TrayApplicationContext()
+    public TrayApplicationContext(
+        bool showSettingsOnStartup = false
+    )
     {
         ContextMenuStrip menu =
             new ContextMenuStrip();
@@ -69,7 +71,12 @@ sealed class TrayApplicationContext :
                 configuration
             );
         }
-        else
+
+        if (
+            showSettingsOnStartup
+            ||
+            configuration == null
+        )
         {
             ShowSettings();
         }

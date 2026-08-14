@@ -86,7 +86,10 @@ sealed class SettingsForm : Form
                 Left = 20,
                 Top = 145,
                 Width = 300,
-                Checked = startWithWindows
+                Checked =
+                    currentConfiguration == null
+                        ? true
+                        : startWithWindows
             };
 
         Button saveButton =
