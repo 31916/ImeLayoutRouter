@@ -6,6 +6,7 @@ sealed class SettingsForm : Form
 {
     private readonly ComboBox sourceComboBox;
     private readonly ComboBox targetComboBox;
+    private readonly CheckBox startWithWindowsCheckBox;
 
     public RoutingConfiguration? SelectedConfiguration
     {
@@ -13,16 +14,21 @@ sealed class SettingsForm : Form
         private set;
     }
 
+    public bool StartWithWindows =>
+        startWithWindowsCheckBox.Checked;
+
     public SettingsForm(
-        RoutingConfiguration? currentConfiguration
+        RoutingConfiguration? currentConfiguration,
+        bool startWithWindows
     )
     {
-        Text = "IME Layout Router Settings";
+        Text =
+            "IME Layout Router Settings";
 
         ClientSize =
             new System.Drawing.Size(
                 420,
-                180
+                220
             );
 
         FormBorderStyle =
@@ -72,12 +78,23 @@ sealed class SettingsForm : Form
                     ComboBoxStyle.DropDownList
             };
 
+        startWithWindowsCheckBox =
+            new CheckBox
+            {
+                Text =
+                    "Start IME Layout Router with Windows",
+                Left = 20,
+                Top = 145,
+                Width = 300,
+                Checked = startWithWindows
+            };
+
         Button saveButton =
             new Button
             {
                 Text = "Save",
                 Left = 240,
-                Top = 145,
+                Top = 180,
                 Width = 75
             };
 
@@ -86,7 +103,7 @@ sealed class SettingsForm : Form
             {
                 Text = "Cancel",
                 Left = 325,
-                Top = 145,
+                Top = 180,
                 Width = 75
             };
 
@@ -94,11 +111,15 @@ sealed class SettingsForm : Form
         Controls.Add(sourceComboBox);
         Controls.Add(targetLabel);
         Controls.Add(targetComboBox);
+        Controls.Add(startWithWindowsCheckBox);
         Controls.Add(saveButton);
         Controls.Add(cancelButton);
 
-        AcceptButton = saveButton;
-        CancelButton = cancelButton;
+        AcceptButton =
+            saveButton;
+
+        CancelButton =
+            cancelButton;
 
         cancelButton.DialogResult =
             DialogResult.Cancel;

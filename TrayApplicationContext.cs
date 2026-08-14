@@ -76,7 +76,8 @@ sealed class TrayApplicationContext :
 
         using SettingsForm form =
             new SettingsForm(
-                current
+                current,
+                StartupManager.IsEnabled()
             );
 
         if (
@@ -87,6 +88,24 @@ sealed class TrayApplicationContext :
                 == null
         )
         {
+            return;
+        }
+
+        try
+        {
+            StartupManager.SetEnabled(
+                form.StartWithWindows
+            );
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                ex.Message,
+                "IME Layout Router",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error
+            );
+
             return;
         }
 
