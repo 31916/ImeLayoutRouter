@@ -108,8 +108,15 @@ class Program
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
 
+        bool showSettingsOnStartup =
+            args.Length > 0
+            &&
+            args[0] == "--first-run";
+
         Application.Run(
-            new TrayApplicationContext()
+            new TrayApplicationContext(
+                showSettingsOnStartup
+            )
         );
     }
 }
