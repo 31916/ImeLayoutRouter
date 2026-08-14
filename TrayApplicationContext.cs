@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.IO;
 
 sealed class TrayApplicationContext :
     ApplicationContext
@@ -38,8 +39,13 @@ sealed class TrayApplicationContext :
         notifyIcon =
             new NotifyIcon
             {
-                Icon =
-                    SystemIcons.Application,
+                Icon =  new Icon(
+                            Path.Combine(
+                                AppContext.BaseDirectory,
+                                "Assets",
+                                "app.ico"
+                            )
+                        ),
 
                 Text =
                     "IME Layout Router",
