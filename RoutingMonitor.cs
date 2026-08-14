@@ -114,6 +114,17 @@ static class RoutingMonitor
         RoutingConfiguration configuration
     )
     {
+        Run(
+            configuration,
+            CancellationToken.None
+        );
+    }
+
+    public static void Run(
+        RoutingConfiguration configuration,
+        CancellationToken cancellationToken
+    )
+    {
         Console.WriteLine(
             "IME Layout Router - Automatic Switch Test"
         );
@@ -143,7 +154,10 @@ static class RoutingMonitor
         bool? previousImeOpen =
             null;
 
-        while (true)
+        while (
+            !cancellationToken
+                .IsCancellationRequested
+        )
         {
             IntPtr foregroundWindow =
                 GetForegroundWindow();

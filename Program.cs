@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Windows.Forms;
 
 class Program
 {
@@ -63,25 +64,7 @@ class Program
                 return;
             }
 
-            Console.WriteLine();
-
-            Console.WriteLine(
-                "=== Selected Routing ==="
-            );
-
-            Console.WriteLine(
-                $"Source: {selected.Source.DisplayName}"
-            );
-
-            Console.WriteLine(
-                $"Target: {selected.Target.DisplayName}"
-            );
-
-            SettingsService.Save(
-                selected
-            );
-
-            Console.WriteLine();
+            SettingsService.Save(selected);
 
             Console.WriteLine(
                 "Settings saved:"
@@ -112,10 +95,6 @@ class Program
             }
 
             Console.WriteLine(
-                "=== Loaded Routing ==="
-            );
-
-            Console.WriteLine(
                 $"Source: {loaded.Source.DisplayName}"
             );
 
@@ -123,57 +102,14 @@ class Program
                 $"Target: {loaded.Target.DisplayName}"
             );
 
-            Console.WriteLine();
-
-            Console.WriteLine(
-                $"Source Language ID: 0x{loaded.Source.LanguageId:X4}"
-            );
-
-            Console.WriteLine(
-                $"Target Language ID: 0x{loaded.Target.LanguageId:X4}"
-            );
-
             return;
         }
 
-        RoutingConfiguration? configuration =
-            SettingsService.Load();
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
 
-        if (configuration == null)
-        {
-            Console.WriteLine(
-                "No valid saved routing configuration was found."
-            );
-
-            Console.WriteLine(
-                "Please select Source and Target."
-            );
-
-            Console.WriteLine();
-
-            configuration =
-                ConsoleProfileSelector.Select();
-
-            if (configuration == null)
-            {
-                return;
-            }
-
-            SettingsService.Save(
-                configuration
-            );
-
-            Console.WriteLine();
-
-            Console.WriteLine(
-                "Routing configuration saved."
-            );
-
-            Console.WriteLine();
-        }
-
-        RoutingMonitor.Run(
-            configuration
+        Application.Run(
+            new TrayApplicationContext()
         );
     }
 }
