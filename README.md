@@ -5,7 +5,7 @@ A lightweight Windows utility that automatically routes Japanese IME direct inpu
 For example:
 
 - `あ` → Japanese IME
-- `A` → Deutsch (Schweiz), English (US), or another selected keyboard layout
+- `A` → Another selected keyboard layout
 
 This avoids typing Latin characters through the Japanese IME's direct input mode.
 
