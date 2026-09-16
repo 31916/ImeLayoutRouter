@@ -15,3 +15,16 @@ jobs:
       - run: dotnet build -c Release --warnaserror
       - run: dotnet run --project tests/RoutingTests.csproj -c Release
       - run: dotnet build tests/WindowsSmoke/WindowsSmoke.csproj -c Release --warnaserror
+      - run: dotnet publish -c Release -r win-x64 --self-contained true --warnaserror
+      - name: Package installer and portable preview
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer/ImeLayoutRouter.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Compress-Archive -Path bin/Release/net8.0-windows/win-x64/publish/* -DestinationPath ImeLayoutRouter-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ImeLayoutRouter-preview-win-x64
+          path: |
+            ImeLayoutRouter-win-x64.zip
+            installer/output/ImeLayoutRouter-Setup.exe
