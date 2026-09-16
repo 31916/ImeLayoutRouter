@@ -38,7 +38,7 @@ static class RoutingMonitor
                 {
                     bool sent = action == RoutingAction.SwitchToTarget
                         ? SwitchToTarget(configuration.Target, current)
-                        : RestoreNative(current.Context.Focus);
+                        : RestoreNative(current.Context.Focus, configuration.Source.LanguageId);
                     Console.WriteLine($"[Request] {action}: {(sent ? "sent; awaiting observation" : "failed; will retry")}");
                     if (sent) pending = (current.Context, action);
                 }
@@ -127,15 +127,14 @@ static class RoutingMonitor
             value, SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 50, out result) != IntPtr.Zero;
     }
 
-    private static bool RestoreNative(IntPtr focus)
+    private static bool RestoreNative(IntPtr focus, ushort languageId)
     {
         IntPtr ime = ImmGetDefaultIMEWnd(focus);
         if (!SendIme(ime, IMC_SETOPENSTATUS, (IntPtr)1, out var result) || result != UIntPtr.Zero)
             return false;
         int? conversion = ReadIme(ime, IMC_GETCONVERSIONMODE);
         if (!conversion.HasValue) return false;
-        // Hiragana, preserving the user's roman/kana typing preference.
-        int native = (conversion.Value | 0x0001 | 0x0008) & ~0x0002 & ~0x0100;
+        int native = ImeLanguage.NativeConversion(languageId, conversion.Value);
         return SendIme(ime, IMC_SETCONVERSIONMODE, (IntPtr)native, out result) && result == UIntPtr.Zero;
     }
 

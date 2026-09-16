@@ -131,6 +131,34 @@ static class Tests
             Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes("text-input-type:emailish;"));
             Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes(null));
         });
+        Test("All Chinese locales and Korean are selectable", () =>
+        {
+            foreach (ushort id in new ushort[] { 0x0411, 0x0412, 0x0404, 0x0804, 0x0C04, 0x1004, 0x1404 })
+                Equal(true, ImeLanguage.IsSupported(id));
+            Equal(false, ImeLanguage.IsSupported(0x0807));
+            Equal(false, ImeLanguage.IsSupported(0x0409));
+        });
+        Test("Chinese and Korean retain width and roman preferences", () =>
+        {
+            Equal(0x19, ImeLanguage.NativeConversion(0x0411, 0x10));
+            Equal(0x19, ImeLanguage.NativeConversion(0x0411, 0x11B));
+            Equal(0x01, ImeLanguage.NativeConversion(0x0412, 0x00));
+            Equal(0x11, ImeLanguage.NativeConversion(0x0804, 0x10));
+            Equal(0x19, ImeLanguage.NativeConversion(0x0404, 0x18));
+        });
+        Test("CJK sources route direct and restore native", () =>
+        {
+            foreach (ushort id in new ushort[] { 0x0411, 0x0412, 0x0404, 0x0804 })
+            {
+                var config = new RoutingConfiguration(new InputProfile { LanguageId = id }, Config.Target);
+                var p = new RoutingPolicy(config);
+                var direct = State(ImeInputMode.Direct, layout: (IntPtr)id);
+                Equal(RoutingAction.SwitchToTarget, p.Evaluate(direct, 0));
+                p.Evaluate(State(ImeInputMode.Unknown, layout: Swiss), 100);
+                Equal(RoutingAction.RestoreNative, p.Evaluate(direct, 200));
+                Equal(RoutingAction.None, p.Evaluate(direct with { Mode = ImeInputMode.Native }, 300));
+            }
+        });
         Console.WriteLine($"{passed} regression scenarios passed.");
     }
 }

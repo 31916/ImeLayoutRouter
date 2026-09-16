@@ -10,6 +10,7 @@
     <Compile Include="../RoutingPolicy.cs" Link="RoutingPolicy.cs" />
     <Compile Include="../RoutingConfiguration.cs" Link="RoutingConfiguration.cs" />
     <Compile Include="../InputProfile.cs" Link="InputProfile.cs" />
+    <Compile Include="../ImeLanguage.cs" Link="ImeLanguage.cs" />
     <Compile Include="../FocusedInputProbe.cs" Link="FocusedInputProbe.cs" />
   </ItemGroup>
 </Project>
