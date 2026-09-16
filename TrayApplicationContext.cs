@@ -177,6 +177,7 @@ sealed class TrayApplicationContext :
     {
         StopMonitor();
         errorShown = false;
+        notifyIcon.Text = "IME Layout Router";
 
         monitorCancellation =
             new CancellationTokenSource();
@@ -215,7 +216,9 @@ sealed class TrayApplicationContext :
         {
         }
 
-        monitorCancellation.Dispose();
+        var cancelled = monitorCancellation;
+        if (monitorTask == null || monitorTask.IsCompleted) cancelled.Dispose();
+        else _ = monitorTask.ContinueWith(_ => cancelled.Dispose(), TaskScheduler.Default);
 
         monitorCancellation = null;
         monitorTask = null;
