@@ -130,6 +130,7 @@ static class Tests
             Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes("label:email;"));
             Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes("text-input-type:emailish;"));
             Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes(null));
+            Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes(@"placeholder:some\;text-input-type:email;"));
         });
         Test("All Chinese locales and Korean are selectable", () =>
         {
@@ -158,6 +159,18 @@ static class Tests
                 Equal(RoutingAction.RestoreNative, p.Evaluate(direct, 200));
                 Equal(RoutingAction.None, p.Evaluate(direct with { Mode = ImeInputMode.Native }, 300));
             }
+        });
+        Test("All enabled CJK mode routes each configured language", () =>
+        {
+            var sources = new[] { new InputProfile { LanguageId = 0x0411 },
+                new InputProfile { LanguageId = 0x0412 }, new InputProfile { LanguageId = 0x0804 } };
+            var config = new RoutingConfiguration(sources[0], Config.Target, sources);
+            Equal(true, config.RouteAllSupportedImes);
+            foreach (var source in sources)
+                Equal(RoutingAction.SwitchToTarget, new RoutingPolicy(config).Evaluate(
+                    State(ImeInputMode.Direct, layout: (IntPtr)source.LanguageId), 0));
+            Equal(false, config.IsSourceLayout((IntPtr)0x04090409));
+            Equal(false, Config.IsSourceLayout((IntPtr)0x04120412));
         });
         Console.WriteLine($"{passed} regression scenarios passed.");
     }

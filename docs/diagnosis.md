@@ -30,9 +30,12 @@ on a separate background thread and cached hints expire.
 
 ## Limits of the evidence
 
-Deterministic regression traces cover the decision paths and field metadata.
-Windows builds and live profile enumeration were checked on the investigation
-machine. Browser end-to-end and Chinese/Korean IME behavior require the manual
+19 deterministic regression scenarios cover decisions and field metadata.
+The Release build passes with warnings treated as errors. Three live Windows
+checks passed: native IMM state, actual direct-input routing to Swiss German,
+and password-field metadata detection. These use the new implementation in an
+isolated WinForms fixture; the installed v1 process was stopped during the run.
+Browser end-to-end and Chinese/Korean IME behavior require the manual
 matrix below; passing synthetic traces does not establish universal app or
 IME compatibility. InputScope-only custom controls that expose neither an
 effective IMM state nor supported accessibility metadata remain unsupported.

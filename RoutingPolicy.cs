@@ -31,8 +31,7 @@ sealed class RoutingPolicy
             restoreUntil = null;
         }
         previous = current;
-        bool sourceIsActive = (current.KeyboardLayout.ToInt64() & 0xFFFF)
-            == configuration.Source.LanguageId;
+        bool sourceIsActive = configuration.IsSourceLayout(current.KeyboardLayout);
         if (!sourceIsActive || (!current.RequiresDirectInput && current.Mode is ImeInputMode.Native or ImeInputMode.Other))
         {
             restoreUntil = null;
