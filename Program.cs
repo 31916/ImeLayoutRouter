@@ -123,6 +123,15 @@ class Program
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
 
+        using var settingsRequest = new System.Threading.EventWaitHandle(false,
+            System.Threading.EventResetMode.AutoReset, @"Local\ImeLayoutRouter.ShowSettings");
+        using var instance = new System.Threading.Mutex(true, @"Local\ImeLayoutRouter.Instance", out bool firstInstance);
+        if (!firstInstance)
+        {
+            settingsRequest.Set();
+            return;
+        }
+
         bool showSettingsOnStartup =
             args.Length > 0
             &&
@@ -130,7 +139,8 @@ class Program
 
         Application.Run(
             new TrayApplicationContext(
-                showSettingsOnStartup
+                showSettingsOnStartup,
+                settingsRequest
             )
         );
     }

@@ -1,0 +1,17 @@
+name: Build and regression tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet build -c Release --warnaserror
+      - run: dotnet run --project tests/RoutingTests.csproj -c Release
+      - run: dotnet build tests/WindowsSmoke/WindowsSmoke.csproj -c Release --warnaserror

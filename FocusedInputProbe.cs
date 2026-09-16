@@ -12,10 +12,17 @@ sealed class FocusedInputProbe : IDisposable
     private readonly Thread worker;
     private volatile bool stopping;
     private Observation? latest;
+    private long focusVersion;
+    private readonly WinEventCallback focusChanged;
     private sealed record Observation(IntPtr Foreground, IntPtr Focus, long At, FocusedFieldKind Kind, int ElementId);
 
     public FocusedInputProbe()
     {
+        focusChanged = (_, _, _, _, _, _, _) =>
+        {
+            Interlocked.Increment(ref focusVersion);
+            Volatile.Write(ref latest, null);
+        };
         worker = new Thread(Poll) { IsBackground = true, Name = "IME field metadata" };
         worker.SetApartmentState(ApartmentState.MTA);
         worker.Start();
@@ -32,19 +39,40 @@ sealed class FocusedInputProbe : IDisposable
 
     private void Poll()
     {
-        while (!stopping)
+        IntPtr hook = SetWinEventHook(0x8005, 0x8005, IntPtr.Zero, focusChanged, 0, 0, 0);
+        try
         {
-            IntPtr foreground = GetForegroundWindow();
-            uint thread = GetWindowThreadProcessId(foreground, IntPtr.Zero);
-            var gui = new GUIINFO { Size = Marshal.SizeOf<GUIINFO>() };
-            if (thread != 0 && GetGUIThreadInfo(thread, ref gui) && gui.Focus != IntPtr.Zero)
+            while (!stopping)
             {
-                var (kind, elementId) = Inspect(gui.Focus);
-                if (foreground == GetForegroundWindow() && !stopping)
-                    Volatile.Write(ref latest, new Observation(foreground, gui.Focus,
-                        Environment.TickCount64, kind, elementId));
+                PumpEvents();
+                long version = Interlocked.Read(ref focusVersion);
+                long started = Environment.TickCount64;
+                IntPtr foreground = GetForegroundWindow();
+                uint thread = GetWindowThreadProcessId(foreground, IntPtr.Zero);
+                var gui = new GUIINFO { Size = Marshal.SizeOf<GUIINFO>() };
+                if (thread != 0 && GetGUIThreadInfo(thread, ref gui) && gui.Focus != IntPtr.Zero)
+                {
+                    var (kind, elementId) = Inspect(gui.Focus);
+                    PumpEvents();
+                    var after = new GUIINFO { Size = Marshal.SizeOf<GUIINFO>() };
+                    if (version == Interlocked.Read(ref focusVersion) && foreground == GetForegroundWindow()
+                        && GetGUIThreadInfo(thread, ref after) && after.Focus == gui.Focus && !stopping)
+                        Volatile.Write(ref latest, new Observation(foreground, gui.Focus,
+                            started, kind, elementId));
+                }
+                else Volatile.Write(ref latest, null);
+                Thread.Sleep(100);
             }
-            Thread.Sleep(100);
+        }
+        finally { if (hook != IntPtr.Zero) UnhookWinEvent(hook); }
+    }
+
+    private static void PumpEvents()
+    {
+        while (PeekMessage(out var message, IntPtr.Zero, 0, 0, 1))
+        {
+            TranslateMessage(ref message);
+            DispatchMessage(ref message);
         }
     }
 
@@ -112,10 +140,10 @@ sealed class FocusedInputProbe : IDisposable
     internal static FocusedFieldKind ClassifyAttributes(string? attributes)
     {
         // Match complete attributes, never labels or user-entered values.
-        foreach (string attribute in (attributes ?? "").Split(';'))
+        foreach (string attribute in SplitAttributes(attributes ?? ""))
         {
             const string prefix = "text-input-type:";
-            if (!attribute.StartsWith(prefix, StringComparison.Ordinal)) continue;
+            if (attribute.Contains('\\') || !attribute.StartsWith(prefix, StringComparison.Ordinal)) continue;
             return attribute[prefix.Length..] switch
             {
                 "email" or "url" or "tel" or "number" or "password" => FocusedFieldKind.Direct,
@@ -124,6 +152,19 @@ sealed class FocusedInputProbe : IDisposable
             };
         }
         return FocusedFieldKind.Unknown;
+    }
+
+    private static System.Collections.Generic.IEnumerable<string> SplitAttributes(string text)
+    {
+        int start = 0;
+        bool escaped = false;
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (escaped) { escaped = false; continue; }
+            if (text[i] == '\\') { escaped = true; continue; }
+            if (text[i] == ';') { yield return text[start..i]; start = i + 1; }
+        }
+        yield return text[start..];
     }
 
     private static void Release(object? value)
@@ -155,5 +196,24 @@ sealed class FocusedInputProbe : IDisposable
         public uint Flags;
         public IntPtr Active, Focus, Capture, MenuOwner, MoveSize, Caret;
         public int Left, Top, Right, Bottom;
+    }
+    private delegate void WinEventCallback(IntPtr hook, uint eventId, IntPtr window,
+        int objectId, int childId, uint thread, uint time);
+    [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint min, uint max,
+        IntPtr module, WinEventCallback callback, uint process, uint thread, uint flags);
+    [DllImport("user32.dll")] private static extern bool UnhookWinEvent(IntPtr hook);
+    [DllImport("user32.dll")] private static extern bool PeekMessage(out MSG message, IntPtr window, uint min, uint max, uint remove);
+    [DllImport("user32.dll")] private static extern bool TranslateMessage(ref MSG message);
+    [DllImport("user32.dll")] private static extern IntPtr DispatchMessage(ref MSG message);
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MSG
+    {
+        public IntPtr Window;
+        public uint Message;
+        public UIntPtr WParam;
+        public IntPtr LParam;
+        public uint Time;
+        public int X, Y;
+        public uint Private;
     }
 }

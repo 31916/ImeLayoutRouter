@@ -14,9 +14,14 @@ sealed class TrayApplicationContext :
         monitorCancellation;
 
     private Task? monitorTask;
+    private readonly ToolStripMenuItem pauseItem;
+    private readonly System.Windows.Forms.Timer statusTimer;
+    private bool settingsVisible;
+    private bool errorShown;
 
     public TrayApplicationContext(
-        bool showSettingsOnStartup = false
+        bool showSettingsOnStartup = false,
+        EventWaitHandle? settingsRequest = null
     )
     {
         ContextMenuStrip menu =
@@ -27,6 +32,10 @@ sealed class TrayApplicationContext :
             null,
             (_, _) => ShowSettings()
         );
+
+        pauseItem = new ToolStripMenuItem("Pause routing") { CheckOnClick = true };
+        menu.Items.Add(pauseItem);
+        menu.Items.Add("Save diagnostic log (30 seconds)", null, async (_, _) => await SaveDiagnosticLog());
 
         menu.Items.Add(
             new ToolStripSeparator()
@@ -61,6 +70,26 @@ sealed class TrayApplicationContext :
 
         notifyIcon.DoubleClick +=
             (_, _) => ShowSettings();
+        pauseItem.CheckedChanged += (_, _) =>
+        {
+            if (pauseItem.Checked) StopMonitor();
+            else if (SettingsService.Load() is { } saved) StartMonitor(saved);
+            notifyIcon.Text = pauseItem.Checked ? "IME Layout Router - Paused" : "IME Layout Router";
+        };
+
+        statusTimer = new System.Windows.Forms.Timer { Interval = 500, Enabled = true };
+        statusTimer.Tick += (_, _) =>
+        {
+            if (settingsRequest?.WaitOne(0) == true) ShowSettings();
+            if (monitorTask?.IsFaulted == true && !errorShown)
+            {
+                errorShown = true;
+                notifyIcon.Text = "IME Layout Router - Stopped";
+                notifyIcon.ShowBalloonTip(8000, "IME Layout Router",
+                    "Routing stopped. Open Settings to restart. " + monitorTask.Exception?.GetBaseException().Message,
+                    ToolTipIcon.Error);
+            }
+        };
 
         RoutingConfiguration? configuration =
             SettingsService.Load();
@@ -83,6 +112,14 @@ sealed class TrayApplicationContext :
     }
 
     private void ShowSettings()
+    {
+        if (settingsVisible) return;
+        settingsVisible = true;
+        try { ShowSettingsCore(); }
+        finally { settingsVisible = false; }
+    }
+
+    private void ShowSettingsCore()
     {
         RoutingConfiguration? current =
             SettingsService.Load();
@@ -122,11 +159,14 @@ sealed class TrayApplicationContext :
             return;
         }
 
-        SettingsService.Save(
-            form.SelectedConfiguration
-        );
+        try { SettingsService.Save(form.SelectedConfiguration); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(ex.Message, "IME Layout Router", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
 
-        StartMonitor(
+        if (!pauseItem.Checked) StartMonitor(
             form.SelectedConfiguration
         );
     }
@@ -136,6 +176,7 @@ sealed class TrayApplicationContext :
     )
     {
         StopMonitor();
+        errorShown = false;
 
         monitorCancellation =
             new CancellationTokenSource();
@@ -182,6 +223,8 @@ sealed class TrayApplicationContext :
 
     protected override void ExitThreadCore()
     {
+        statusTimer.Stop();
+        statusTimer.Dispose();
         notifyIcon.Visible =
             false;
 
@@ -190,5 +233,31 @@ sealed class TrayApplicationContext :
         notifyIcon.Dispose();
 
         base.ExitThreadCore();
+    }
+
+    private async Task SaveDiagnosticLog()
+    {
+        var configuration = SettingsService.Load();
+        if (configuration == null) { ShowSettings(); return; }
+        using var dialog = new SaveFileDialog
+        {
+            Filter = "Log files (*.log)|*.log", FileName = "ImeLayoutRouter-diagnostic.log",
+            Title = "Save input-state diagnostic log (no typed text)"
+        };
+        if (dialog.ShowDialog() != DialogResult.OK) return;
+        try
+        {
+            await Task.Run(() =>
+            {
+                using var output = new StreamWriter(dialog.FileName);
+                RoutingMonitor.Diagnose(configuration, 30, output);
+            });
+            if (notifyIcon.Visible) notifyIcon.ShowBalloonTip(5000, "IME Layout Router",
+                "Diagnostic log saved.", ToolTipIcon.Info);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(ex.Message, "IME Layout Router", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 }

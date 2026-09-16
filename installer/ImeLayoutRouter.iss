@@ -1,7 +1,7 @@
 [Setup]
 AppId={{A3D58B85-8A19-4A94-8F29-0C3D1F8F1F21}
 AppName=IME Layout Router
-AppVersion=2.0.0-preview.1
+AppVersion=3.0.0-preview.1
 AppPublisher=31916
 DefaultDirName={localappdata}\Programs\IME Layout Router
 DefaultGroupName=IME Layout Router

@@ -10,7 +10,7 @@ static class ConsoleProfileSelector
         if (candidates.Sources.Count == 0)
         {
             Console.WriteLine(
-                "No selectable Japanese IME was found."
+                "No enabled Japanese, Chinese or Korean IME was found."
             );
 
             return null;

@@ -7,6 +7,7 @@
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="WindowsSmoke/**/*.cs" />
     <Compile Include="../RoutingPolicy.cs" Link="RoutingPolicy.cs" />
     <Compile Include="../RoutingConfiguration.cs" Link="RoutingConfiguration.cs" />
     <Compile Include="../InputProfile.cs" Link="InputProfile.cs" />

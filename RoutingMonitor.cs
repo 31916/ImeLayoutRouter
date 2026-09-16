@@ -34,11 +34,13 @@ static class RoutingMonitor
                 }
                 RoutingAction action = policy.Evaluate(current, Environment.TickCount64);
                 if (action != RoutingAction.None && !cancellationToken.IsCancellationRequested
-                    && IsStillFocused(current))
+                    && IsStillFocused(current)
+                    && (!current.RequiresDirectInput || fields.Read(current.Context)
+                        == (FocusedFieldKind.Direct, current.Context.ElementId)))
                 {
                     bool sent = action == RoutingAction.SwitchToTarget
                         ? SwitchToTarget(configuration.Target, current)
-                        : RestoreNative(current.Context.Focus, configuration.Source.LanguageId);
+                        : RestoreNative(current.Context.Focus, (ushort)(current.KeyboardLayout.ToInt64() & 0xFFFF));
                     Console.WriteLine($"[Request] {action}: {(sent ? "sent; awaiting observation" : "failed; will retry")}");
                     if (sent) pending = (current.Context, action);
                 }
@@ -93,7 +95,7 @@ static class RoutingMonitor
         IntPtr layout = GetKeyboardLayout(focusedThread);
         if (layout == IntPtr.Zero) return null;
         var mode = ImeInputMode.Unknown;
-        if ((layout.ToInt64() & 0xFFFF) == configuration.Source.LanguageId)
+        if (configuration.IsSourceLayout(layout))
         {
             IntPtr ime = ImmGetDefaultIMEWnd(info.hwndFocus);
             bool? open = ReadIme(ime, IMC_GETOPENSTATUS) is int value ? value != 0 : null;
