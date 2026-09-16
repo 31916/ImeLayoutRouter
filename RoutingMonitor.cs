@@ -10,11 +10,12 @@ static class RoutingMonitor
     public static void Run(RoutingConfiguration configuration, CancellationToken cancellationToken)
     {
         var policy = new RoutingPolicy(configuration);
+        using var fields = new FocusedInputProbe();
         InputSnapshot? previous = null;
         (InputContext Context, RoutingAction Action)? pending = null;
         while (!cancellationToken.IsCancellationRequested)
         {
-            InputSnapshot? observed = ReadSnapshot(configuration);
+            InputSnapshot? observed = ReadSnapshot(configuration, fields);
             if (observed is InputSnapshot current)
             {
                 if (current != previous) Console.WriteLine(Describe(current));
@@ -57,11 +58,12 @@ static class RoutingMonitor
     public static void Diagnose(RoutingConfiguration configuration, int seconds, TextWriter output)
     {
         long until = Environment.TickCount64 + seconds * 1000L;
+        using var fields = new FocusedInputProbe();
         InputSnapshot? previous = null;
         output.WriteLine($"Source: {configuration.Source.DisplayName}; Target: {configuration.Target.DisplayName}");
         while (Environment.TickCount64 < until)
         {
-            var current = ReadSnapshot(configuration);
+            var current = ReadSnapshot(configuration, fields);
             if (current != previous)
             {
                 output.WriteLine(current is InputSnapshot snapshot ? Describe(snapshot) : "[State] unavailable");
@@ -74,9 +76,9 @@ static class RoutingMonitor
 
     private static string Describe(InputSnapshot s) =>
         $"{DateTimeOffset.Now:O} hwnd=0x{s.Context.Foreground:X} focus=0x{s.Context.Focus:X} "
-        + $"thread={s.Context.ThreadId} hkl=0x{s.KeyboardLayout:X} mode={s.Mode}";
+        + $"thread={s.Context.ThreadId} element={s.Context.ElementId} hkl=0x{s.KeyboardLayout:X} mode={s.Mode} directField={s.RequiresDirectInput}";
 
-    internal static InputSnapshot? ReadSnapshot(RoutingConfiguration configuration)
+    internal static InputSnapshot? ReadSnapshot(RoutingConfiguration configuration, FocusedInputProbe? fields = null)
     {
         IntPtr foreground = GetForegroundWindow();
         if (foreground == IntPtr.Zero) return null;
@@ -98,7 +100,10 @@ static class RoutingMonitor
             int? conversion = open == true ? ReadIme(ime, IMC_GETCONVERSIONMODE) : null;
             mode = RoutingPolicy.Classify(open, conversion);
         }
-        var snapshot = new InputSnapshot(new InputContext(foreground, info.hwndFocus, focusedThread), layout, mode);
+        var context = new InputContext(foreground, info.hwndFocus, focusedThread);
+        var hint = fields?.Read(context) ?? (FocusedFieldKind.Unknown, 0);
+        context = context with { ElementId = hint.Item2 };
+        var snapshot = new InputSnapshot(context, layout, mode, hint.Item1 == FocusedFieldKind.Direct);
         return IsStillFocused(snapshot) ? snapshot : null;
     }
 
