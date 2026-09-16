@@ -104,6 +104,33 @@ static class Tests
             foreach (var mode in new[] { ImeInputMode.Native, ImeInputMode.Other, ImeInputMode.Unknown })
                 Equal(RoutingAction.None, new RoutingPolicy(Config).Evaluate(State(mode), 0));
         });
+        Test("Email InputScope overrides stale native IMM state", () =>
+        {
+            var p = new RoutingPolicy(Config);
+            p.Evaluate(State(ImeInputMode.Native), 0);
+            Equal(RoutingAction.SwitchToTarget, p.Evaluate(State(ImeInputMode.Native) with { RequiresDirectInput = true }, 100));
+        });
+        Test("Direct field never restores an IME after returning from target", () =>
+        {
+            var p = new RoutingPolicy(Config);
+            p.Evaluate(State(ImeInputMode.Unknown, layout: Swiss), 0);
+            Equal(RoutingAction.SwitchToTarget, p.Evaluate(State(ImeInputMode.Native) with { RequiresDirectInput = true }, 100));
+        });
+        Test("Browser element changes invalidate restoration intent", () =>
+        {
+            var p = new RoutingPolicy(Config);
+            p.Evaluate(State(ImeInputMode.Unknown, Editor with { ElementId = 1 }, Swiss), 0);
+            Equal(RoutingAction.SwitchToTarget, p.Evaluate(State(ImeInputMode.Direct, Editor with { ElementId = 2 }), 100));
+        });
+        Test("Only explicit semantic field metadata routes", () =>
+        {
+            foreach (var type in new[] { "email", "url", "tel", "number", "password" })
+                Equal(FocusedFieldKind.Direct, FocusedInputProbe.ClassifyAttributes($"tag:input;text-input-type:{type};"));
+            Equal(FocusedFieldKind.Text, FocusedInputProbe.ClassifyAttributes("text-input-type:text;"));
+            Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes("label:email;"));
+            Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes("text-input-type:emailish;"));
+            Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes(null));
+        });
         Console.WriteLine($"{passed} regression scenarios passed.");
     }
 }

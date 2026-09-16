@@ -3,8 +3,9 @@ using System;
 enum ImeInputMode { Unknown, Direct, Native, Other }
 enum RoutingAction { None, SwitchToTarget, RestoreNative }
 
-readonly record struct InputContext(IntPtr Foreground, IntPtr Focus, uint ThreadId);
-readonly record struct InputSnapshot(InputContext Context, IntPtr KeyboardLayout, ImeInputMode Mode);
+readonly record struct InputContext(IntPtr Foreground, IntPtr Focus, uint ThreadId, int ElementId = 0);
+readonly record struct InputSnapshot(InputContext Context, IntPtr KeyboardLayout, ImeInputMode Mode,
+    bool RequiresDirectInput = false);
 
 // Pure decisions: replayable without changing Windows input state.
 sealed class RoutingPolicy
@@ -32,11 +33,20 @@ sealed class RoutingPolicy
         previous = current;
         bool sourceIsActive = (current.KeyboardLayout.ToInt64() & 0xFFFF)
             == configuration.Source.LanguageId;
-        if (!sourceIsActive || current.Mode is ImeInputMode.Native or ImeInputMode.Other)
+        if (!sourceIsActive || (!current.RequiresDirectInput && current.Mode is ImeInputMode.Native or ImeInputMode.Other))
         {
             restoreUntil = null;
             nextRequestAt = 0;
             return RoutingAction.None;
+        }
+        // InputScope can force A inside the IME while IMM/TSF still reports native.
+        // A known email/URL/password field takes priority over restoration.
+        if (current.RequiresDirectInput)
+        {
+            restoreUntil = null;
+            if (now < nextRequestAt) return RoutingAction.None;
+            nextRequestAt = now + RetryMilliseconds;
+            return RoutingAction.SwitchToTarget;
         }
         // Changing apps/controls is not evidence of explicitly returning to the IME.
         if (returningFromTarget)
