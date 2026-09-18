@@ -20,15 +20,24 @@ static class Smoke
             IntPtr original = GetKeyboardLayout(0);
             using var cancellation = new CancellationTokenSource();
             Task? monitor = null;
+            form.Deactivate += (_, _) => cancellation.Cancel();
             try
             {
                 var candidates = TsfProfileEnumerator.GetSelectableProfiles();
-                var source = candidates.Sources.First(p => p.LanguageId == 0x0411);
-                var target = candidates.Targets.First();
+                var source = candidates.Sources.FirstOrDefault(p => p.LanguageId == 0x0411)
+                    ?? throw new Exception("Desktop test requires an enabled Japanese IME in this Windows user session.");
+                var target = candidates.Targets.FirstOrDefault()
+                    ?? throw new Exception("Desktop test requires an enabled non-CJK keyboard layout.");
                 var config = new RoutingConfiguration(source, target);
-                ActivateKeyboardLayout((IntPtr)0x04110411, 0);
-                normal.Focus();
+                // Shown can run before activation has finished. Verify the actual
+                // foreground control so another window cannot satisfy the baseline.
                 await Task.Delay(500);
+                form.Activate();
+                ActivateKeyboardLayout((IntPtr)0x04110411, 0);
+                form.ActiveControl = normal;
+                normal.Focus();
+                await Until(() => GetForegroundWindow() == form.Handle && normal.Focused,
+                    "normal test control owns foreground focus");
                 IntPtr context = ImmGetContext(normal.Handle);
                 if (context == IntPtr.Zero) throw new Exception("Normal field has no IMM context");
                 try
@@ -40,7 +49,9 @@ static class Smoke
                 await Task.Delay(500);
                 using var fields = new FocusedInputProbe();
                 var native = RoutingMonitor.ReadSnapshot(config);
-                if (native?.Mode != ImeInputMode.Native) throw new Exception($"Expected native baseline, got {native}");
+                if (native?.Mode != ImeInputMode.Native || native?.Context.Focus != normal.Handle)
+                    throw new Exception($"Expected native baseline in the test control, got {native}");
+                cancellation.Token.ThrowIfCancellationRequested();
                 Console.WriteLine("PASS live native IMM state");
                 monitor = Task.Run(() => RoutingMonitor.Run(config, cancellation.Token));
                 context = ImmGetContext(normal.Handle);
@@ -51,8 +62,10 @@ static class Smoke
                 cancellation.Cancel();
                 await monitor;
                 ActivateKeyboardLayout((IntPtr)0x04110411, 0);
+                form.ActiveControl = password;
                 password.Focus();
-                await Until(() => RoutingMonitor.ReadSnapshot(config, fields)?.RequiresDirectInput == true,
+                await Until(() => RoutingMonitor.ReadSnapshot(config, fields) is { RequiresDirectInput: true } snapshot
+                    && snapshot.Context.Focus == password.Handle,
                     "live password structural metadata");
                 Console.WriteLine("3 Windows integration checks passed.");
             }
@@ -78,6 +91,7 @@ static class Smoke
         throw new Exception("Timed out: " + name);
     }
     [DllImport("user32.dll")] static extern IntPtr GetKeyboardLayout(uint thread);
+    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern IntPtr ActivateKeyboardLayout(IntPtr layout, uint flags);
     [DllImport("imm32.dll")] static extern IntPtr ImmGetContext(IntPtr window);
     [DllImport("imm32.dll")] static extern bool ImmReleaseContext(IntPtr window, IntPtr context);
