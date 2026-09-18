@@ -36,6 +36,7 @@ static class SettingsService
         AppSettings settings =
             new AppSettings
             {
+                RouteAllSupportedImes = configuration.RouteAllSupportedImes,
                 Source =
                     new SourceProfileSettings
                     {
@@ -81,10 +82,10 @@ static class SettingsService
                 JsonOptions
             );
 
-        File.WriteAllText(
-            path,
-            json
-        );
+        // A crash during saving must not truncate a working configuration.
+        string temporary = path + ".tmp";
+        File.WriteAllText(temporary, json);
+        File.Move(temporary, path, true);
     }
 
     public static RoutingConfiguration? Load()
@@ -112,7 +113,8 @@ static class SettingsService
             if (
                 settings == null
                 ||
-                settings.Version != 1
+                settings.Version is not (1 or 2)
+                || settings.Source == null || settings.Target == null
             )
             {
                 return null;
@@ -144,6 +146,9 @@ static class SettingsService
                             == settings.Target.Hkl
                 );
 
+            if (source == null && settings.RouteAllSupportedImes)
+                source = candidates.Sources.FirstOrDefault();
+
             if (
                 source == null
                 ||
@@ -155,7 +160,8 @@ static class SettingsService
 
             return new RoutingConfiguration(
                 source,
-                target
+                target,
+                settings.RouteAllSupportedImes ? candidates.Sources : null
             );
         }
         catch (
@@ -167,6 +173,10 @@ static class SettingsService
         catch (
             IOException
         )
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
         {
             return null;
         }

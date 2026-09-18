@@ -6,6 +6,21 @@ class Program
     [STAThread]
     static void Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "--diagnose")
+        {
+            var configuration = SettingsService.Load();
+            if (configuration == null || args.Length != 3
+                || !int.TryParse(args[1], out int seconds) || seconds < 1 || seconds > 3600)
+            {
+                Console.Error.WriteLine("Save settings first. Usage: --diagnose <seconds 1..3600> <output-path>");
+                Environment.ExitCode = 1;
+                return;
+            }
+            using var output = new System.IO.StreamWriter(args[2]);
+            RoutingMonitor.Diagnose(configuration, seconds, output);
+            return;
+        }
+
         if (
             args.Length > 0
             && args[0] == "--list-profiles"
@@ -108,6 +123,15 @@ class Program
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
 
+        using var settingsRequest = new System.Threading.EventWaitHandle(false,
+            System.Threading.EventResetMode.AutoReset, @"Local\ImeLayoutRouter.ShowSettings");
+        using var instance = new System.Threading.Mutex(true, @"Local\ImeLayoutRouter.Instance", out bool firstInstance);
+        if (!firstInstance)
+        {
+            settingsRequest.Set();
+            return;
+        }
+
         bool showSettingsOnStartup =
             args.Length > 0
             &&
@@ -115,7 +139,8 @@ class Program
 
         Application.Run(
             new TrayApplicationContext(
-                showSettingsOnStartup
+                showSettingsOnStartup,
+                settingsRequest
             )
         );
     }

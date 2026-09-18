@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../InputProfile.cs" Link="InputProfile.cs" />
+    <Compile Include="../../RoutingConfiguration.cs" Link="RoutingConfiguration.cs" />
+    <Compile Include="../../RoutingPolicy.cs" Link="RoutingPolicy.cs" />
+    <Compile Include="../../RoutingMonitor.cs" Link="RoutingMonitor.cs" />
+    <Compile Include="../../FocusedInputProbe.cs" Link="FocusedInputProbe.cs" />
+    <Compile Include="../../ImeLanguage.cs" Link="ImeLanguage.cs" />
+    <Compile Include="../../TsfProfileEnumerator.cs" Link="TsfProfileEnumerator.cs" />
+  </ItemGroup>
+</Project>

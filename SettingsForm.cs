@@ -7,6 +7,7 @@ sealed class SettingsForm : Form
     private readonly ComboBox sourceComboBox;
     private readonly ComboBox targetComboBox;
     private readonly CheckBox startWithWindowsCheckBox;
+    private readonly CheckBox allImesCheckBox;
 
     public RoutingConfiguration? SelectedConfiguration
     {
@@ -27,8 +28,8 @@ sealed class SettingsForm : Form
 
         ClientSize =
             new System.Drawing.Size(
-                420,
-                220
+                560,
+                320
             );
 
         FormBorderStyle =
@@ -54,7 +55,7 @@ sealed class SettingsForm : Form
             {
                 Left = 20,
                 Top = 45,
-                Width = 380,
+                Width = 520,
                 DropDownStyle =
                     ComboBoxStyle.DropDownList
             };
@@ -73,7 +74,7 @@ sealed class SettingsForm : Form
             {
                 Left = 20,
                 Top = 105,
-                Width = 380,
+                Width = 520,
                 DropDownStyle =
                     ComboBoxStyle.DropDownList
             };
@@ -84,8 +85,8 @@ sealed class SettingsForm : Form
                 Text =
                     "Start IME Layout Router with Windows",
                 Left = 20,
-                Top = 145,
-                Width = 300,
+                Top = 225,
+                Width = 510,
                 Checked =
                     currentConfiguration == null
                         ? true
@@ -96,8 +97,8 @@ sealed class SettingsForm : Form
             new Button
             {
                 Text = "Save",
-                Left = 240,
-                Top = 180,
+                Left = 380,
+                Top = 275,
                 Width = 75
             };
 
@@ -105,12 +106,27 @@ sealed class SettingsForm : Form
             new Button
             {
                 Text = "Cancel",
-                Left = 325,
-                Top = 180,
+                Left = 465,
+                Top = 275,
                 Width = 75
             };
 
         Controls.Add(sourceLabel);
+        allImesCheckBox = new CheckBox
+        {
+            Text = "Route all enabled Japanese, Chinese and Korean IMEs",
+            Left = 20, Top = 145, Width = 520,
+            Checked = currentConfiguration?.RouteAllSupportedImes ?? false
+        };
+        var scopeLabel = new Label
+        {
+            Text = "Routing applies to all IMEs of the selected language.\nEnable additional IMEs in Windows before selecting them here.",
+            Left = 20, Top = 177, Width = 520, Height = 42
+        };
+        Controls.Add(allImesCheckBox);
+        Controls.Add(scopeLabel);
+        sourceComboBox.Enabled = !allImesCheckBox.Checked;
+        allImesCheckBox.CheckedChanged += (_, _) => sourceComboBox.Enabled = !allImesCheckBox.Checked;
         Controls.Add(sourceComboBox);
         Controls.Add(targetLabel);
         Controls.Add(targetComboBox);
@@ -183,6 +199,8 @@ sealed class SettingsForm : Form
         saveButton.Enabled =
             sources.Count > 0
             && targets.Count > 0;
+        if (!saveButton.Enabled)
+            scopeLabel.Text = "Enable a Japanese, Chinese or Korean IME and a target keyboard layout\nin Windows language settings, then reopen this dialog.";
 
         saveButton.Click +=
             (_, _) =>
@@ -201,7 +219,8 @@ sealed class SettingsForm : Form
                 SelectedConfiguration =
                     new RoutingConfiguration(
                         source,
-                        target
+                        target,
+                        allImesCheckBox.Checked ? sources : null
                     );
 
                 DialogResult =
