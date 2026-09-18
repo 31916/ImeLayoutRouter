@@ -9,6 +9,7 @@
 - Single-instance mutex; a second launch asks the first to open Settings.
 - Ignore stale accessibility hints, including focus events within one HWND.
 - Windows regression CI and manual package builds.
+- Require the desktop test to own foreground focus; cancel on deactivation.
 
 ## 2.0.0-preview.1
 

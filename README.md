@@ -9,7 +9,7 @@ available.
 A / Latin input  →  your target layout, e.g. Deutsch (Schweiz)
 ```
 
-**Current development version: 3.0.0-preview.1.**
+**Current preview version: 3.0.0-preview.1.**
 The previously published v1.0.0 does not include the email-field repair.
 Chinese/Korean support and the new field detector are preview features; see
 the [validation status and acceptance matrix](docs/diagnosis.md).
@@ -70,7 +70,7 @@ A monitor failure is reported through the tray rather than silently stopping.
 | 2.0.0-preview.1 | Japanese, Chinese (including regional variants) and Korean source selection; language-specific native restoration |
 | 3.0.0-preview.1 | Route all enabled CJK IMEs, explicit language-level routing, v1 settings migration and atomic saves, pause, diagnostics, single-instance control and build automation |
 
-This is a progression of implementations in the development branch, not a
+This is a progression of implementation milestones, not a
 claim that every version has been published as a stable release.
 
 ## Compatibility and limits

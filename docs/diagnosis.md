@@ -3,8 +3,8 @@
 ## Why email fields escape version 1
 
 The installed configuration on the investigation machine uses Google Japanese
-Input and Swiss German. The published v1.0.0 and the current main branch use
-the same routing monitor.
+Input and Swiss German. The published v1.0.0 and main at the start of the
+investigation used the same routing monitor. PR #9 merged the repair into main.
 
 1. **InputScope and IME state can disagree.** Mozc's design explicitly keeps
    TSF open/hiragana while its effective mode becomes direct input on entry to
@@ -39,6 +39,13 @@ Browser end-to-end and Chinese/Korean IME behavior require the manual
 matrix below; passing synthetic traces does not establish universal app or
 IME compatibility. InputScope-only custom controls that expose neither an
 effective IMM state nor supported accessibility metadata remain unsupported.
+
+Post-merge validation on 2026-09-19 passed the Release build and all 19
+regression scenarios. The desktop rerun could not acquire foreground focus
+on its test control, so that rerun is not a passing integration result.
+The fixture now requires the expected foreground control and cancels when
+its window loses activation. Run it in an interactive Windows session.
+This release remains a preview pending the full acceptance matrix.
 
 ## Acceptance matrix
 
