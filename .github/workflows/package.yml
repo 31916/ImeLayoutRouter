@@ -1,0 +1,29 @@
+name: Build preview packages
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet run --project tests/RoutingTests.csproj -c Release
+      - run: dotnet publish -c Release -r win-x64 --self-contained true --warnaserror
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer/ImeLayoutRouter.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Archive portable application
+        shell: pwsh
+        run: Compress-Archive -Path bin/Release/net8.0-windows/win-x64/publish/* -DestinationPath ImeLayoutRouter-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ImeLayoutRouter-preview-win-x64
+          path: |
+            ImeLayoutRouter-win-x64.zip
+            installer/output/ImeLayoutRouter-Setup.exe

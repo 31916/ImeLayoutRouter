@@ -344,8 +344,7 @@ static class TsfProfileEnumerator
                 profile.Type
                     == InputProfileType.InputProcessor
                 &&
-                profile.LanguageId
-                    == JAPANESE_LANGUAGE_ID
+                ImeLanguage.IsSupported(profile.LanguageId)
                 &&
                 profile.IsEnabled
             )
@@ -357,8 +356,7 @@ static class TsfProfileEnumerator
                 profile.Type
                     == InputProfileType.KeyboardLayout
                 &&
-                profile.LanguageId
-                    != JAPANESE_LANGUAGE_ID
+                !ImeLanguage.IsSupported(profile.LanguageId)
                 &&
                 profile.IsEnabled
             )
