@@ -5,13 +5,14 @@ const review = process.argv.includes('--review');
 const output = new URL(review ? '.site-review-dist/' : '.site-dist/', root);
 await mkdir(output, { recursive: true });
 // Explicit allowlist: draft controls and unpublished packages are not deployed.
-const files = ['index.html', 'en.html', 'style.css', '_headers'];
+const files = ['index.html', 'en.html', 'style.css', '_headers', 'app.ico'];
 if (review) files.push('preview.html', 'preview.css', 'preview.js');
 for (const existing of await readdir(output)) {
   if (!files.includes(existing)) throw new Error('Unexpected file in deployment output: ' + existing);
 }
 for (const name of files) {
-  await copyFile(new URL('site/' + name, root), new URL(name, output));
+  const source = name === 'app.ico' ? 'Assets/app.ico' : 'site/' + name;
+  await copyFile(new URL(source, root), new URL(name, output));
 }
 if (review) await appendFile(new URL('_headers', output), '  X-Robots-Tag: noindex, nofollow\n');
 console.log('Static site ready: ' + fileURLToPath(output));
