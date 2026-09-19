@@ -14,7 +14,14 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet run --project tests/RoutingTests.csproj -c Release -p:Edition=Full
+      - run: |
+          dotnet build tests/RoutingTests.csproj -c Release -p:Edition=Full --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet tests/bin/Full/Release/net8.0-windows/RoutingTests.dll
+      - run: |
+          dotnet build tests/UiSmoke/UiSmoke.csproj -c Release -p:Edition=${{ matrix.edition }} --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet tests/UiSmoke/bin/${{ matrix.edition }}/Release/net8.0-windows/UiSmoke.dll
       - run: dotnet publish -c Release -p:Edition=${{ matrix.edition }} -r win-x64 --self-contained true --warnaserror
       - name: Build installer
         shell: pwsh
