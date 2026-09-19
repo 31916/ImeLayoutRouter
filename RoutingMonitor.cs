@@ -18,6 +18,7 @@ static class RoutingMonitor
         var manual = new ManualRoutingState();
         InputSnapshot? previous = null;
         (InputContext Context, IntPtr Layout, bool Native, long At)? pending = null;
+        (InputContext Context, string Text, long Until)? notice = null;
         bool wasPaused = session.Paused;
         var waitHandles = new[] { cancellationToken.WaitHandle, session.Wake };
         while (!cancellationToken.IsCancellationRequested)
@@ -47,6 +48,7 @@ static class RoutingMonitor
                     else if (current.KeyboardLayout == request.Layout && (!request.Native || current.Mode == ImeInputMode.Native))
                     {
                         reason = UiText.T("切替完了を確認", "Switch confirmed");
+                        notice = (current.Context, reason, Environment.TickCount64 + 2000);
                         pending = null;
                     }
                     else reason = Environment.TickCount64 - request.At >= 1000
@@ -58,13 +60,18 @@ static class RoutingMonitor
                 while (session.TryTake(out var command))
                 {
                     // Never apply a queued shortcut to a different field/window.
-                    if (!ManualRoutingState.Matches(command, current) || !IsCurrent(current, fields)) continue;
+                    if (!ManualRoutingState.Matches(command, current) || !IsCurrent(current, fields))
+                    {
+                        notice = (current.Context, UiText.T("入力先が変わったため手動切替を取り消しました", "Manual switch cancelled because focus changed"), Environment.TickCount64 + 2000);
+                        continue;
+                    }
                     handledManual = true;
                     IntPtr layout = command.Action == ManualRoutingAction.Target ? configuration.Target.Hkl
                         : manual.RestoreLayout(current, configuration.Target.Hkl);
                     if (layout == IntPtr.Zero)
                     {
                         reason = UiText.T("このウィンドウには戻せる配列がありません", "No previous layout for this window");
+                        notice = (current.Context, reason, Environment.TickCount64 + 2000);
                         continue;
                     }
                     bool sent = !cancellationToken.IsCancellationRequested && SwitchLayout(layout, current);
@@ -76,7 +83,11 @@ static class RoutingMonitor
                         pending = (current.Context, layout, false, Environment.TickCount64);
                         reason = UiText.T("手動切替を要求・完了待ち", "Manual switch requested; awaiting confirmation");
                     }
-                    else reason = UiText.T("手動切替に失敗しました", "Manual switch request failed");
+                    else
+                    {
+                        reason = UiText.T("手動切替に失敗しました", "Manual switch request failed");
+                        notice = (current.Context, reason, Environment.TickCount64 + 2000);
+                    }
                     break;
                 }
 
@@ -108,6 +119,10 @@ static class RoutingMonitor
                         else reason = UiText.T("切替要求に失敗・再試行予定", "Switch request failed; will retry");
                     }
                 }
+                // Tray updates are slower than observations: keep completion and
+                // command errors visible instead of losing them on the next tick.
+                if (pending == null && notice is { } feedback && feedback.Context == current.Context
+                    && Environment.TickCount64 < feedback.Until) reason = feedback.Text;
                 session.Publish(new RoutingStatus(current, reason, paused));
                 previous = current;
             }
@@ -116,6 +131,7 @@ static class RoutingMonitor
                 policy = new RoutingPolicy(configuration);
                 previous = null;
                 pending = null;
+                notice = null;
                 manual.RetainOnlyWindow(GetForegroundWindow());
                 while (session.TryTake(out _)) { }
                 session.Publish(new RoutingStatus(null, UiText.T("対象の入力欄を待っています", "Waiting for an input field"), session.Paused));
