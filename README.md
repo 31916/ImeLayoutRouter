@@ -144,10 +144,11 @@ dotnet run --project tests/UiSmoke/UiSmoke.csproj -c Release
 dotnet publish -c Release -r win-x64 --self-contained true
 ```
 
-An optional desktop test opens its own empty controls, verifies native mode,
-routes a direct-input change, and checks password-field detection. Exit other
-router instances first; it changes its own UI thread's input layout and restores
-that layout on exit.
+An optional desktop test opens its own empty controls and checks native mode,
+direct-input routing, password metadata, exclusion, pause and manual restoration.
+Exit other router instances first. It requires foreground focus, cancels on
+deactivation, changes only its own window's layout, and restores that layout
+on exit. See the validation record for which live checks have actually passed.
 
 ```powershell
 dotnet run --project tests/WindowsSmoke/WindowsSmoke.csproj -c Release
