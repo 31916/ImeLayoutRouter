@@ -20,7 +20,7 @@ downloads may be published before the required real-machine checks pass.
 | Routing engine | Shared repaired implementation | Same repaired implementation |
 | Settings | Japanese UI, source/target and startup essentials | All enabled CJK routing and full controls |
 | Quality | Real Japanese/browser acceptance tests required | Full CJK/browser acceptance tests required |
-| Suggested first public version | 1.1.0, preserving old v1.0.0 | 2.0.0 after acceptance |
+| Suggested first public version | 1.1.0 after acceptance | 2.0.0 after acceptance |
 
 Keep common fixes in one source tree, with explicit build edition selection.
 Do not maintain diverging copies of the routing engine. Test edition restrictions,
@@ -53,6 +53,10 @@ numbers describe internal milestones; keep those historical commits intact.
 7. Upload reviewed packages, check SHA-256 and download links, then update the site
    from preparation status to available. V1 may ship first if V2 is still unverified.
 
+The [2026-09-20 acceptance record](acceptance-2026-09-20.md) tracks current evidence.
+The user declined adding input methods to this PC. Keep its input list unchanged;
+use another suitable test environment for the remaining IMEs. Do not weaken the gate.
+
 ## Hosting and presentation
 
 - Use the existing `31916.ch` GitHub Pages publication for the requested subdirectory.
@@ -60,9 +64,16 @@ numbers describe internal milestones; keep those historical commits intact.
 - Simple title, information, separate V1/V2 tables, usage, compatibility, history.
 - Selected palette: forest green on ivory (B). Japanese and English site pages.
 - No fabricated release dates, success metrics or working download links before assets exist.
-- Current packages exceed Pages' 25 MiB asset limit. Keep a dedicated website as the
-  user-facing download destination, with GitHub release assets as storage, or choose
-  R2 explicitly. R2 billing and public bucket setup are separate decisions.
+- Do not create GitHub Releases. The user retired and deleted the prototype release.
+- Publish validated installers directly under `IMELayOutRouter/downloads/` on the
+  existing GitHub Pages site. Check each file is below Git's 100 MiB limit and that
+  the complete published site stays below 1 GB. The previous note incorrectly
+  applied a 25 MiB upload limit to GitHub Pages; 25 MiB is the browser upload limit,
+  not a Pages asset limit. Use Git to publish and do not use LFS for download assets.
+  References: https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github
+  and https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits
+- An informational page may show the honest validation status before installers
+  are ready. Do not expose unvalidated packages, even under unlinked URLs.
 - Do not add a homepage navigation entry, purchase a domain, or enable a paid service.
 
 See [the feature roadmap](roadmap.md) for proposed priorities beyond these releases.

@@ -29,6 +29,24 @@ ArchitecturesInstallIn64BitMode=x64compatible
 SetupIconFile=..\Assets\app.ico
 UninstallDisplayIcon={app}\ImeLayoutRouter.exe
 
+[Languages]
+#if Edition == "Simple"
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+#else
+Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+#endif
+
+[CustomMessages]
+#if Edition != "Simple"
+english.DesktopShortcut=Create a desktop shortcut
+english.Shortcuts=Additional shortcuts:
+english.Launch=Launch IME Layout Router
+#endif
+japanese.DesktopShortcut=デスクトップにショートカットを作成する
+japanese.Shortcuts=追加のショートカット:
+japanese.Launch=IME Layout Router を起動する
+
 [Files]
 Source: "..\bin\{#Edition}\Release\net8.0-windows\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
@@ -37,7 +55,19 @@ Name: "{group}\IME Layout Router {#EditionName}"; Filename: "{app}\ImeLayoutRout
 Name: "{userdesktop}\IME Layout Router {#EditionName}"; Filename: "{app}\ImeLayoutRouter.exe"; Tasks: desktopicon
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:DesktopShortcut}"; GroupDescription: "{cm:Shortcuts}"; Flags: unchecked
 
 [Run]
-Filename: "{app}\ImeLayoutRouter.exe"; Parameters: "--first-run"; Description: "Launch IME Layout Router"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\ImeLayoutRouter.exe"; Parameters: "--first-run"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Command: String;
+begin
+  if CurUninstallStep = usUninstall then
+    if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run',
+      'ImeLayoutRouter', Command) then
+      if CompareText(Command, '"' + ExpandConstant('{app}\ImeLayoutRouter.exe') + '"') = 0 then
+        RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'ImeLayoutRouter');
+end;

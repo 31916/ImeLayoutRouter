@@ -30,6 +30,9 @@ on a separate background thread and cached hints expire.
 
 ## Limits of the evidence
 
+The current status is recorded in [the 2026-09-20 acceptance record](acceptance-2026-09-20.md).
+The chronological notes below describe earlier checks and do not supersede that record.
+
 19 deterministic regression scenarios cover decisions and field metadata.
 The Release build passes with warnings treated as errors. Three live Windows
 checks passed: native IMM state, actual direct-input routing to Swiss German,
