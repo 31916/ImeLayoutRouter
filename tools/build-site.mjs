@@ -13,5 +13,5 @@ for (const existing of await readdir(output)) {
 for (const name of files) {
   await copyFile(new URL('site/' + name, root), new URL(name, output));
 }
-if (review) await appendFile(new URL('_headers', output), '\n/*\n  X-Robots-Tag: noindex, nofollow\n');
+if (review) await appendFile(new URL('_headers', output), '  X-Robots-Tag: noindex, nofollow\n');
 console.log('Static site ready: ' + fileURLToPath(output));
