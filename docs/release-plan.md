@@ -5,7 +5,14 @@ GitHub release has been published. Do not publish that prepared package under a
 new V1/V2 filename: the edition behavior, assembly version and installer metadata
 must first agree with the release.
 
-## Intended editions (scope awaiting confirmation)
+## Confirmed editions and branches
+
+`V2` is the GitHub default branch (full edition); `V1` is the Japanese simple
+edition branch. Both keep the common engine and edition build selection. The
+default `Edition` in `Directory.Build.props` is `Full` on V2 and `Simple` on V1.
+Preserve this intentional difference when transferring shared fixes.
+Branch publication is not release approval. Neither stable nor release-candidate
+downloads may be published before the required real-machine checks pass.
 
 | | V1 Japanese simple edition | V2 full edition |
 | --- | --- | --- |
@@ -27,8 +34,8 @@ numbers describe internal milestones; keep those historical commits intact.
 
 ## Release gates
 
-1. Confirm edition scope. The user selected palette B (forest green on ivory)
-   and requested an English website. Build both pages on Cloudflare.
+1. Use the confirmed edition scope, palette B (forest green on ivory), and Japanese
+   and English download pages at `31916.ch/IMELayOutRouter/`. Do not add a portfolio link.
 2. Implement the Japanese simple build and full build with consistent versions.
 3. Run automated regression tests on both builds and verify packaged assets.
 4. In an interactive Windows session, validate actual text composition, target
@@ -38,22 +45,24 @@ numbers describe internal milestones; keep those historical commits intact.
 5. Verify settings migration, startup, single instance, pause, diagnostics, install,
    upgrade and uninstall. Do not disable Windows application-control protections.
 6. Mark unsupported configurations explicitly. No synthetic test is evidence that
-   all applications or all IMEs work. Current desktop test cannot acquire foreground
-   focus in the agent environment; this is unresolved, not a passing result.
+   all applications or all IMEs work. On 2026-09-20 both edition fixtures passed
+   Japanese native/direct routing, explicit native restoration and password metadata.
+   V2 also passed live exclusion, pause/resume and manual switching/restoration.
+   Browser URL detection blocked the subsequent browser automation. Browser typing,
+   Chinese/Korean IMEs, installer lifecycle and the remaining matrix are still unverified.
 7. Upload reviewed packages, check SHA-256 and download links, then update the site
    from preparation status to available. V1 may ship first if V2 is still unverified.
 
 ## Hosting and presentation
 
-- Cloudflare Pages for static HTML/CSS; no framework or account required to download.
+- Use the existing `31916.ch` GitHub Pages publication for the requested subdirectory.
+  The Cloudflare design preview is separate. No framework or account is needed to download.
 - Simple title, information, separate V1/V2 tables, usage, compatibility, history.
 - Selected palette: forest green on ivory (B). Japanese and English site pages.
 - No fabricated release dates, success metrics or working download links before assets exist.
 - Current packages exceed Pages' 25 MiB asset limit. Keep a dedicated website as the
   user-facing download destination, with GitHub release assets as storage, or choose
   R2 explicitly. R2 billing and public bucket setup are separate decisions.
-- Use existing Cloudflare credentials only through the supported CLI; never commit
-  credentials. Domain choice remains open. Do not purchase a domain or enable a
-  paid service without explicit authorization.
+- Do not add a homepage navigation entry, purchase a domain, or enable a paid service.
 
 See [the feature roadmap](roadmap.md) for proposed priorities beyond these releases.

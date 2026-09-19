@@ -9,9 +9,22 @@ available.
 A / Latin input  →  your target layout, e.g. Deutsch (Schweiz)
 ```
 
-**Internal development build: 3.0.0-preview.1.**
-The next public releases are being reorganized as a Japanese simple V1 and a
-fully validated V2, with a dedicated Cloudflare distribution website. See the
+## Branches / ブランチ
+
+| Branch | Role | Default build |
+| --- | --- | --- |
+| [V1](https://github.com/31916/ImeLayoutRouter/tree/V1) | 日本語簡易版 / Japanese essentials | `Simple` |
+| [V2](https://github.com/31916/ImeLayoutRouter/tree/V2) | メイン・多機能版 / Main development branch | `Full` |
+
+V1 includes the repaired routing engine, Japanese-only setup, source/target
+selection and startup. V2 adds CJK selection, Japanese/English UI, application
+rules, status, shortcuts and guided setup. Fixes are shared; V1 excludes the
+advanced UI and runtime modules at build time. `dotnet build -c Release` uses
+the branch's default. Override with `-p:Edition=Simple` or `-p:Edition=Full`.
+
+**Both branches are unreleased development code.** No new public release or
+download may be published before its desktop acceptance tests pass. The intended
+download page is `31916.ch/IMELayOutRouter/`, without a portfolio entry link. See the
 [release plan](docs/release-plan.md) and [website preview instructions](site/README.md).
 The internal v3 package is not being published under this new plan.
 The previously published v1.0.0 does not include the email-field repair.
@@ -30,8 +43,8 @@ The self-contained Windows x64 package does not require a separate .NET install.
 2. Start the new application and open **Settings**.
 3. Select a **Source IME** and **Target Keyboard Layout**.
 4. Optionally enable **Route all enabled Japanese, Chinese and Korean IMEs**.
-5. Save. Existing v1 settings are read automatically; saving upgrades the
-   settings format, so keep a backup if you plan to downgrade.
+5. Save. Legacy `settings.json` can be imported. New saves use `settings-v1.json`
+   or `settings-v2.json` and preserve the original file. Only one edition runs at a time.
 
 Enable **Start IME Layout Router with Windows** to start at sign-in.
 A portable application's folder must stay in place when startup is enabled.
@@ -54,7 +67,7 @@ In a normal field, returning from the target layout to an IME requests native
 input. Japanese restores hiragana; Chinese/Korean retain their width preferences.
 Full-width Latin is preserved in ordinary fields.
 
-## Tray controls
+## V2 tray controls
 
 - **Settings** — select the input language(s) and target layout.
 - **Pause routing** — suspend/resume automatic changes.
@@ -65,7 +78,7 @@ Full-width Latin is preserved in ordinary fields.
   intentionally read or logged.
 - **Exit** — stop the application.
 
-A second v3 launch opens the existing instance's settings.
+A second launch opens the existing instance's settings, including across editions.
 A monitor failure is reported through the tray rather than silently stopping.
 
 ## Priority features (development build, not yet released)

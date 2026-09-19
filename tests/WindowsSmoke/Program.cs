@@ -6,17 +6,21 @@ using System.Windows.Forms;
 static class Smoke
 {
     [STAThread]
-    static void Main()
+    static void Main(string[] args)
     {
+        if (args.Length == 2 && args[0] == "--browser") { BrowserProbe.Run(args); return; }
         Application.EnableVisualStyles();
-        using var form = new Form { Text = "IME Layout Router integration test", Width = 660, Height = 240 };
+        using var form = new Form { Text = "IME Layout Router integration test", Width = 660, Height = 290 };
         var normal = new TextBox { Left = 20, Top = 50, Width = 580, ImeMode = ImeMode.NoControl };
         var password = new TextBox { Left = 20, Top = 110, Width = 580, UseSystemPasswordChar = true };
         form.Controls.Add(new Label { Text = "Testing empty normal and password fields; closes automatically.", Left = 20, Top = 15, Width = 600 });
         form.Controls.Add(normal);
         form.Controls.Add(password);
-        form.Shown += async (_, _) =>
+        var start = new Button { Text = "Start desktop checks", Left = 20, Top = 160, Width = 240 };
+        form.Controls.Add(start);
+        start.Click += async (_, _) =>
         {
+            start.Enabled = false;
             IntPtr original = GetKeyboardLayout(0);
             using var cancellation = new CancellationTokenSource();
             using var lifetime = new CancellationTokenSource();
@@ -61,6 +65,11 @@ static class Smoke
                 finally { ImmReleaseContext(normal.Handle, context); }
                 await Until(() => GetKeyboardLayout(0) == target.Hkl, "native -> direct -> target layout");
 
+                await Task.Delay(200, lifetime.Token);
+                ActivateKeyboardLayout((IntPtr)0x04110411, 0);
+                await Until(() => RoutingMonitor.ReadSnapshot(config) is { Mode: ImeInputMode.Native } s
+                    && s.Context.Focus == normal.Handle, "explicit return to IME restores native input");
+
                 cancellation.Cancel();
                 await monitor;
                 ActivateKeyboardLayout((IntPtr)0x04110411, 0);
@@ -70,6 +79,7 @@ static class Smoke
                     && snapshot.Context.Focus == password.Handle,
                     "live password structural metadata");
 
+#if !SIMPLE_EDITION
                 form.ActiveControl = normal;
                 normal.Focus();
                 ActivateKeyboardLayout((IntPtr)0x04110411, 0);
@@ -136,7 +146,8 @@ static class Smoke
                     }
                     finally { controlStop.Cancel(); await monitor; }
                 }
-                Console.WriteLine("Windows integration checks passed (baseline routing, exclusion, pause and manual restoration).");
+#endif
+                Console.WriteLine("Windows integration checks passed for " + EditionPolicy.Label);
             }
             catch (Exception ex) { Console.Error.WriteLine(ex); Environment.ExitCode = 1; }
             finally

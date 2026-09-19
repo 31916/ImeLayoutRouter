@@ -344,7 +344,7 @@ static class TsfProfileEnumerator
                 profile.Type
                     == InputProfileType.InputProcessor
                 &&
-                ImeLanguage.IsSupported(profile.LanguageId)
+                EditionPolicy.SupportsSource(profile.LanguageId)
                 &&
                 profile.IsEnabled
             )

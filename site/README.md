@@ -13,7 +13,9 @@ The production pages need no JavaScript, external fonts, analytics or framework.
 Build with `npm run site:build`. Cloudflare Pages output directory: `.site-dist`.
 Build the palette comparison with `npm run site:build -- --review`; its separate
 `.site-review-dist` output adds noindex headers and is deployed to a preview branch.
-Use `main` as production branch only after the site and release plan are approved.
+The application repository's default branch is `V2`. The requested public download
+page belongs under `31916.ch/IMELayOutRouter/` in the existing portfolio repository;
+do not add a homepage link. Do not publish downloads before desktop acceptance passes.
 The site's text honestly marks both new editions as unavailable; it does not
 link to nonexistent downloads or present the old v1 test build as the new V1.
 

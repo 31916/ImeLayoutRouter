@@ -5,7 +5,7 @@ static class SettingsService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     public static string GetSettingsPath() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ImeLayoutRouter", "settings.json");
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ImeLayoutRouter", EditionPolicy.SettingsFile);
 
     internal static AppSettings ToSettings(RoutingConfiguration configuration) => new()
     {
@@ -32,9 +32,13 @@ static class SettingsService
     {
         try
         {
-            if (!File.Exists(GetSettingsPath())) return null;
+            string path = GetSettingsPath();
+            // Separate edition files prevent V1 from overwriting advanced V2 choices.
+            // Only the old shared settings are imported, and never overwritten.
+            if (!File.Exists(path)) path = Path.Combine(Path.GetDirectoryName(path)!, "settings.json");
+            if (!File.Exists(path)) return null;
             var candidates = TsfProfileEnumerator.GetSelectableProfiles();
-            return FromJson(File.ReadAllText(GetSettingsPath()), candidates.Sources, candidates.Targets);
+            return FromJson(File.ReadAllText(path), candidates.Sources, candidates.Targets);
         }
         catch (IOException) { return null; }
         catch (UnauthorizedAccessException) { return null; }
@@ -49,11 +53,11 @@ static class SettingsService
         if (settings == null || settings.Version is not (1 or 2 or 3)
             || settings.Source == null || settings.Target == null || settings.Preferences == null
             || !settings.Preferences.IsValid()) return null;
-        InputProfile? source = sources.FirstOrDefault(p => p.LanguageId == settings.Source.LanguageId
+        InputProfile? source = sources.FirstOrDefault(p => EditionPolicy.SupportsSource(p.LanguageId) && p.LanguageId == settings.Source.LanguageId
             && p.Clsid == settings.Source.Clsid && p.ProfileGuid == settings.Source.ProfileGuid);
         InputProfile? target = targets.FirstOrDefault(p => p.LanguageId == settings.Target.LanguageId
             && p.Hkl.ToInt64() == settings.Target.Hkl);
-        if (source == null && settings.RouteAllSupportedImes) source = sources.FirstOrDefault();
+        if (source == null && settings.RouteAllSupportedImes) source = sources.FirstOrDefault(p => EditionPolicy.SupportsSource(p.LanguageId));
         if (source == null || target == null) return null;
         return new RoutingConfiguration(source, target, settings.RouteAllSupportedImes ? sources : null, settings.Preferences);
     }
