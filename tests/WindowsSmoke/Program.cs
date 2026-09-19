@@ -10,6 +10,7 @@ static class Smoke
     {
         if (args.Length == 2 && args[0] == "--browser") { BrowserProbe.Run(args); return; }
         Application.EnableVisualStyles();
+        if (args.Length == 1 && args[0] == "--composition") { CompositionProbe.Run(); return; }
         using var form = new Form { Text = "IME Layout Router integration test", Width = 660, Height = 290 };
         var normal = new TextBox { Left = 20, Top = 50, Width = 580, ImeMode = ImeMode.NoControl };
         var password = new TextBox { Left = 20, Top = 110, Width = 580, UseSystemPasswordChar = true };
