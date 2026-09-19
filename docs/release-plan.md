@@ -53,6 +53,10 @@ numbers describe internal milestones; keep those historical commits intact.
 7. Upload reviewed packages, check SHA-256 and download links, then update the site
    from preparation status to available. V1 may ship first if V2 is still unverified.
 
+The [2026-09-20 acceptance record](acceptance-2026-09-20.md) tracks current evidence.
+The user declined adding input methods to this PC. Keep its input list unchanged;
+use another suitable test environment for the remaining IMEs. Do not weaken the gate.
+
 ## Hosting and presentation
 
 - Use the existing `31916.ch` GitHub Pages publication for the requested subdirectory.
