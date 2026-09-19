@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../*.cs" Exclude="../../Program.cs" />
+    <Content Include="../../Assets/app.ico" Link="Assets/app.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup Condition="'$(Edition)' == 'Simple'">
     <Compile Remove="../../SettingsForm.cs;../../TrayApplicationContext.cs;../../GlobalHotkeys.cs;../../ForegroundApplication.cs;../../RoutingSession.cs;../../ConsoleProfileSelector.cs" />
