@@ -6,6 +6,12 @@
 # dotenv files
 .env
 
+# Static website output and Cloudflare local state
+.site-dist/
+.site-review-dist/
+.wrangler/
+node_modules/
+
 # User-specific files
 *.rsuser
 *.suo

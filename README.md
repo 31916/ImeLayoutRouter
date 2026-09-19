@@ -9,7 +9,11 @@ available.
 A / Latin input  →  your target layout, e.g. Deutsch (Schweiz)
 ```
 
-**Current preview version: 3.0.0-preview.1.**
+**Internal development build: 3.0.0-preview.1.**
+The next public releases are being reorganized as a Japanese simple V1 and a
+fully validated V2, with a dedicated Cloudflare distribution website. See the
+[release plan](docs/release-plan.md) and [website preview instructions](site/README.md).
+The internal v3 package is not being published under this new plan.
 The previously published v1.0.0 does not include the email-field repair.
 Chinese/Korean support and the new field detector are preview features; see
 the [validation status and acceptance matrix](docs/diagnosis.md).
