@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Edition Condition="'$(Edition)' == ''">Full</Edition>
+    <Edition Condition="'$(Edition)' == ''">Simple</Edition>
     <BaseIntermediateOutputPath>obj\$(Edition)\</BaseIntermediateOutputPath>
     <BaseOutputPath>bin\$(Edition)\</BaseOutputPath>
     <DefaultItemExcludes>$(DefaultItemExcludes);**/obj/**;**/bin/**;artifacts/**</DefaultItemExcludes>
