@@ -14,6 +14,7 @@ jobs:
           dotnet-version: '8.0.x'
       - run: dotnet build -c Release --warnaserror
       - run: dotnet run --project tests/RoutingTests.csproj -c Release
+      - run: dotnet run --project tests/UiSmoke/UiSmoke.csproj -c Release
       - run: dotnet build tests/WindowsSmoke/WindowsSmoke.csproj -c Release --warnaserror
       - run: dotnet publish -c Release -r win-x64 --self-contained true --warnaserror
       - name: Package installer and portable preview

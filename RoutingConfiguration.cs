@@ -8,16 +8,19 @@ sealed class RoutingConfiguration
     public InputProfile Source { get; init; }
 
     public InputProfile Target { get; init; }
+    public RoutingPreferences Preferences { get; }
 
     public RoutingConfiguration(
         InputProfile source,
         InputProfile target,
-        System.Collections.Generic.IEnumerable<InputProfile>? allSources = null
+        System.Collections.Generic.IEnumerable<InputProfile>? allSources = null,
+        RoutingPreferences? preferences = null
     )
     {
         Source = source;
         Target = target;
         RouteAllSupportedImes = allSources != null;
         Sources = (allSources ?? new[] { source }).ToArray();
+        Preferences = preferences ?? new RoutingPreferences();
     }
 }

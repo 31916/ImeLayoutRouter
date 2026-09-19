@@ -172,6 +172,128 @@ static class Tests
             Equal(false, config.IsSourceLayout((IntPtr)0x04090409));
             Equal(false, Config.IsSourceLayout((IntPtr)0x04120412));
         });
+        Test("Focus event within one HWND invalidates restoration intent", () =>
+        {
+            var policy = new RoutingPolicy(Config);
+            policy.Evaluate(State(ImeInputMode.Unknown, Editor with { FocusVersion = 1 }, Swiss), 0);
+            Equal(RoutingAction.SwitchToTarget, policy.Evaluate(State(ImeInputMode.Direct,
+                Editor with { FocusVersion = 2 }), 1));
+        });
+        Test("Fast observations do not flood asynchronous requests", () =>
+        {
+            var policy = new RoutingPolicy(Config);
+            Equal(RoutingAction.SwitchToTarget, policy.Evaluate(State(ImeInputMode.Direct), 0));
+            for (int ms = 1; ms < 500; ms++) Equal(RoutingAction.None, policy.Evaluate(State(ImeInputMode.Direct), ms));
+            Equal(RoutingAction.SwitchToTarget, policy.Evaluate(State(ImeInputMode.Direct), 500));
+        });
+        Test("Exclusions match exact executable paths, ignoring case", () =>
+        {
+            var preferences = new RoutingPreferences { ApplicationRules = [new(@"C:\Games\game.exe", ApplicationRoutingMode.Disabled)] };
+            Equal(true, preferences.IsValid());
+            Equal(ApplicationRoutingMode.Disabled, preferences.Resolve(@"c:\games\GAME.EXE"));
+            Equal(ApplicationRoutingMode.Automatic, preferences.Resolve(@"D:\Other\game.exe"));
+            Equal(ApplicationRoutingMode.Disabled, preferences.Resolve(null));
+        });
+        Test("Allowlist and unknown-process behavior are explicit", () =>
+        {
+            var preferences = new RoutingPreferences { DefaultMode = ApplicationRoutingMode.Disabled,
+                ApplicationRules = [new(@"C:\Tools\editor.exe", ApplicationRoutingMode.Automatic)] };
+            Equal(ApplicationRoutingMode.Automatic, preferences.Resolve(@"C:\Tools\editor.exe"));
+            Equal(ApplicationRoutingMode.Disabled, preferences.Resolve(@"C:\Other\editor.exe"));
+            Equal(ApplicationRoutingMode.Disabled, preferences.Resolve(null));
+            Equal(ApplicationRoutingMode.Automatic, new RoutingPreferences().Resolve(null));
+        });
+        Test("Invalid and ambiguous preferences are rejected", () =>
+        {
+            foreach (var path in new[] { "game.exe", @"C:game.exe", @"C:\Games\..\game.exe", @"C:\Games\*.exe", "" })
+                Equal(false, new RoutingPreferences { ApplicationRules = [new(path, ApplicationRoutingMode.Disabled)] }.IsValid());
+            Equal(false, new RoutingPreferences { ApplicationRules = [new(@"C:\a.exe", ApplicationRoutingMode.Automatic), new(@"c:\A.exe", ApplicationRoutingMode.Disabled)] }.IsValid());
+            Equal(false, new RoutingPreferences { PauseKey = 0x7B }.IsValid()); // Windows reserves F12
+            Equal(false, new RoutingPreferences { PauseKey = 0x78 }.IsValid());
+            Equal(false, new RoutingPreferences { DefaultMode = (ApplicationRoutingMode)99 }.IsValid());
+        });
+        Test("Manual restore uses only the current window's observed layout", () =>
+        {
+            var manual = new ManualRoutingState();
+            var source = State(ImeInputMode.Direct);
+            manual.Remember(source, Swiss);
+            manual.Hold();
+            var target = source with { KeyboardLayout = Swiss };
+            Equal(Japanese, manual.RestoreLayout(target, Swiss));
+            Equal(true, manual.Holding);
+            // A second target shortcut must not replace the checkpoint with target.
+            manual.Remember(target, Swiss);
+            Equal(Japanese, manual.RestoreLayout(target, Swiss));
+            manual.RetainOnlyWindow(Editor.Foreground); // A transient read failure must not discard the checkpoint.
+            Equal(Japanese, manual.RestoreLayout(target, Swiss));
+            manual.RetainOnlyWindow(Email.Foreground);
+            Equal(false, manual.Holding);
+            Equal(IntPtr.Zero, manual.RestoreLayout(State(ImeInputMode.Unknown, Email, Swiss), Swiss));
+            Equal(false, manual.Holding);
+        });
+        Test("Manual choice persists across fields in one window and can resume", () =>
+        {
+            var manual = new ManualRoutingState();
+            manual.Observe(State(ImeInputMode.Native));
+            manual.Hold();
+            manual.Observe(State(ImeInputMode.Direct, OtherField));
+            Equal(true, manual.Holding);
+            manual.Resume();
+            Equal(false, manual.Holding);
+        });
+        Test("Queued manual switch cannot affect a new focus or layout", () =>
+        {
+            var initial = State(ImeInputMode.Native, Editor with { FocusVersion = 3 });
+            var request = new ManualRoutingRequest(ManualRoutingAction.Target, initial);
+            Equal(true, ManualRoutingState.Matches(request, initial));
+            Equal(false, ManualRoutingState.Matches(request, initial with { Context = Email }));
+            Equal(false, ManualRoutingState.Matches(request, initial with { Context = initial.Context with { FocusVersion = 4 } }));
+            Equal(false, ManualRoutingState.Matches(request, initial with { KeyboardLayout = Swiss }));
+        });
+        Test("Old settings retain routing without enabling shortcuts", () =>
+        {
+            foreach (int version in new[] { 1, 2 })
+            {
+                string json = System.Text.Json.JsonSerializer.Serialize(new { Version = version,
+                    Source = new { LanguageId = Config.Source.LanguageId, Config.Source.Clsid, Config.Source.ProfileGuid },
+                    Target = new { LanguageId = Config.Target.LanguageId, Hkl = Swiss.ToInt64() } });
+                var restored = SettingsService.FromJson(json, [Config.Source], [Config.Target])!;
+                Equal(false, restored.Preferences.HotkeysEnabled);
+                Equal(ApplicationRoutingMode.Automatic, restored.Preferences.DefaultMode);
+                Equal(0, restored.Preferences.ApplicationRules.Length);
+                Equal(Swiss, restored.Target.Hkl);
+            }
+        });
+        Test("New preferences survive serialization and unavailable profiles fail closed", () =>
+        {
+            var configuration = new RoutingConfiguration(Config.Source, Config.Target, preferences: new RoutingPreferences {
+                HotkeysEnabled = true, PauseKey = 0x75, DefaultMode = ApplicationRoutingMode.Disabled,
+                ApplicationRules = [new(@"C:\Apps\editor.exe", ApplicationRoutingMode.Automatic)] });
+            string json = System.Text.Json.JsonSerializer.Serialize(SettingsService.ToSettings(configuration));
+            var restored = SettingsService.FromJson(json, [Config.Source], [Config.Target])!;
+            Equal(true, restored.Preferences.HotkeysEnabled);
+            Equal(0x75, restored.Preferences.PauseKey);
+            Equal(ApplicationRoutingMode.Automatic, restored.Preferences.Resolve(@"C:\Apps\editor.exe"));
+            Equal(ApplicationRoutingMode.Disabled, restored.Preferences.Resolve(@"C:\Games\game.exe"));
+            Equal(null, SettingsService.FromJson(json, [], [Config.Target]));
+            Equal(null, SettingsService.FromJson(json, [Config.Source], []));
+            Equal(null, SettingsService.FromJson(json.Replace("\"Version\":3", "\"Version\":99"), [Config.Source], [Config.Target]));
+            Equal(null, SettingsService.FromJson(json.Replace("\"ApplicationRules\":[", "\"ApplicationRules\":[null,"), [Config.Source], [Config.Target]));
+            Equal(null, SettingsService.FromJson("{broken", [Config.Source], [Config.Target]));
+        });
+        Test("UI commands wake monitoring without waiting for the fallback", () =>
+        {
+            using var session = new RoutingSession();
+            session.SetPaused(true);
+            Equal(true, session.Paused);
+            Equal(true, session.Wake.WaitOne(0));
+            var command = new ManualRoutingRequest(ManualRoutingAction.Target, State(ImeInputMode.Native));
+            session.Request(command);
+            Equal(true, session.Wake.WaitOne(0));
+            Equal(true, session.TryTake(out var received));
+            Equal(command, received);
+            Equal(false, session.TryTake(out _));
+        });
         Console.WriteLine($"{passed} regression scenarios passed.");
     }
 }

@@ -8,10 +8,17 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="WindowsSmoke/**/*.cs" />
+    <Compile Remove="UiSmoke/**/*.cs" />
     <Compile Include="../RoutingPolicy.cs" Link="RoutingPolicy.cs" />
     <Compile Include="../RoutingConfiguration.cs" Link="RoutingConfiguration.cs" />
     <Compile Include="../InputProfile.cs" Link="InputProfile.cs" />
     <Compile Include="../ImeLanguage.cs" Link="ImeLanguage.cs" />
     <Compile Include="../FocusedInputProbe.cs" Link="FocusedInputProbe.cs" />
+    <Compile Include="../FocusEventListener.cs" Link="FocusEventListener.cs" />
+    <Compile Include="../RoutingPreferences.cs" Link="RoutingPreferences.cs" />
+    <Compile Include="../RoutingSession.cs" Link="RoutingSession.cs" />
+    <Compile Include="../AppSettings.cs" Link="AppSettings.cs" />
+    <Compile Include="../SettingsService.cs" Link="SettingsService.cs" />
+    <Compile Include="../TsfProfileEnumerator.cs" Link="TsfProfileEnumerator.cs" />
   </ItemGroup>
 </Project>

@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <Compile Remove="tests\**\*.cs" />
-    <Content Include="README.md;CHANGELOG.md;docs\diagnosis.md">
+    <Content Include="README.md;CHANGELOG.md;docs\*.md">
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="Assets\app.ico">
