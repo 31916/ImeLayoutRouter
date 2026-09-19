@@ -27,7 +27,8 @@ numbers describe internal milestones; keep those historical commits intact.
 
 ## Release gates
 
-1. Confirm edition scope and website palette. Build the Cloudflare website.
+1. Confirm edition scope. The user selected palette B (forest green on ivory)
+   and requested an English website. Build both pages on Cloudflare.
 2. Implement the Japanese simple build and full build with consistent versions.
 3. Run automated regression tests on both builds and verify packaged assets.
 4. In an interactive Windows session, validate actual text composition, target
@@ -46,7 +47,7 @@ numbers describe internal milestones; keep those historical commits intact.
 
 - Cloudflare Pages for static HTML/CSS; no framework or account required to download.
 - Simple title, information, separate V1/V2 tables, usage, compatibility, history.
-- Palette candidates: navy on white; forest green on ivory; wine on light gray.
+- Selected palette: forest green on ivory (B). Japanese and English site pages.
 - No fabricated release dates, success metrics or working download links before assets exist.
 - Current packages exceed Pages' 25 MiB asset limit. Keep a dedicated website as the
   user-facing download destination, with GitHub release assets as storage, or choose
@@ -54,3 +55,5 @@ numbers describe internal milestones; keep those historical commits intact.
 - Use existing Cloudflare credentials only through the supported CLI; never commit
   credentials. Domain choice remains open. Do not purchase a domain or enable a
   paid service without explicit authorization.
+
+See [the feature roadmap](roadmap.md) for proposed priorities beyond these releases.

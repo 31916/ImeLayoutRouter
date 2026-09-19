@@ -1,6 +1,6 @@
 const frame = document.querySelector('iframe');
 const buttons = [...document.querySelectorAll('button[data-palette]')];
-let selected = ['navy', 'forest', 'wine'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'navy';
+let selected = ['navy', 'forest', 'wine'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'forest';
 function applyPalette() {
   if (frame.contentDocument?.documentElement) frame.contentDocument.documentElement.dataset.palette = selected;
   for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.palette === selected));

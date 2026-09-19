@@ -1,5 +1,10 @@
 :root {
   color-scheme: light;
+  --paper: #fbf8ef; --ink: #30372b; --accent: #2d553e;
+  --bar: #e7ecdd; --line: #9ca58e; --muted: #59614e;
+  --link: #225a45; --visited: #725442; --panel: #fffdf7;
+}
+:root[data-palette="navy"] {
   --paper: #fafbfc; --ink: #222b36; --accent: #183e68;
   --bar: #e4ecf4; --line: #98a8ba; --muted: #505d6b;
   --link: #174fa0; --visited: #654181; --panel: #fff;
@@ -17,6 +22,7 @@
 * { box-sizing: border-box; }
 html { scroll-padding-top: 12px; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif CJK JP", serif; font-size: 16px; line-height: 1.8; }
+html[lang="en"] body { font-family: Georgia, "Times New Roman", serif; }
 .page { width: min(920px, calc(100% - 32px)); margin: 0 auto; }
 a { color: var(--link); text-underline-offset: .17em; }
 a:visited { color: var(--visited); }
@@ -26,6 +32,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 .skip:focus { top: 8px; }
 .small { font-size: .86rem; color: var(--muted); }
 .top-note { margin: 12px 0 8px; }
+.top-line { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 16px; flex-wrap: wrap; }
+.language-switch { font-size: .86rem; margin: 8px 0; white-space: nowrap; }
 hr { border: 0; border-top: 1px solid var(--line); }
 header { text-align: center; }
 header .top-note { text-align: left; }

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="IME Layout Router is a Windows tray utility that switches IME direct input to your preferred keyboard layout. A simple Japanese edition and a full multilingual edition are in preparation.">
+  <title>IME Layout Router — Home</title>
+  <link rel="alternate" hreflang="ja" href="./">
+  <link rel="alternate" hreflang="en" href="en.html">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body id="top">
+<a class="skip" href="#downloads">Skip to downloads</a>
+<div class="page">
+  <header>
+    <div class="top-line">
+      <p class="small top-note">Keyboard layout switching for Windows</p>
+      <nav class="language-switch" aria-label="Display language"><a href="./" lang="ja" hreflang="ja">日本語</a> | <span lang="en" aria-current="page">English</span></nav>
+    </div>
+    <hr>
+    <h1>IME Layout Router</h1>
+    <p class="tagline">Your IME for native text. Your preferred layout for Latin input.</p>
+    <nav aria-label="On this page">
+      <a href="#about">About</a> | <a href="#downloads">Downloads</a> | <a href="#usage">Getting started</a> | <a href="#history">History</a>
+    </nav>
+  </header>
+  <main>
+    <section id="about">
+      <h2>About this software</h2>
+      <p>When you use an IME, entering an email address or other Latin text can leave you with a keyboard layout you did not intend to use.</p>
+      <p>IME Layout Router is a Windows tray utility that watches the input state and switches to your chosen keyboard layout when direct input is active.</p>
+      <p class="routing-example"><span>あ / 中文 / 한글</span> → your IME &nbsp; / &nbsp; <span>A / Latin input</span> → your preferred layout</p>
+      <p class="small">Chinese and Korean support is planned for V2. Behavior varies by application and input field. Tested configurations will be listed when each edition is released.</p>
+    </section>
+
+    <section id="information">
+      <h2>News</h2>
+      <div class="notice">
+        <p><strong>Our new download page is in preparation.</strong></p>
+        <p>We are preparing a simple Japanese edition, V1, and a full multilingual edition, V2.<br>Each edition will be available here after the required validation is complete.</p>
+      </div>
+    </section>
+
+    <section id="downloads">
+      <h2>Downloads</h2>
+      <article>
+        <h3>IME Layout Router V1 <small>Simple Japanese edition</small></h3>
+        <p>For people who use a Japanese IME alongside their preferred keyboard layout.<br>This edition will combine essential everyday controls with the email-field routing repair.</p>
+        <table>
+          <caption>V1 availability</caption>
+          <thead><tr><th scope="col">Format</th><th scope="col">Version</th><th scope="col">Status</th></tr></thead>
+          <tbody>
+            <tr><td>Installer</td><td>1.x</td><td>In preparation</td></tr>
+            <tr><td>Portable ZIP</td><td>1.x</td><td>In preparation</td></tr>
+          </tbody>
+        </table>
+      </article>
+      <article>
+        <h3>IME Layout Router V2 <small>Full edition</small></h3>
+        <p>For people who also use Chinese or Korean IMEs.<br>This edition will include multiple-IME routing and advanced controls, and will be released after validation.</p>
+        <table>
+          <caption>V2 availability</caption>
+          <thead><tr><th scope="col">Format</th><th scope="col">Version</th><th scope="col">Status</th></tr></thead>
+          <tbody>
+            <tr><td>Installer</td><td>2.x</td><td>Validation pending</td></tr>
+            <tr><td>Portable ZIP</td><td>2.x</td><td>Validation pending</td></tr>
+          </tbody>
+        </table>
+      </article>
+      <p class="small">Planned platform: Windows x64. Tested environments, file sizes and SHA-256 checksums will be listed when downloads become available.</p>
+      <p><a href="https://github.com/31916/ImeLayoutRouter/releases">Earlier test releases (GitHub Releases)</a></p>
+      <p class="small">The old v1.0.0 test release does not contain the email-field routing repair. It is separate from the new V1 edition described above.</p>
+    </section>
+
+    <section id="usage">
+      <h2>Getting started</h2>
+      <ol>
+        <li>Add your preferred IME and target keyboard layout in Windows.</li>
+        <li>Start the application and select the source IME and target layout.</li>
+        <li>Save your settings. The application runs in the notification area.</li>
+      </ol>
+      <p>Before upgrading, exit the running older version, then install the new one.</p>
+      <p class="small">V1 and V2 are intended to be used one at a time. Settings migration instructions will accompany each release.</p>
+    </section>
+
+    <section id="notes">
+      <h2>Compatibility notes</h2>
+      <ul>
+        <li>This utility switches keyboard layouts. It does not replace your IME.</li>
+        <li>Some applications or IMEs do not expose the input state the utility needs.</li>
+        <li>The first keystroke immediately after moving to another field may arrive before the layout has switched.</li>
+      </ul>
+      <p>If something does not work, include your Windows version, IME, application and target layout in your report. You do not need to share what you typed or any passwords.</p>
+      <p><a href="https://github.com/31916/ImeLayoutRouter/issues">Report a problem or request a feature (GitHub)</a></p>
+    </section>
+
+    <section id="history">
+      <h2>History</h2>
+      <dl class="history">
+        <dt>In progress</dt><dd>Preparing the dedicated website and validating the simple Japanese V1 and full V2 editions.</dd>
+        <dt>v1.0.0</dt><dd>Initial test release on GitHub. The email-field issue is not fixed in this release.</dd>
+      </dl>
+    </section>
+  </main>
+  <footer>
+    <hr>
+    <p><a href="https://github.com/31916/ImeLayoutRouter">Source code</a> | <a href="#top">Back to top</a></p>
+    <p class="small">IME Layout Router — 31916</p>
+  </footer>
+</div>
+</body>
+</html>
