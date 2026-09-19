@@ -36,11 +36,7 @@ static class StartupManager
         bool enabled
     )
     {
-        using RegistryKey? key =
-            Registry.CurrentUser.OpenSubKey(
-                RunKeyPath,
-                true
-            );
+        using RegistryKey? key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
 
         if (key == null)
         {
@@ -49,16 +45,23 @@ static class StartupManager
             );
         }
 
+        SetEnabled(key, enabled, GetStartupCommand());
+    }
+
+    internal static void SetEnabled(RegistryKey key, bool enabled, string command)
+    {
         if (enabled)
         {
             key.SetValue(
                 ValueName,
-                GetStartupCommand(),
+                command,
                 RegistryValueKind.String
             );
         }
-        else
+        else if (string.Equals(key.GetValue(ValueName) as string, command, StringComparison.OrdinalIgnoreCase))
         {
+            // Both editions share one startup slot. Disabling this edition must
+            // not remove another edition's (or the old prototype's) registration.
             key.DeleteValue(
                 ValueName,
                 false

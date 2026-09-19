@@ -9,4 +9,8 @@
   <ItemGroup>
     <Compile Include="../../*.cs" Exclude="../../Program.cs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(Edition)' == 'Simple'">
+    <Compile Remove="../../SettingsForm.cs;../../TrayApplicationContext.cs;../../GlobalHotkeys.cs;../../ForegroundApplication.cs;../../RoutingSession.cs;../../ConsoleProfileSelector.cs" />
+    <Compile Include="../../Editions/Simple/SettingsForm.cs;../../Editions/Simple/TrayApplicationContext.cs" />
+  </ItemGroup>
 </Project>

@@ -14,7 +14,14 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet run --project tests/RoutingTests.csproj -c Release -p:Edition=Full
+      - run: |
+          dotnet build tests/RoutingTests.csproj -c Release -p:Edition=Full --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet tests/bin/Full/Release/net8.0-windows/RoutingTests.dll
+      - run: |
+          dotnet build tests/UiSmoke/UiSmoke.csproj -c Release -p:Edition=${{ matrix.edition }} --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet tests/UiSmoke/bin/${{ matrix.edition }}/Release/net8.0-windows/UiSmoke.dll
       - run: dotnet publish -c Release -p:Edition=${{ matrix.edition }} -r win-x64 --self-contained true --warnaserror
       - name: Build installer
         shell: pwsh
@@ -24,6 +31,11 @@ jobs:
       - name: Archive portable application
         shell: pwsh
         run: Compress-Archive -Path bin/${{ matrix.edition }}/Release/net8.0-windows/win-x64/publish/* -DestinationPath ImeLayoutRouter-${{ matrix.edition }}-win-x64.zip
+      - name: Check installer lifecycle
+        shell: pwsh
+        run: |
+          $installer = (Get-ChildItem installer/output/*-Setup.exe).FullName
+          ./tools/Test-Installer.ps1 -Installer $installer -Edition '${{ matrix.edition }}' -TestRoot "$env:RUNNER_TEMP/ime-installer-test"
       - uses: actions/upload-artifact@v4
         with:
           name: ImeLayoutRouter-${{ matrix.edition }}-development-win-x64

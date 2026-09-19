@@ -33,7 +33,9 @@ the [validation status and acceptance matrix](docs/diagnosis.md).
 
 ## Download and upgrade
 
-[Published releases](https://github.com/31916/ImeLayoutRouter/releases)
+[Download page](https://31916.ch/IMELayOutRouter/) — Japanese and English.
+Installers will be distributed directly from this website after desktop acceptance.
+The old prototype release has been retired; GitHub Releases is no longer used.
 
 For an installer release, download `ImeLayoutRouter-Setup.exe`.
 For a portable preview, extract the complete ZIP and run `ImeLayoutRouter.exe`.
