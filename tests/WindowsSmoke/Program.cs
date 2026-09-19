@@ -19,8 +19,9 @@ static class Smoke
         {
             IntPtr original = GetKeyboardLayout(0);
             using var cancellation = new CancellationTokenSource();
+            using var lifetime = new CancellationTokenSource();
             Task? monitor = null;
-            form.Deactivate += (_, _) => cancellation.Cancel();
+            form.Deactivate += (_, _) => { lifetime.Cancel(); cancellation.Cancel(); };
             try
             {
                 var candidates = TsfProfileEnumerator.GetSelectableProfiles();
@@ -53,7 +54,8 @@ static class Smoke
                     throw new Exception($"Expected native baseline in the test control, got {native}");
                 cancellation.Token.ThrowIfCancellationRequested();
                 Console.WriteLine("PASS live native IMM state");
-                monitor = Task.Run(() => RoutingMonitor.Run(config, cancellation.Token));
+                IntPtr testWindow = form.Handle;
+                monitor = Task.Run(() => RoutingMonitor.Run(config, cancellation.Token, allowedForeground: testWindow));
                 context = ImmGetContext(normal.Handle);
                 try { ImmSetOpenStatus(context, false); }
                 finally { ImmReleaseContext(normal.Handle, context); }
@@ -67,7 +69,74 @@ static class Smoke
                 await Until(() => RoutingMonitor.ReadSnapshot(config, fields) is { RequiresDirectInput: true } snapshot
                     && snapshot.Context.Focus == password.Handle,
                     "live password structural metadata");
-                Console.WriteLine("3 Windows integration checks passed.");
+
+                form.ActiveControl = normal;
+                normal.Focus();
+                ActivateKeyboardLayout((IntPtr)0x04110411, 0);
+                context = ImmGetContext(normal.Handle);
+                try { ImmSetOpenStatus(context, false); }
+                finally { ImmReleaseContext(normal.Handle, context); }
+                await Until(() => RoutingMonitor.ReadSnapshot(config) is { Mode: ImeInputMode.Direct } s
+                    && s.Context.Focus == normal.Handle, "direct-input baseline for routing controls");
+                lifetime.Token.ThrowIfCancellationRequested();
+                string executable = Environment.ProcessPath ?? throw new Exception("Test executable path unavailable");
+                var excluded = new RoutingConfiguration(source, target, preferences: new RoutingPreferences
+                {
+                    ApplicationRules = [new(executable, ApplicationRoutingMode.Disabled)]
+                });
+                using (var exclusionSession = new RoutingSession())
+                using (var exclusionStop = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token))
+                {
+                    monitor = Task.Run(() => RoutingMonitor.Run(excluded, exclusionStop.Token, exclusionSession, testWindow));
+                    try
+                    {
+                        await Until(() => exclusionSession.Status.Reason == UiText.T("アプリ別ルールにより自動切替を停止", "Automatic routing disabled by application rule"), "live executable exclusion is applied");
+                        await Task.Delay(200, lifetime.Token);
+                        if (GetKeyboardLayout(0) == target.Hkl) throw new Exception("Excluded window was routed");
+                    }
+                    finally { exclusionStop.Cancel(); await monitor; }
+                }
+
+                using (var controlSession = new RoutingSession())
+                using (var controlStop = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token))
+                {
+                    controlSession.SetPaused(true);
+                    monitor = Task.Run(() => RoutingMonitor.Run(config, controlStop.Token, controlSession, testWindow));
+                    try
+                    {
+                        await Until(() => controlSession.Status is { Paused: true, Snapshot.Mode: ImeInputMode.Direct }, "live pause observes state without routing");
+                        await Task.Delay(200, lifetime.Token);
+                        if (GetKeyboardLayout(0) == target.Hkl) throw new Exception("Paused window was routed");
+                        var captured = RoutingMonitor.CaptureManualFocus(Interlocked.Read(ref controlSession.FocusVersion))
+                            ?? throw new Exception("Manual target capture failed");
+                        controlSession.Request(new ManualRoutingRequest(ManualRoutingAction.Target, captured));
+                        await Until(() => GetKeyboardLayout(0) == target.Hkl
+                            && controlSession.Status.Snapshot?.KeyboardLayout == target.Hkl, "manual target works while paused");
+                        captured = RoutingMonitor.CaptureManualFocus(Interlocked.Read(ref controlSession.FocusVersion))
+                            ?? throw new Exception("Manual restore capture failed");
+                        controlSession.Request(new ManualRoutingRequest(ManualRoutingAction.Restore, captured));
+                        await Until(() => GetKeyboardLayout(0) == (IntPtr)0x04110411, "manual previous-layout restoration");
+                        context = ImmGetContext(normal.Handle);
+                        try { ImmSetOpenStatus(context, false); }
+                        finally { ImmReleaseContext(normal.Handle, context); }
+                        await Until(() => controlSession.Status.Snapshot?.Mode == ImeInputMode.Direct, "direct-input baseline before resuming");
+                        controlSession.SetPaused(false);
+                        await Until(() => GetKeyboardLayout(0) == target.Hkl
+                            && controlSession.Status.Snapshot?.KeyboardLayout == target.Hkl, "resuming restores automatic routing");
+                        captured = RoutingMonitor.CaptureManualFocus(Interlocked.Read(ref controlSession.FocusVersion))
+                            ?? throw new Exception("Manual hold capture failed");
+                        controlSession.Request(new ManualRoutingRequest(ManualRoutingAction.Restore, captured));
+                        await Until(() => GetKeyboardLayout(0) == (IntPtr)0x04110411, "manual choice restored with automatic routing enabled");
+                        context = ImmGetContext(normal.Handle);
+                        try { ImmSetOpenStatus(context, false); }
+                        finally { ImmReleaseContext(normal.Handle, context); }
+                        await Task.Delay(700, lifetime.Token);
+                        if (GetKeyboardLayout(0) != (IntPtr)0x04110411) throw new Exception("Automatic routing overwrote manual choice");
+                        Console.WriteLine("PASS manual choice survives the automatic retry interval");
+                    }
+                    finally { controlStop.Cancel(); await monitor; }
+                }
+                Console.WriteLine("Windows integration checks passed (baseline routing, exclusion, pause and manual restoration).");
             }
             catch (Exception ex) { Console.Error.WriteLine(ex); Environment.ExitCode = 1; }
             finally

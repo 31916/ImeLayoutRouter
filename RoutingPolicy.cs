@@ -3,7 +3,8 @@ using System;
 enum ImeInputMode { Unknown, Direct, Native, Other }
 enum RoutingAction { None, SwitchToTarget, RestoreNative }
 
-readonly record struct InputContext(IntPtr Foreground, IntPtr Focus, uint ThreadId, int ElementId = 0);
+readonly record struct InputContext(IntPtr Foreground, IntPtr Focus, uint ThreadId, int ElementId = 0,
+    long FocusVersion = 0);
 readonly record struct InputSnapshot(InputContext Context, IntPtr KeyboardLayout, ImeInputMode Mode,
     bool RequiresDirectInput = false);
 

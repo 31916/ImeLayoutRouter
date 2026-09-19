@@ -58,6 +58,8 @@ Full-width Latin is preserved in ordinary fields.
 
 - **Settings** — select the input language(s) and target layout.
 - **Pause routing** — suspend/resume automatic changes.
+- The tray tooltip and menu show the observed layout/mode and routing reason.
+  A sent request is shown as pending until its result is observed.
 - **Save diagnostic log (30 seconds)** — record input state while reproducing
   a problem. No text values, keystrokes, document contents, titles or URLs are
   intentionally read or logged.
@@ -65,6 +67,36 @@ Full-width Latin is preserved in ordinary fields.
 
 A second v3 launch opens the existing instance's settings.
 A monitor failure is reported through the tray rather than silently stopping.
+
+## Priority features (development build, not yet released)
+
+Settings now has four guided pages, displayed in Japanese or English according
+to the Windows UI language: IME/layout, applications, shortcuts and a typing check.
+Select the source and target explicitly on first use. **Try these settings** runs
+only in the settings window, without saving or enabling global shortcuts. Test
+text stays in those controls; it is not read, saved or sent by the router.
+Application rules are not applied to this local exercise.
+
+Application rules match the full executable path of the process owning the
+focused control. Choose automatic routing or disable it, with a default for
+unlisted applications. A disabled default plus automatic exceptions creates an
+allowlist. If a process cannot be identified while rules exist, automatic routing
+is suppressed. Hosted applications may need a rule for their actual input host.
+Rules do not use window titles, URLs or typed content.
+
+Global shortcuts are **off by default**, including after migrating old settings.
+When enabled, the defaults are Ctrl+Alt+F8 (pause/resume), Ctrl+Alt+F9 (target
+layout), and Ctrl+Alt+F10 (previous layout in the same window). Each key can be
+changed to F6–F11. A registration conflict disables the whole set and is reported
+in the tray; choose different keys in Settings. Manual switches work while
+automatic routing is paused or excluded. They are held until leaving that window
+or pausing and resuming. Restore requires a layout observed before a successful
+request in the same window; it does not force the IME into a conversion mode.
+
+Settings schema 3 preserves schema 1/2 selections and adds these preferences.
+Back up settings before downgrading: older binaries cannot read schema 3.
+See [priority feature validation](docs/priority-features.md) for the remaining
+interactive checks. These changes do not constitute a V1/V2 release.
 
 ## Version progression
 
@@ -95,8 +127,11 @@ claim that every version has been published as a stable release.
 - Chinese/Korean native composition and browser-specific behavior need the
   manual acceptance matrix before a stable release. Synthetic tests are not
   a substitute for those checks.
-- The monitor polls every 100 ms; it does not intercept or buffer keystrokes,
-  so an immediate first keystroke during a focus change can precede routing.
+- Foreground/focus events and new field metadata wake the monitor; a 50 ms
+  fallback detects changes that do not emit events. The accessibility worker
+  retains its 100 ms fallback. Slow providers and asynchronous application
+  handling still add latency. No keystrokes are intercepted or buffered, so
+  an immediate first keystroke can still precede routing.
 
 ## Build and test
 
@@ -105,13 +140,15 @@ Requirements: Windows and the .NET 8 SDK.
 ```powershell
 dotnet build -c Release
 dotnet run --project tests/RoutingTests.csproj -c Release
+dotnet run --project tests/UiSmoke/UiSmoke.csproj -c Release
 dotnet publish -c Release -r win-x64 --self-contained true
 ```
 
-An optional desktop test opens its own empty controls, verifies native mode,
-routes a direct-input change, and checks password-field detection. Exit other
-router instances first; it changes its own UI thread's input layout and restores
-that layout on exit.
+An optional desktop test opens its own empty controls and checks native mode,
+direct-input routing, password metadata, exclusion, pause and manual restoration.
+Exit other router instances first. It requires foreground focus, cancels on
+deactivation, changes only its own window's layout, and restores that layout
+on exit. See the validation record for which live checks have actually passed.
 
 ```powershell
 dotnet run --project tests/WindowsSmoke/WindowsSmoke.csproj -c Release

@@ -47,6 +47,14 @@ The fixture now requires the expected foreground control and cancels when
 its window loses activation. Run it in an interactive Windows session.
 This release remains a preview pending the full acceptance matrix.
 
+The later priority-controls development change passes 30 regression scenarios
+and Japanese/English settings round-trip checks. Its sandboxed desktop attempt
+could not enumerate a Japanese IME. In the normal user session, native IMM state,
+direct-input routing and protected-field detection passed. An extended fixture
+for exclusions, pause and manual restoration then could not acquire foreground
+focus; those additional live cases remain unverified. See
+[the feature validation record](priority-features.md).
+
 ## Acceptance matrix
 
 For each of Google Japanese Input, Microsoft Japanese IME, Microsoft Pinyin,

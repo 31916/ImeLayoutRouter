@@ -13,16 +13,27 @@ sealed class FocusedInputProbe : IDisposable
     private volatile bool stopping;
     private Observation? latest;
     private long focusVersion;
-    private readonly WinEventCallback focusChanged;
+    private readonly FocusEventListener events;
+    private readonly AutoResetEvent wake = new(false);
+    private readonly object gate = new();
+    private readonly Action? changed;
+    public long FocusVersion => Interlocked.Read(ref focusVersion);
     private sealed record Observation(IntPtr Foreground, IntPtr Focus, long At, FocusedFieldKind Kind, int ElementId);
 
-    public FocusedInputProbe()
+    public FocusedInputProbe(Action? changed = null)
     {
-        focusChanged = (_, _, _, _, _, _, _) =>
+        this.changed = changed;
+        events = new FocusEventListener(() =>
         {
-            Interlocked.Increment(ref focusVersion);
-            Volatile.Write(ref latest, null);
-        };
+            lock (gate)
+            {
+                if (stopping) return;
+                Interlocked.Increment(ref focusVersion);
+                Volatile.Write(ref latest, null);
+                wake.Set();
+                changed?.Invoke();
+            }
+        });
         worker = new Thread(Poll) { IsBackground = true, Name = "IME field metadata" };
         worker.SetApartmentState(ApartmentState.MTA);
         worker.Start();
@@ -39,7 +50,6 @@ sealed class FocusedInputProbe : IDisposable
 
     private void Poll()
     {
-        IntPtr hook = SetWinEventHook(0x8005, 0x8005, IntPtr.Zero, focusChanged, 0, 0, 0);
         try
         {
             while (!stopping)
@@ -55,16 +65,23 @@ sealed class FocusedInputProbe : IDisposable
                     var (kind, elementId) = Inspect(gui.Focus);
                     PumpEvents();
                     var after = new GUIINFO { Size = Marshal.SizeOf<GUIINFO>() };
-                    if (version == Interlocked.Read(ref focusVersion) && foreground == GetForegroundWindow()
-                        && GetGUIThreadInfo(thread, ref after) && after.Focus == gui.Focus && !stopping)
-                        Volatile.Write(ref latest, new Observation(foreground, gui.Focus,
-                            started, kind, elementId));
+                    lock (gate)
+                    {
+                        if (version == FocusVersion && foreground == GetForegroundWindow()
+                            && GetGUIThreadInfo(thread, ref after) && after.Focus == gui.Focus && !stopping)
+                        {
+                            var before = latest;
+                            Volatile.Write(ref latest, new Observation(foreground, gui.Focus, started, kind, elementId));
+                            if (before == null || before.Foreground != foreground || before.Focus != gui.Focus
+                                || before.Kind != kind || before.ElementId != elementId) changed?.Invoke();
+                        }
+                    }
                 }
                 else Volatile.Write(ref latest, null);
-                Thread.Sleep(100);
+                wake.WaitOne(100);
             }
         }
-        finally { if (hook != IntPtr.Zero) UnhookWinEvent(hook); }
+        finally { lock (gate) { stopping = true; wake.Dispose(); } }
     }
 
     private static void PumpEvents()
@@ -172,7 +189,11 @@ sealed class FocusedInputProbe : IDisposable
         if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value);
     }
 
-    public void Dispose() => stopping = true; // A stuck provider must not block tray shutdown.
+    public void Dispose()
+    {
+        lock (gate) { if (!stopping) { stopping = true; wake.Set(); } }
+        events.Dispose(); // Do not join a potentially stuck COM provider.
+    }
 
     [ComImport, Guid("6D5140C1-7436-11CE-8034-00AA006009FA"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IServiceProvider
@@ -197,11 +218,6 @@ sealed class FocusedInputProbe : IDisposable
         public IntPtr Active, Focus, Capture, MenuOwner, MoveSize, Caret;
         public int Left, Top, Right, Bottom;
     }
-    private delegate void WinEventCallback(IntPtr hook, uint eventId, IntPtr window,
-        int objectId, int childId, uint thread, uint time);
-    [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint min, uint max,
-        IntPtr module, WinEventCallback callback, uint process, uint thread, uint flags);
-    [DllImport("user32.dll")] private static extern bool UnhookWinEvent(IntPtr hook);
     [DllImport("user32.dll")] private static extern bool PeekMessage(out MSG message, IntPtr window, uint min, uint max, uint remove);
     [DllImport("user32.dll")] private static extern bool TranslateMessage(ref MSG message);
     [DllImport("user32.dll")] private static extern IntPtr DispatchMessage(ref MSG message);
