@@ -7,43 +7,108 @@ static class RoutingMonitor
 {
     public static void Run(RoutingConfiguration configuration) => Run(configuration, CancellationToken.None);
 
-    public static void Run(RoutingConfiguration configuration, CancellationToken cancellationToken)
+    public static void Run(RoutingConfiguration configuration, CancellationToken cancellationToken,
+        RoutingSession? session = null, IntPtr allowedForeground = default)
     {
+        using var ownedSession = session == null ? new RoutingSession() : null;
+        session ??= ownedSession!;
         var policy = new RoutingPolicy(configuration);
-        using var fields = new FocusedInputProbe();
+        using var fields = new FocusedInputProbe(() => session.Wake.Set());
+        var applications = new ForegroundApplication();
+        var manual = new ManualRoutingState();
         InputSnapshot? previous = null;
-        (InputContext Context, RoutingAction Action)? pending = null;
+        (InputContext Context, IntPtr Layout, bool Native, long At)? pending = null;
+        bool wasPaused = session.Paused;
+        var waitHandles = new[] { cancellationToken.WaitHandle, session.Wake };
         while (!cancellationToken.IsCancellationRequested)
         {
             InputSnapshot? observed = ReadSnapshot(configuration, fields);
-            if (observed is InputSnapshot current)
+            Interlocked.Exchange(ref session.FocusVersion, fields.FocusVersion);
+            if (observed is InputSnapshot current
+                && (allowedForeground == IntPtr.Zero || current.Context.Foreground == allowedForeground))
             {
+                manual.Observe(current);
                 if (current != previous) Console.WriteLine(Describe(current));
+                string reason = current.RequiresDirectInput ? UiText.T("英数専用の入力欄", "Direct-input field")
+                    : current.Mode == ImeInputMode.Direct ? UiText.T("IMEが英数入力", "IME direct input")
+                    : UiText.T("入力状態を監視中", "Watching input state");
+                bool paused = session.Paused;
+                if (paused != wasPaused)
+                {
+                    policy = new RoutingPolicy(configuration);
+                    pending = null;
+                    if (!paused) manual.Resume();
+                    wasPaused = paused;
+                }
                 if (pending is { } request)
                 {
                     if (request.Context != current.Context)
                         pending = null;
-                    else if ((request.Action == RoutingAction.SwitchToTarget
-                            && current.KeyboardLayout == configuration.Target.Hkl)
-                        || (request.Action == RoutingAction.RestoreNative
-                            && current.Mode == ImeInputMode.Native))
+                    else if (current.KeyboardLayout == request.Layout && (!request.Native || current.Mode == ImeInputMode.Native))
                     {
-                        Console.WriteLine($"[Confirmed] {request.Action}");
+                        reason = UiText.T("切替完了を確認", "Switch confirmed");
                         pending = null;
                     }
+                    else reason = Environment.TickCount64 - request.At >= 1000
+                        ? UiText.T("切替未確認（アプリが要求を無視した可能性）", "Switch unconfirmed; application may have ignored it")
+                        : UiText.T("切替要求済み・完了待ち", "Switch requested; awaiting confirmation");
                 }
-                RoutingAction action = policy.Evaluate(current, Environment.TickCount64);
-                if (action != RoutingAction.None && !cancellationToken.IsCancellationRequested
-                    && IsStillFocused(current)
-                    && (!current.RequiresDirectInput || fields.Read(current.Context)
-                        == (FocusedFieldKind.Direct, current.Context.ElementId)))
+
+                bool handledManual = false;
+                while (session.TryTake(out var command))
                 {
-                    bool sent = action == RoutingAction.SwitchToTarget
-                        ? SwitchToTarget(configuration.Target, current)
-                        : RestoreNative(current.Context.Focus, (ushort)(current.KeyboardLayout.ToInt64() & 0xFFFF));
-                    Console.WriteLine($"[Request] {action}: {(sent ? "sent; awaiting observation" : "failed; will retry")}");
-                    if (sent) pending = (current.Context, action);
+                    // Never apply a queued shortcut to a different field/window.
+                    if (!ManualRoutingState.Matches(command, current) || !IsCurrent(current, fields)) continue;
+                    handledManual = true;
+                    IntPtr layout = command.Action == ManualRoutingAction.Target ? configuration.Target.Hkl
+                        : manual.RestoreLayout(current, configuration.Target.Hkl);
+                    if (layout == IntPtr.Zero)
+                    {
+                        reason = UiText.T("このウィンドウには戻せる配列がありません", "No previous layout for this window");
+                        continue;
+                    }
+                    bool sent = !cancellationToken.IsCancellationRequested && SwitchLayout(layout, current);
+                    if (sent)
+                    {
+                        if (command.Action == ManualRoutingAction.Target) manual.Remember(current, configuration.Target.Hkl);
+                        manual.Hold();
+                        policy = new RoutingPolicy(configuration);
+                        pending = (current.Context, layout, false, Environment.TickCount64);
+                        reason = UiText.T("手動切替を要求・完了待ち", "Manual switch requested; awaiting confirmation");
+                    }
+                    else reason = UiText.T("手動切替に失敗しました", "Manual switch request failed");
+                    break;
                 }
+
+                bool excluded = configuration.Preferences.Resolve(applications.Read(current.Context.Focus)) == ApplicationRoutingMode.Disabled;
+                if (paused || excluded || manual.Holding || handledManual)
+                {
+                    policy = new RoutingPolicy(configuration);
+                    if (!handledManual && pending == null) reason = paused ? UiText.T("自動切替を一時停止中", "Automatic routing paused")
+                        : manual.Holding ? UiText.T("手動選択を優先中（別のウィンドウへ移るまで）", "Manual choice held until leaving this window")
+                        : UiText.T("アプリ別ルールにより自動切替を停止", "Automatic routing disabled by application rule");
+                }
+                else
+                {
+                    RoutingAction action = policy.Evaluate(current, Environment.TickCount64);
+                    if (action != RoutingAction.None && !session.Paused && !cancellationToken.IsCancellationRequested && IsCurrent(current, fields))
+                    {
+                        bool sent = action == RoutingAction.SwitchToTarget
+                            ? SwitchLayout(configuration.Target.Hkl, current) : RestoreNative(current, fields);
+                        if (sent)
+                        {
+                            if (action == RoutingAction.SwitchToTarget) manual.Remember(current, configuration.Target.Hkl);
+                            IntPtr target = action == RoutingAction.SwitchToTarget ? configuration.Target.Hkl : current.KeyboardLayout;
+                            long started = pending?.At ?? Environment.TickCount64;
+                            pending = (current.Context, target, action == RoutingAction.RestoreNative, started);
+                            reason = Environment.TickCount64 - started >= 1000
+                                ? UiText.T("切替未確認・再試行中", "Switch unconfirmed; retrying")
+                                : UiText.T("切替要求済み・完了待ち", "Switch requested; awaiting confirmation");
+                        }
+                        else reason = UiText.T("切替要求に失敗・再試行予定", "Switch request failed; will retry");
+                    }
+                }
+                session.Publish(new RoutingStatus(current, reason, paused));
                 previous = current;
             }
             else
@@ -51,8 +116,13 @@ static class RoutingMonitor
                 policy = new RoutingPolicy(configuration);
                 previous = null;
                 pending = null;
+                manual.RetainOnlyWindow(GetForegroundWindow());
+                while (session.TryTake(out _)) { }
+                session.Publish(new RoutingStatus(null, UiText.T("対象の入力欄を待っています", "Waiting for an input field"), session.Paused));
             }
-            cancellationToken.WaitHandle.WaitOne(100);
+            // Foreground/focus and new metadata wake immediately; the fallback
+            // also detects IME-mode changes which do not emit focus events.
+            WaitHandle.WaitAny(waitHandles, 50);
         }
     }
 
@@ -82,6 +152,7 @@ static class RoutingMonitor
 
     internal static InputSnapshot? ReadSnapshot(RoutingConfiguration configuration, FocusedInputProbe? fields = null)
     {
+        long focusVersion = fields?.FocusVersion ?? 0;
         IntPtr foreground = GetForegroundWindow();
         if (foreground == IntPtr.Zero) return null;
         uint foregroundThread = GetWindowThreadProcessId(foreground, IntPtr.Zero);
@@ -102,12 +173,31 @@ static class RoutingMonitor
             int? conversion = open == true ? ReadIme(ime, IMC_GETCONVERSIONMODE) : null;
             mode = RoutingPolicy.Classify(open, conversion);
         }
-        var context = new InputContext(foreground, info.hwndFocus, focusedThread);
+        var context = new InputContext(foreground, info.hwndFocus, focusedThread,
+            FocusVersion: focusVersion);
         var hint = fields?.Read(context) ?? (FocusedFieldKind.Unknown, 0);
         context = context with { ElementId = hint.Item2 };
         var snapshot = new InputSnapshot(context, layout, mode, hint.Item1 == FocusedFieldKind.Direct);
-        return IsStillFocused(snapshot) ? snapshot : null;
+        return IsStillFocused(snapshot) && (fields == null || fields.FocusVersion == context.FocusVersion) ? snapshot : null;
     }
+
+    // Shortcuts capture the actual foreground, not the last tray observation.
+    public static InputSnapshot? CaptureManualFocus(long focusVersion)
+    {
+        IntPtr foreground = GetForegroundWindow();
+        uint thread = GetWindowThreadProcessId(foreground, IntPtr.Zero);
+        var info = new GUITHREADINFO { cbSize = Marshal.SizeOf<GUITHREADINFO>() };
+        if (thread == 0 || !GetGUIThreadInfo(thread, ref info) || info.hwndFocus == IntPtr.Zero) return null;
+        thread = GetWindowThreadProcessId(info.hwndFocus, IntPtr.Zero);
+        IntPtr layout = GetKeyboardLayout(thread);
+        var snapshot = new InputSnapshot(new InputContext(foreground, info.hwndFocus, thread,
+            FocusVersion: focusVersion), layout, ImeInputMode.Unknown);
+        return thread != 0 && layout != IntPtr.Zero && IsStillFocused(snapshot) ? snapshot : null;
+    }
+
+    private static bool IsCurrent(InputSnapshot current, FocusedInputProbe fields) =>
+        IsStillFocused(current) && fields.FocusVersion == current.Context.FocusVersion
+        && (!current.RequiresDirectInput || fields.Read(current.Context) == (FocusedFieldKind.Direct, current.Context.ElementId));
 
     private static bool IsStillFocused(InputSnapshot snapshot)
     {
@@ -129,24 +219,24 @@ static class RoutingMonitor
             value, SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 50, out result) != IntPtr.Zero;
     }
 
-    private static bool RestoreNative(IntPtr focus, ushort languageId)
+    private static bool RestoreNative(InputSnapshot snapshot, FocusedInputProbe fields)
     {
-        IntPtr ime = ImmGetDefaultIMEWnd(focus);
+        IntPtr ime = ImmGetDefaultIMEWnd(snapshot.Context.Focus);
         if (!SendIme(ime, IMC_SETOPENSTATUS, (IntPtr)1, out var result) || result != UIntPtr.Zero)
             return false;
         int? conversion = ReadIme(ime, IMC_GETCONVERSIONMODE);
-        if (!conversion.HasValue) return false;
-        int native = ImeLanguage.NativeConversion(languageId, conversion.Value);
+        if (!conversion.HasValue || !IsCurrent(snapshot, fields)) return false;
+        int native = ImeLanguage.NativeConversion((ushort)(snapshot.KeyboardLayout.ToInt64() & 0xFFFF), conversion.Value);
         return SendIme(ime, IMC_SETCONVERSIONMODE, (IntPtr)native, out result) && result == UIntPtr.Zero;
     }
 
-    private static bool SwitchToTarget(InputProfile target, InputSnapshot snapshot)
+    private static bool SwitchLayout(IntPtr layout, InputSnapshot snapshot)
     {
-        if (target.Type != InputProfileType.KeyboardLayout || target.Hkl == IntPtr.Zero) return false;
+        if (layout == IntPtr.Zero) return false;
         // Use the focused control's queue when its thread differs from the root.
         IntPtr receiver = GetWindowThreadProcessId(snapshot.Context.Foreground, IntPtr.Zero) == snapshot.Context.ThreadId
             ? snapshot.Context.Foreground : snapshot.Context.Focus;
-        return PostMessage(receiver, WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, target.Hkl);
+        return PostMessage(receiver, WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, layout);
     }
 
     private const uint WM_IME_CONTROL = 0x0283, WM_INPUTLANGCHANGEREQUEST = 0x0050;

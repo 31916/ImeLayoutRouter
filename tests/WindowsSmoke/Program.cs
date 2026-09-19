@@ -53,7 +53,8 @@ static class Smoke
                     throw new Exception($"Expected native baseline in the test control, got {native}");
                 cancellation.Token.ThrowIfCancellationRequested();
                 Console.WriteLine("PASS live native IMM state");
-                monitor = Task.Run(() => RoutingMonitor.Run(config, cancellation.Token));
+                IntPtr testWindow = form.Handle;
+                monitor = Task.Run(() => RoutingMonitor.Run(config, cancellation.Token, allowedForeground: testWindow));
                 context = ImmGetContext(normal.Handle);
                 try { ImmSetOpenStatus(context, false); }
                 finally { ImmReleaseContext(normal.Handle, context); }

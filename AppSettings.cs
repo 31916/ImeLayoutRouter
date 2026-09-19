@@ -2,8 +2,9 @@ using System;
 
 sealed class AppSettings
 {
-    public int Version { get; init; } = 2;
+    public int Version { get; init; } = 3;
     public bool RouteAllSupportedImes { get; init; }
+    public RoutingPreferences Preferences { get; init; } = new();
 
     public SourceProfileSettings Source { get; init; } =
         new SourceProfileSettings();
