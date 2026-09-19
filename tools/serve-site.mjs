@@ -1,9 +1,9 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-const types = { 'index.html': 'text/html; charset=utf-8', 'preview.html': 'text/html; charset=utf-8', 'style.css': 'text/css; charset=utf-8', 'preview.css': 'text/css; charset=utf-8', 'preview.js': 'text/javascript; charset=utf-8' };
+const types = { 'index.html': 'text/html; charset=utf-8', 'en.html': 'text/html; charset=utf-8', 'preview.html': 'text/html; charset=utf-8', 'style.css': 'text/css; charset=utf-8', 'preview.css': 'text/css; charset=utf-8', 'preview.js': 'text/javascript; charset=utf-8' };
 createServer(async (request, response) => {
   const path = new URL(request.url, 'http://127.0.0.1').pathname;
-  const name = path === '/' ? 'index.html' : path.slice(1);
+  const name = path === '/' ? 'index.html' : path === '/en' ? 'en.html' : path.slice(1);
   if (!Object.hasOwn(types, name)) { response.writeHead(404); response.end('Not found'); return; }
   try {
     const content = await readFile(new URL('../site/' + name, import.meta.url));
