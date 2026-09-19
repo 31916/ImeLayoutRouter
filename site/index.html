@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="IME Layout Router は、IMEの直接入力を好みのキーボード配列へ切り替えるWindows用の常駐ソフトです。日本語簡易版V1と多言語対応版V2を準備しています。">
+  <title>IME Layout Router のホームページ</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body id="top">
+<a class="skip" href="#downloads">ダウンロードへ</a>
+<div class="page">
+  <header>
+    <p class="small top-note">Windows用 キーボード配列切替ソフト</p>
+    <hr>
+    <h1>IME Layout Router</h1>
+    <p class="tagline">日本語はいつものIMEで。英数は好きな配列で。</p>
+    <nav aria-label="ページ内の案内">
+      <a href="#about">このソフトについて</a> ｜ <a href="#downloads">ダウンロード</a> ｜ <a href="#usage">使い方</a> ｜ <a href="#history">更新履歴</a>
+    </nav>
+  </header>
+  <main>
+    <section id="about">
+      <h2>このソフトについて</h2>
+      <p>IMEを使っていると、メールアドレスなどの入力時にも、思いどおりのキーボード配列にならないことがあります。</p>
+      <p>IME Layout Router は入力状態を見守り、直接入力になったときに、指定したキーボード配列へ切り替えるWindows用の常駐ソフトです。</p>
+      <p class="routing-example"><span>あ・中文・한글</span> → IMEで入力　／　<span>A・英数</span> → 好きな配列で入力</p>
+      <p class="small">※ 中国語・韓国語への対応はV2で予定しています。アプリや入力欄によって動作が異なるため、確認できた環境を公開時に記載します。</p>
+    </section>
+
+    <section id="information">
+      <h2>お知らせ</h2>
+      <div class="notice">
+        <p><strong>新しい配布ページを準備しています。</strong></p>
+        <p>日本語向けの簡易版V1と、多言語・詳細機能を備えたV2を準備中です。<br>必要な動作確認を終えた版から、このページで配布します。</p>
+      </div>
+    </section>
+
+    <section id="downloads">
+      <h2>ダウンロード</h2>
+      <article>
+        <h3>IME Layout Router V1 <small>日本語簡易版</small></h3>
+        <p>日本語IMEと、好きなキーボード配列を使いたい方へ。<br>メール欄への対応を含め、普段使う機能をわかりやすくまとめた版です。</p>
+        <table>
+          <caption>V1の配布状況</caption>
+          <thead><tr><th scope="col">形式</th><th scope="col">バージョン</th><th scope="col">状況</th></tr></thead>
+          <tbody>
+            <tr><td>インストーラー版</td><td>1.x</td><td>準備中</td></tr>
+            <tr><td>ZIP版</td><td>1.x</td><td>準備中</td></tr>
+          </tbody>
+        </table>
+      </article>
+      <article>
+        <h3>IME Layout Router V2 <small>完全版</small></h3>
+        <p>日本語に加え、中国語・韓国語のIMEも使いたい方へ。<br>複数IMEへの対応や詳細機能をまとめ、動作確認を終えてから公開する予定です。</p>
+        <table>
+          <caption>V2の配布状況</caption>
+          <thead><tr><th scope="col">形式</th><th scope="col">バージョン</th><th scope="col">状況</th></tr></thead>
+          <tbody>
+            <tr><td>インストーラー版</td><td>2.x</td><td>検証待ち</td></tr>
+            <tr><td>ZIP版</td><td>2.x</td><td>検証待ち</td></tr>
+          </tbody>
+        </table>
+      </article>
+      <p class="small">対応予定：Windows x64。詳しい動作確認環境・ファイルサイズ・SHA-256は、配布開始時に掲載します。</p>
+      <p><a href="https://github.com/31916/ImeLayoutRouter/releases">以前のテスト版（GitHub Releases）</a></p>
+      <p class="small">旧テスト版 v1.0.0 には、メール欄での配列切替の修正が含まれていません。上記の新しいV1とは区別してください。</p>
+    </section>
+
+    <section id="usage">
+      <h2>使い方</h2>
+      <ol>
+        <li>Windowsに、使いたいIMEと切替先のキーボード配列を追加します。</li>
+        <li>ソフトを起動し、切替元のIMEと切替先の配列を選びます。</li>
+        <li>設定を保存すると、通知領域に常駐します。</li>
+      </ol>
+      <p>更新するときは、起動中の旧版を終了してから新しい版を入れてください。</p>
+      <p class="small">V1とV2は、どちらか一方を起動して使う予定です。設定の引き継ぎ方法は各版の公開時に案内します。</p>
+    </section>
+
+    <section id="notes">
+      <h2>動作について</h2>
+      <ul>
+        <li>キーボード配列を切り替えるソフトです。IMEそのものを置き換えるものではありません。</li>
+        <li>アプリやIMEによって、入力状態を取得できない場合があります。</li>
+        <li>入力欄を移った直後の最初のキーは、配列の切替に間に合わない場合があります。</li>
+      </ul>
+      <p>うまく動かないときは、Windowsのバージョン、IME、対象アプリ、切替先の配列を添えてお知らせください。入力した文章やパスワードを送る必要はありません。</p>
+      <p><a href="https://github.com/31916/ImeLayoutRouter/issues">不具合の報告・要望（GitHub）</a></p>
+    </section>
+
+    <section id="history">
+      <h2>更新履歴</h2>
+      <dl class="history">
+        <dt>準備中</dt><dd>日本語簡易版V1・完全版V2の配布に向け、動作確認と専用サイトを整備しています。</dd>
+        <dt>v1.0.0</dt><dd>GitHubで公開した初期テスト版。メール欄の問題は未修正です。</dd>
+      </dl>
+    </section>
+  </main>
+  <footer>
+    <hr>
+    <p><a href="https://github.com/31916/ImeLayoutRouter">ソースコード</a> ｜ <a href="#top">ページの先頭へ</a></p>
+    <p class="small">IME Layout Router — 31916</p>
+  </footer>
+</div>
+</body>
+</html>
