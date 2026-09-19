@@ -10,6 +10,10 @@ and English at `en.html`; both link to each other without
 automatic language redirects. Keep availability and limitations equivalent.
 The production pages need no JavaScript, external fonts, analytics or framework.
 
+Use the existing `Assets/app.ico` for the page masthead and favicon, matching the
+application, settings windows, tray and installer. The site build copies this
+canonical asset byte-for-byte to `app.ico`; do not replace it with a new design.
+
 Build with `npm run site:build`. Static output directory: `.site-dist`.
 Build the palette comparison with `npm run site:build -- --review`; its separate
 `.site-review-dist` output adds noindex headers and is deployed to a preview branch.

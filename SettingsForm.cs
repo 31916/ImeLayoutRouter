@@ -4,6 +4,7 @@ using static UiText;
 
 sealed class SettingsForm : Form
 {
+    private readonly Icon appIcon = new(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
     private readonly ComboBox sources = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 620 };
     private readonly ComboBox targets = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 620 };
     private readonly CheckBox allImes = new() { AutoSize = true };
@@ -27,6 +28,7 @@ sealed class SettingsForm : Form
     public SettingsForm(RoutingConfiguration? currentConfiguration, bool startWithWindows,
         (List<InputProfile> Sources, List<InputProfile> Targets)? availableProfiles = null)
     {
+        Icon = appIcon;
         Text = currentConfiguration == null ? T("IME Layout Router — 初回設定", "IME Layout Router — First-time setup")
             : T("IME Layout Router — 設定", "IME Layout Router — Settings");
         AutoScaleMode = AutoScaleMode.Dpi;
@@ -209,6 +211,7 @@ sealed class SettingsForm : Form
     {
         if (disposing) { StopPreview(); previewTimer.Dispose(); }
         base.Dispose(disposing);
+        if (disposing) appIcon.Dispose();
     }
     private static FlowLayoutPanel Page(TabControl tabs, string name)
     {

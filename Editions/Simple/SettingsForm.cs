@@ -3,6 +3,7 @@ using System.Windows.Forms;
 
 sealed class SettingsForm : Form
 {
+    private readonly Icon appIcon = new(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
     private readonly ComboBox sources = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 520 };
     private readonly ComboBox targets = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 520 };
     private readonly CheckBox startup = new() { Text = "Windows起動時に開始する", AutoSize = true };
@@ -12,6 +13,7 @@ sealed class SettingsForm : Form
     public SettingsForm(RoutingConfiguration? current, bool startWithWindows,
         (List<InputProfile> Sources, List<InputProfile> Targets)? availableProfiles = null)
     {
+        Icon = appIcon;
         Text = "IME Layout Router V1 — 日本語簡易版";
         AutoScaleMode = AutoScaleMode.Dpi;
         ClientSize = new Size(580, 345);
@@ -56,4 +58,10 @@ sealed class SettingsForm : Form
     }
     internal RoutingConfiguration? ReadConfiguration() => sources.SelectedItem is InputProfile source
         && targets.SelectedItem is InputProfile target ? new RoutingConfiguration(source, target) : null;
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (disposing) appIcon.Dispose();
+    }
 }
