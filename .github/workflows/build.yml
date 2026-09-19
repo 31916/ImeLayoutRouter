@@ -7,25 +7,30 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        edition: [Simple, Full]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet build -c Release --warnaserror
-      - run: dotnet run --project tests/RoutingTests.csproj -c Release
-      - run: dotnet run --project tests/UiSmoke/UiSmoke.csproj -c Release
-      - run: dotnet build tests/WindowsSmoke/WindowsSmoke.csproj -c Release --warnaserror
-      - run: dotnet publish -c Release -r win-x64 --self-contained true --warnaserror
+      - run: dotnet build -c Release -p:Edition=${{ matrix.edition }} --warnaserror
+      - if: matrix.edition == 'Full'
+        run: dotnet run --project tests/RoutingTests.csproj -c Release -p:Edition=Full
+      - if: matrix.edition == 'Full'
+        run: dotnet run --project tests/UiSmoke/UiSmoke.csproj -c Release -p:Edition=Full
+      - run: dotnet build tests/WindowsSmoke/WindowsSmoke.csproj -c Release -p:Edition=${{ matrix.edition }} --warnaserror
+      - run: dotnet publish -c Release -p:Edition=${{ matrix.edition }} -r win-x64 --self-contained true --warnaserror
       - name: Package installer and portable preview
         shell: pwsh
         run: |
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer/ImeLayoutRouter.iss
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DEdition=${{ matrix.edition }} installer/ImeLayoutRouter.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Compress-Archive -Path bin/Release/net8.0-windows/win-x64/publish/* -DestinationPath ImeLayoutRouter-win-x64.zip
+          Compress-Archive -Path bin/${{ matrix.edition }}/Release/net8.0-windows/win-x64/publish/* -DestinationPath ImeLayoutRouter-${{ matrix.edition }}-win-x64.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: ImeLayoutRouter-preview-win-x64
+          name: ImeLayoutRouter-${{ matrix.edition }}-development-win-x64
           path: |
-            ImeLayoutRouter-win-x64.zip
-            installer/output/ImeLayoutRouter-Setup.exe
+            ImeLayoutRouter-${{ matrix.edition }}-win-x64.zip
+            installer/output/ImeLayoutRouter-*-Setup.exe

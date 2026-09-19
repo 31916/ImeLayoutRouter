@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <Edition Condition="'$(Edition)' == ''">Full</Edition>
+    <BaseIntermediateOutputPath>obj\$(Edition)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin\$(Edition)\</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/obj/**;**/bin/**;artifacts/**</DefaultItemExcludes>
+    <DefineConstants Condition="'$(Edition)' == 'Simple'">$(DefineConstants);SIMPLE_EDITION</DefineConstants>
+  </PropertyGroup>
+</Project>

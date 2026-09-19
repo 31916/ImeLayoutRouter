@@ -4,7 +4,7 @@ sealed class RoutingConfiguration
     public System.Collections.Generic.IReadOnlyList<InputProfile> Sources { get; }
 
     public bool IsSourceLayout(System.IntPtr layout) => Sources.Any(
-        source => source.LanguageId == (layout.ToInt64() & 0xFFFF));
+        source => EditionPolicy.SupportsSource(source.LanguageId) && source.LanguageId == (layout.ToInt64() & 0xFFFF));
     public InputProfile Source { get; init; }
 
     public InputProfile Target { get; init; }
@@ -19,8 +19,8 @@ sealed class RoutingConfiguration
     {
         Source = source;
         Target = target;
-        RouteAllSupportedImes = allSources != null;
-        Sources = (allSources ?? new[] { source }).ToArray();
-        Preferences = preferences ?? new RoutingPreferences();
+        RouteAllSupportedImes = !EditionPolicy.IsSimple && allSources != null;
+        Sources = (RouteAllSupportedImes ? allSources! : new[] { source }).Where(s => EditionPolicy.SupportsSource(s.LanguageId)).ToArray();
+        Preferences = EditionPolicy.IsSimple ? new RoutingPreferences() : preferences ?? new RoutingPreferences();
     }
 }

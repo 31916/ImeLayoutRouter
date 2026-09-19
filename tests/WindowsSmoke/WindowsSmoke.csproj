@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../EditionPolicy.cs" Link="EditionPolicy.cs" />
     <Compile Include="../../InputProfile.cs" Link="InputProfile.cs" />
     <Compile Include="../../RoutingConfiguration.cs" Link="RoutingConfiguration.cs" />
     <Compile Include="../../RoutingPolicy.cs" Link="RoutingPolicy.cs" />

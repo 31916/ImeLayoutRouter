@@ -7,12 +7,16 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>3.0.0-preview.1</Version>
+    <Version Condition="'$(Edition)' == 'Simple'">1.1.0-rc.1</Version>
+    <Version Condition="'$(Edition)' == 'Full'">2.0.0-rc.1</Version>
+    <Product Condition="'$(Edition)' == 'Simple'">IME Layout Router V1 日本語簡易版</Product>
+    <Product Condition="'$(Edition)' == 'Full'">IME Layout Router V2 Full</Product>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="tests\**\*.cs" />
+    <Compile Remove="Editions\**\*.cs" />
     <Content Include="README.md;CHANGELOG.md;docs\*.md">
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
@@ -20,5 +24,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <ItemGroup Condition="'$(Edition)' == 'Simple'">
+    <Compile Remove="Program.cs;SettingsForm.cs;TrayApplicationContext.cs;GlobalHotkeys.cs;ForegroundApplication.cs;RoutingSession.cs;ConsoleProfileSelector.cs" />
+    <Compile Include="Editions\Simple\*.cs" />
+  </ItemGroup>
+  <Target Name="ValidateEdition" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Edition)' != 'Simple' and '$(Edition)' != 'Full'" Text="Edition must be Simple or Full." />
+  </Target>
 
 </Project>

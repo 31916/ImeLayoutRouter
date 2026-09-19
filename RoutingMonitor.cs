@@ -7,6 +7,31 @@ static class RoutingMonitor
 {
     public static void Run(RoutingConfiguration configuration) => Run(configuration, CancellationToken.None);
 
+#if SIMPLE_EDITION
+    public static void Run(RoutingConfiguration configuration, CancellationToken cancellationToken,
+        IntPtr allowedForeground = default)
+    {
+        var policy = new RoutingPolicy(configuration);
+        using var wake = new AutoResetEvent(false);
+        using var fields = new FocusedInputProbe(() => wake.Set());
+        var waits = new[] { cancellationToken.WaitHandle, wake };
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            if (ReadSnapshot(configuration, fields) is { } current
+                && (allowedForeground == IntPtr.Zero || current.Context.Foreground == allowedForeground))
+            {
+                var action = policy.Evaluate(current, Environment.TickCount64);
+                if (action != RoutingAction.None && !cancellationToken.IsCancellationRequested && IsCurrent(current, fields))
+                {
+                    if (action == RoutingAction.SwitchToTarget) SwitchLayout(configuration.Target.Hkl, current);
+                    else RestoreNative(current, fields);
+                }
+            }
+            else policy = new RoutingPolicy(configuration);
+            WaitHandle.WaitAny(waits, 50);
+        }
+    }
+#else
     public static void Run(RoutingConfiguration configuration, CancellationToken cancellationToken,
         RoutingSession? session = null, IntPtr allowedForeground = default)
     {
@@ -142,7 +167,9 @@ static class RoutingMonitor
         }
     }
 
+#endif
     // Read-only diagnostics; never collect text, titles, URLs or keystrokes.
+#if !SIMPLE_EDITION
     public static void Diagnose(RoutingConfiguration configuration, int seconds, TextWriter output)
     {
         long until = Environment.TickCount64 + seconds * 1000L;
@@ -165,6 +192,7 @@ static class RoutingMonitor
     private static string Describe(InputSnapshot s) =>
         $"{DateTimeOffset.Now:O} hwnd=0x{s.Context.Foreground:X} focus=0x{s.Context.Focus:X} "
         + $"thread={s.Context.ThreadId} element={s.Context.ElementId} hkl=0x{s.KeyboardLayout:X} mode={s.Mode} directField={s.RequiresDirectInput}";
+#endif
 
     internal static InputSnapshot? ReadSnapshot(RoutingConfiguration configuration, FocusedInputProbe? fields = null)
     {
