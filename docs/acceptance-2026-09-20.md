@@ -7,6 +7,10 @@ Only that subdirectory was added to the portfolio; no root navigation was change
 
 ## Completed evidence
 
+Desktop environment: Windows build 26200, Google Japanese Input 3.34.6260.0,
+Deutsch (Schweiz) keyboard layout. Chrome 153.0.8010.48 is installed; its browser
+acceptance remains pending below. The input list remains de-CH plus Japanese/Google.
+
 - V1 and V2 build locally with warnings treated as errors.
 - Full routing regression suite: 30 scenarios pass.
 - Both editions pass settings schema 1/2/3 migration and startup ownership tests.
@@ -21,6 +25,15 @@ Only that subdirectory was added to the portfolio; no root navigation was change
 - On the user's desktop, the pre-fix V1 installer reproduced stale startup
   registration after uninstall. The lifecycle test restores the pre-test startup
   value and preserves the installed old prototype and its settings.
+- The repaired V1 and V2 installers then passed the complete lifecycle script on the user's
+  PC, including both own-startup removal and preservation of another edition's
+  startup registration. The existing prototype settings were unchanged.
+- Development installer bytes/hashes (not public release approval):
+  - V1 `1.1.0-rc.1`: 51,343,668 bytes,
+    `2d462ebfd34258903c4b5ae3b477662efba589f5002e3e86d66a48fdc5d1e5e4`.
+  - V2 `2.0.0-rc.1`: 51,359,388 bytes,
+    `b31ccded2bde9d7120b12bb2856d17f17a6887c4612081db5a45058328e7acf5`.
+  Both fit direct GitHub Pages hosting; no binary is published before acceptance.
 - In a native WinForms fixture running the actual routing engine, both editions
   passed physical-key Google Japanese Input composition (`a` → `あ`, then Enter)
   and Swiss German layout punctuation (`Ctrl+Right Alt+2` → `@`). No Unicode paste
@@ -29,6 +42,13 @@ Only that subdirectory was added to the portfolio; no root navigation was change
 - Earlier desktop checks passed native/direct routing, explicit native restoration,
   password metadata, and V2 executable exclusion, pause/resume and manual restoration.
   Local logs live in the workspace `outputs` directory, outside the public site.
+- V2 also passed actual Windows `WM_HOTKEY` delivery for Ctrl+Alt+F8, F9 and F10
+  using physical key injection through Computer Use. The fixture unregisters the
+  shortcuts when it loses focus or closes. This complements the separate live
+  pause/target/restore routing tests; it is not a full tray-application walkthrough.
+- V2 successfully loaded the user's legacy settings read-only and wrote a two-second
+  diagnostic report containing profile names, handles, layout/mode and field flags.
+  No entered text is collected. The original settings file was preserved.
 
 ## Fixes found during release preparation
 
@@ -47,8 +67,8 @@ Only that subdirectory was added to the portfolio; no root navigation was change
 - Microsoft Japanese, Pinyin, Bopomofo and Korean IME desktop composition/routing.
   The user declined adding input methods to this PC; do not change the installed
   language/input list. These cases need another suitable Windows test environment.
-- Physical shortcut delivery, complete startup-at-sign-in and diagnostics acceptance,
-  and the remaining historical-version upgrade cases.
+- Complete startup-at-sign-in and diagnostic-save UI acceptance, a complete installed-app
+  walkthrough, and the remaining historical-version upgrade cases.
 - Final accepted installer versions, per-file SHA-256/size, direct website upload
   and download integrity verification. Do not upload unvalidated packages.
 
