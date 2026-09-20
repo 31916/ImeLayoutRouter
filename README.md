@@ -33,7 +33,7 @@ milestones are not separate public editions.
 
 ## Download and upgrade
 
-[Download page](https://31916.ch/IMELayOutRouter/) — Japanese and English.
+[Download page](https://31916.ch/IMELayoutRouter/) — Japanese and English.
 
 Release notes: [V1 1.1.0](docs/releases/v1-1.1.0.md) / [English](docs/releases/v1-1.1.0.en.md),
 [V2 2.0.0](docs/releases/v2-2.0.0.md) / [English](docs/releases/v2-2.0.0.en.md).
