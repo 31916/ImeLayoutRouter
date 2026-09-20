@@ -18,7 +18,7 @@ Build with `npm run site:build`. Static output directory: `.site-dist`.
 Build the palette comparison with `npm run site:build -- --review`; its separate
 `.site-review-dist` output adds noindex headers and is deployed to a preview branch.
 The application repository's default branch is `V2`. The requested public download
-page belongs under `31916.ch/IMELayOutRouter/` in the existing portfolio repository;
+page belongs under `31916.ch/IMELayoutRouter/` in the existing portfolio repository;
 do not add a homepage link. The owner approved publication with incomplete
 compatibility coverage on 2026-09-20. On 2026-09-21 the owner requested a compact
 AviUtl-inspired index. Put downloads immediately after the short introduction,
@@ -36,9 +36,14 @@ visitors do not combine the new HTML with their cached previous design.
 History dates must have Git evidence and distinguish implementation from release.
 
 Production uses the existing GitHub Pages site, not the historical Cloudflare
-design preview. The user has retired the prototype GitHub Release. Do not create
+design preview. The portfolio repository's Pages workflow packages the static
+files with `tools/build-pages.py`. The canonical path is `/IMELayoutRouter/`;
+legacy `/IMELayOutRouter/` pages redirect to it, while old direct asset and installer
+URLs remain available. Aliases exist only in the deployment archive so Windows
+checkouts do not need two directories that differ only in letter case.
+The user has retired the prototype GitHub Release. Do not create
 new GitHub releases. After final package checks, place installers under
-`IMELayOutRouter/downloads/` in the portfolio repository and link to them relatively.
+`IMELayoutRouter/downloads/` in the portfolio repository and link to them relatively.
 Keep individual files below 100 MiB and the complete site below 1 GB. Include the
 actual file size and SHA-256 in the linked articles; require final-version
 installer lifecycle checks when changing a package. A page-only edit does not

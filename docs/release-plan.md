@@ -41,9 +41,9 @@ first key can precede asynchronous routing; do not claim universal compatibility
 
 ## Hosting
 
-- Use the existing GitHub Pages publication at https://31916.ch/IMELayOutRouter/.
+- Use the existing GitHub Pages publication at https://31916.ch/IMELayoutRouter/.
   Keep the existing forest-green/ivory design and Japanese/English pages.
-- Publish installers and SHA256SUMS.txt under IMELayOutRouter/downloads/ in the
+- Publish installers and SHA256SUMS.txt under IMELayoutRouter/downloads/ in the
   portfolio repository. Do not add a root navigation link or create GitHub Releases.
 - Keep each asset below GitHub's 100 MiB file limit and the site below 1 GB;
   use Git, not LFS. Do not buy services or change DNS/hosting for this release.
