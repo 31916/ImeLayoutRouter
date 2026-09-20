@@ -1,16 +1,47 @@
 # IMELayoutRouter (IME Layout Router)
 
 [Official downloads / 公式ダウンロード](https://31916.ch/IMELayoutRouter/)
-— Windows用のIME・キーボード配列自動切替ソフト。日本語簡易版V1と多機能版V2を配布しています。
+— IMEの直接入力を、指定したWindows入力レイアウトで。日本語簡易版V1と多機能版V2を配布しています。
 
-A Windows tray utility that routes IME direct/Latin input to your preferred
-keyboard layout, while keeping native Japanese, Chinese and Korean input
-available.
+A Windows tray utility that selects an existing Windows input layout for IME
+direct/Latin input. Choose a source IME and a target layout already enabled in
+Windows. V1 covers Japanese; V2 also offers Chinese and Korean source selection.
 
 ```text
 あ / 中文 / 한글  →  native IME input
 A / Latin input  →  your target layout, e.g. Deutsch (Schweiz)
 ```
+
+## 動作の範囲 / What the app changes
+
+**使用中のWindows入力レイアウトを切り替える機能はあります。** 対象IMEが直接入力
+（A）になった場合や、メール欄などで直接入力が必要だと判定した場合に、入力中の
+アプリへ、設定済みの切替先レイアウトを使うよう要求します。たとえば日本語IMEの
+直接入力から、Windowsで有効にしたスイス・ドイツ語レイアウトへの切替です。
+切替が受理されると、同じ物理キーから入力される文字や記号が変わることがあります。
+
+**キーごとの割り当てや、配列そのものの定義を作成・編集する機能はありません。**
+「AキーをBキーにする」などの独自リマップ、キーボードドライバーの書換え、
+IMEやレイアウトの追加インストールは行いません。本書の「配列の切替」は既存の
+入力レイアウトの選択を指します。すべてのアプリが切替要求を受け入れるわけではなく、
+動作確認の範囲は後述の互換性情報と版別記事を参照してください。
+
+**The active Windows input layout does change when the application accepts the
+request.** When the selected IME uses direct input, or a supported field is
+identified as requiring it, the router requests the configured target layout
+for the application receiving input. For example, it can switch from a Japanese
+IME to an enabled Swiss German layout. The same physical keys can then produce
+different characters or punctuation.
+
+**The app does not create or edit key mappings or layout definitions.** It does
+not implement custom remaps such as A → B, rewrite keyboard drivers, or install
+additional IMEs/layouts. "Layout switching" means selecting an existing Windows
+input layout. An application can reject the request; see the compatibility
+limits and edition notes for the scope of testing.
+
+The implementation makes the decision in [RoutingPolicy.cs](RoutingPolicy.cs)
+and sends the request in [RoutingMonitor.cs](RoutingMonitor.cs), using Windows'
+[WM_INPUTLANGCHANGEREQUEST message](https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-inputlangchangerequest).
 
 ## Branches / ブランチ
 
@@ -137,7 +168,8 @@ claim that every version has been published as a stable release.
 
 - Windows x64; build target .NET 8.
 - Only IMEs already **enabled in Windows** appear as sources.
-- Standard non-CJK keyboard layouts are offered as targets.
+- Existing standard non-CJK keyboard layouts enabled in Windows are offered as
+  targets. The app selects them; it does not create or modify their key mappings.
 - Routing is **language-level**. Selecting an IME also covers other enabled
   IMEs with the same Windows language ID. Cross-process HKL/IMM observation
   cannot reliably distinguish individual TSF profiles with a shared language.
