@@ -19,6 +19,12 @@ Social link previews use the checked-in 1200 x 630 PNG files `social-ja-v2.png`
 and `social-en-v2.png`, composed from the same original icon and site palette.
 Describe the purpose as "IMEの直接入力を、指定した配列で" / "Your chosen layout
 for IME direct input", not a broad claim of automatic keyboard layout switching.
+Explain that the router selects an existing, enabled Windows input layout for
+the application receiving input. The active layout and resulting characters can
+change; do not claim that layouts never change. Distinguish this from creating or
+editing individual key mappings, layout definitions or keyboard drivers, which
+the app does not do. Keep the brief clarification below the download table and
+the detailed explanation in the README and edition notes, in both languages.
 The image revision suffix is separate from the application's V1/V2 editions.
 Keep the original `social-*-v1.png` URLs serving the corrected artwork too, for
 previously cached cards that still reference them.
