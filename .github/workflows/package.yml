@@ -1,4 +1,4 @@
-name: Build preview packages
+name: Build distribution packages
 on:
   workflow_dispatch:
 permissions:
@@ -38,7 +38,13 @@ jobs:
           ./tools/Test-Installer.ps1 -Installer $installer -Edition '${{ matrix.edition }}' -TestRoot "$env:RUNNER_TEMP/ime-installer-test"
       - uses: actions/upload-artifact@v4
         with:
-          name: ImeLayoutRouter-${{ matrix.edition }}-development-win-x64
-          path: |
-            ImeLayoutRouter-${{ matrix.edition }}-win-x64.zip
-            installer/output/ImeLayoutRouter-*-Setup.exe
+          name: ImeLayoutRouter-${{ matrix.edition }}-installer-win-x64
+          path: installer/output/ImeLayoutRouter-*-Setup.exe
+          if-no-files-found: error
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ImeLayoutRouter-${{ matrix.edition }}-portable-win-x64
+          path: ImeLayoutRouter-${{ matrix.edition }}-win-x64.zip
+          if-no-files-found: error
+          compression-level: 0
