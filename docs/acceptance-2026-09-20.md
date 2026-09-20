@@ -1,8 +1,10 @@
 # Acceptance record — 2026-09-20
 
-**Neither edition is approved for public installer distribution.** GitHub Releases
-is no longer used. The Japanese/English information page is published at
-https://31916.ch/IMELayOutRouter/ with both editions explicitly unavailable.
+**Publication approved with incomplete compatibility coverage.** On 2026-09-20,
+after browser automation was blocked and the incomplete tests were disclosed,
+the owner explicitly authorized release. Unrun cases below remain unverified.
+V1 1.1.0 / V2 2.0.0 will be distributed from the Japanese/English page at
+https://31916.ch/IMELayOutRouter/. GitHub Releases is no longer used.
 Only that subdirectory was added to the portfolio; no root navigation was changed.
 
 ## Completed evidence
@@ -33,7 +35,7 @@ acceptance remains pending below. The input list remains de-CH plus Japanese/Goo
     `2d462ebfd34258903c4b5ae3b477662efba589f5002e3e86d66a48fdc5d1e5e4`.
   - V2 `2.0.0-rc.1`: 51,359,388 bytes,
     `b31ccded2bde9d7120b12bb2856d17f17a6887c4612081db5a45058328e7acf5`.
-  Both fit direct GitHub Pages hosting; no binary is published before acceptance.
+  These are historical RC artifacts, not the final distribution files.
 - In a native WinForms fixture running the actual routing engine, both editions
   passed physical-key Google Japanese Input composition (`a` → `あ`, then Enter)
   and Swiss German layout punctuation (`Ctrl+Right Alt+2` → `@`). No Unicode paste
@@ -60,7 +62,7 @@ acceptance remains pending below. The input list remains de-CH plus Japanese/Goo
 - `dotnet run` with custom edition output paths could execute a stale default-edition
   test binary locally. CI now builds and executes the exact edition DLL explicitly.
 
-## Still required before release
+## Unverified compatibility / follow-up acceptance
 
 - Browser email/URL/telephone/number/password fields, rapid focus changes, native
   return and target punctuation on Chrome/Edge and Firefox.
@@ -69,8 +71,12 @@ acceptance remains pending below. The input list remains de-CH plus Japanese/Goo
   language/input list. These cases need another suitable Windows test environment.
 - Complete startup-at-sign-in and diagnostic-save UI acceptance, a complete installed-app
   walkthrough, and the remaining historical-version upgrade cases.
-- Final accepted installer versions, per-file SHA-256/size, direct website upload
-  and download integrity verification. Do not upload unvalidated packages.
+
+## Final package publication checks
+
+Before upload, require successful final-version CI, installer lifecycle checks,
+per-file SHA-256/size and preserved icon. After upload, verify HTTPS downloads
+against those hashes. Record final package evidence separately below.
 
 Re-run `tools/Test-Installer.ps1` on final packages. For composition, build
 `tests/WindowsSmoke/WindowsSmoke.csproj` for the required edition and execute its
