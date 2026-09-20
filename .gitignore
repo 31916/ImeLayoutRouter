@@ -486,3 +486,7 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Version articles are source documentation, not compiled release output.
+!docs/releases/
+!docs/releases/*.md

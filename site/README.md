@@ -20,15 +20,27 @@ Build the palette comparison with `npm run site:build -- --review`; its separate
 The application repository's default branch is `V2`. The requested public download
 page belongs under `31916.ch/IMELayOutRouter/` in the existing portfolio repository;
 do not add a homepage link. The owner approved publication with incomplete
-compatibility coverage on 2026-09-20. Both languages must identify verified
-environments and unverified browser/CJK behavior beside the downloads.
+compatibility coverage on 2026-09-20. On 2026-09-21 the owner requested a compact
+AviUtl-inspired index. Put downloads immediately after the short introduction,
+before news, so both installers are visible on the initial desktop/mobile view.
+Keep the download table to installer, version and release date. Keep at most the
+three latest news items as short dated lines; put older details in the linked
+history article. This is static HTML, without a news widget or JavaScript.
+Date each V1/V2 news item and link the edition to its article in
+`docs/releases/`. Put feature details, instructions, sizes, SHA-256 and verified /
+unverified environments in those Japanese/English GitHub Markdown articles.
+The website points readers to the articles for compatibility information.
+Keep the original icon and selected palette; no status column or long feature blocks.
+History dates must have Git evidence and distinguish implementation from release.
 
 Production uses the existing GitHub Pages site, not the historical Cloudflare
 design preview. The user has retired the prototype GitHub Release. Do not create
 new GitHub releases. After final package checks, place installers under
 `IMELayOutRouter/downloads/` in the portfolio repository and link to them relatively.
 Keep individual files below 100 MiB and the complete site below 1 GB. Include the
-actual file size and SHA-256; require final-version installer lifecycle checks.
+actual file size and SHA-256 in the linked articles; require final-version
+installer lifecycle checks when changing a package. A page-only edit does not
+change the installer or its release date.
 
 Before release: use actual versions/assets/checksums, publish verification results,
 and check the download links after upload. See `docs/release-plan.md`.
