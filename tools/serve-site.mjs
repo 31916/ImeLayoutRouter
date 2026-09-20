@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 const types = { 'app.ico': 'image/vnd.microsoft.icon', 'index.html': 'text/html; charset=utf-8', 'en.html': 'text/html; charset=utf-8', 'preview.html': 'text/html; charset=utf-8', 'style.css': 'text/css; charset=utf-8', 'preview.css': 'text/css; charset=utf-8', 'preview.js': 'text/javascript; charset=utf-8' };
 types['social-ja-v1.png'] = 'image/png';
 types['social-en-v1.png'] = 'image/png';
+types['social-ja-v2.png'] = 'image/png';
+types['social-en-v2.png'] = 'image/png';
 createServer(async (request, response) => {
   const path = new URL(request.url, 'http://127.0.0.1').pathname;
   const name = path === '/' ? 'index.html' : path === '/en' ? 'en.html' : path.slice(1);
