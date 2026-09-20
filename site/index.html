@@ -3,119 +3,54 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="IME Layout Router は、IMEの直接入力を好みのキーボード配列へ切り替えるWindows用の常駐ソフトです。日本語簡易版V1と多言語対応版V2のインストーラーを配布しています。">
+  <meta name="description" content="IME Layout Router のダウンロードページ。Windows用の日本語簡易版V1と多機能版V2を配布しています。">
   <title>IME Layout Router のホームページ</title>
   <link rel="alternate" hreflang="ja" href="./">
   <link rel="alternate" hreflang="en" href="en.html">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="app.ico" type="image/vnd.microsoft.icon">
 </head>
-<body id="top">
+<body>
 <a class="skip" href="#downloads">ダウンロードへ</a>
-<div class="page">
-  <header>
-    <div class="top-line">
-      <p class="small top-note">Windows用 キーボード配列切替ソフト</p>
-      <nav class="language-switch" aria-label="表示言語"><span lang="ja" aria-current="page">日本語</span> ｜ <a href="en.html" lang="en" hreflang="en">English</a></nav>
+<header>
+  <nav class="language" aria-label="表示言語"><span aria-current="page">日本語</span> ｜ <a href="en.html" lang="en" hreflang="en">English</a></nav>
+  <div class="title"><img src="app.ico" width="48" height="48" alt=""><h1>IME Layout Router</h1></div>
+  <p class="intro">IMEが英数の直接入力になったとき、好きなキーボード配列に切り替えるWindows用ソフトです。<br>日本語向けの簡易版V1と、多機能版V2を配布しています。</p>
+</header>
+<main>
+  <section id="downloads">
+    <h2><span aria-hidden="true">★ </span>ダウンロード<span aria-hidden="true"> ★</span></h2>
+    <table class="downloads">
+      <caption>Windows x64用インストーラー</caption>
+      <thead><tr><th scope="col">インストーラー</th><th scope="col">バージョン</th><th scope="col">リリース日</th></tr></thead>
+      <tbody>
+        <tr><td><a href="downloads/ImeLayoutRouter-V1-1.1.0-Setup.exe" download>ImeLayoutRouter-V1-1.1.0-Setup.exe</a></td><td><a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v1-1.1.0.md">V1 1.1.0</a></td><td><time datetime="2026-09-20">2026/09/20</time></td></tr>
+        <tr><td><a href="downloads/ImeLayoutRouter-V2-2.0.0-Setup.exe" download>ImeLayoutRouter-V2-2.0.0-Setup.exe</a></td><td><a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v2-2.0.0.md">V2 2.0.0</a></td><td><time datetime="2026-09-20">2026/09/20</time></td></tr>
+      </tbody>
+    </table>
+  </section>
+  <section id="information">
+    <h2><span aria-hidden="true">★ </span>お知らせ<span aria-hidden="true"> ★</span></h2>
+    <div class="news">
+      <!-- Keep only the latest three short announcements; link to full version notes. -->
+      <p><time datetime="2026-09-20">2026/09/20</time> <a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v2-2.0.0.md">V2 2.0.0</a>を公開しました。</p>
+      <p><time datetime="2026-09-20">2026/09/20</time> <a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v1-1.1.0.md">V1 1.1.0</a>を公開しました。</p>
     </div>
-    <hr>
-    <img class="app-icon" src="app.ico" width="64" height="64" alt="">
-    <h1>IME Layout Router</h1>
-    <p class="tagline">日本語はいつものIMEで。英数は好きな配列で。</p>
-    <nav aria-label="ページ内の案内">
-      <a href="#about">このソフトについて</a> ｜ <a href="#downloads">ダウンロード</a> ｜ <a href="#usage">使い方</a> ｜ <a href="#history">更新履歴</a>
-    </nav>
-  </header>
-  <main>
-    <section id="about">
-      <h2>このソフトについて</h2>
-      <p>IMEを使っていると、メールアドレスなどの入力時にも、思いどおりのキーボード配列にならないことがあります。</p>
-      <p>IME Layout Router は入力状態を見守り、直接入力になったときに、指定したキーボード配列へ切り替えるWindows用の常駐ソフトです。</p>
-      <p class="routing-example"><span>あ・中文・한글</span> → IMEで入力　／　<span>A・英数</span> → 好きな配列で入力</p>
-      <p class="small">※ V2は中国語・韓国語IMEの選択にも対応していますが、これらのIMEでの実機動作は未確認です。</p>
-    </section>
-
-    <section id="information">
-      <h2>お知らせ</h2>
-      <div class="notice">
-        <p><strong>2026年9月20日 — V1・V2を公開しました。</strong></p>
-        <p>日本語向けの簡易版V1と、多言語・詳細機能を備えたV2を配布しています。<br>下記の確認済み環境・未確認の項目をご確認ください。</p>
-      </div>
-    </section>
-
-    <section id="downloads">
-      <h2>ダウンロード</h2>
-      <article>
-        <h3>IME Layout Router V1 <small>日本語簡易版</small></h3>
-        <p>日本語IMEと、好きなキーボード配列を使いたい方へ。<br>メール欄の配列切替に対処する修正を含み、日本語の設定画面・配列選択・自動起動に機能を絞った版です。</p>
-        <table>
-          <caption>V1の配布状況</caption>
-          <thead><tr><th scope="col">形式</th><th scope="col">バージョン</th><th scope="col">状況</th></tr></thead>
-          <tbody>
-            <tr><td><a href="downloads/ImeLayoutRouter-V1-1.1.0-Setup.exe" download>V1をダウンロード (.exe)</a><br><small>Windows x64 · 51.34 MB (51,342,344 bytes)</small></td><td>1.1.0</td><td>公開中</td></tr>
-          </tbody>
-        </table>
-      </article>
-      <article>
-        <h3>IME Layout Router V2 <small>完全版</small></h3>
-        <p>日本語に加え、中国語・韓国語のIMEも使いたい方へ。<br>日本語・英語の設定画面、アプリ別ルール・除外、現在の配列表示、任意のショートカット、入力確認欄、診断ログを備えたメイン版です。</p>
-        <table>
-          <caption>V2の配布状況</caption>
-          <thead><tr><th scope="col">形式</th><th scope="col">バージョン</th><th scope="col">状況</th></tr></thead>
-          <tbody>
-            <tr><td><a href="downloads/ImeLayoutRouter-V2-2.0.0-Setup.exe" download>V2をダウンロード (.exe)</a><br><small>Windows x64 · 51.37 MB (51,365,971 bytes)</small></td><td>2.0.0</td><td>公開中</td></tr>
-          </tbody>
-        </table>
-      </article>
-      <p class="small">Windows x64用。どちらも.NETを同梱しているため、別途インストールする必要はありません。V1は高度な機能を省いていますが、同梱ランタイムが共通のため配布サイズはV2とほぼ同じです。</p>
-      <p><a href="downloads/SHA256SUMS.txt" download>SHA-256チェックサムをダウンロード</a></p>
-      <details><summary>ファイルのSHA-256を表示</summary>
-        <p>V1 1.1.0<br><code class="checksum">64f48a8db7ed0c5da1f68b0ee772add861463e14d31ed3af9851f548ce73b22e</code></p>
-        <p>V2 2.0.0<br><code class="checksum">510616cb7a1be937ea4b546a99cfe8790295d67115519637539eb91c1e2ac088</code></p>
-      </details>
-      <div class="notice compatibility">
-        <p><strong>確認済みの環境と、未確認の項目</strong></p>
-        <p>Windows 11（ビルド26200）、Google日本語入力 3.34.6260.0、スイス・ドイツ語配列で、検証用のWindows入力画面における日本語入力・配列切替・記号入力を確認しました。両版のインストール・再インストール・アンインストールも確認しています。</p>
-        <p><strong>Chrome・Edge・Firefoxのメール欄などでの実入力、およびMicrosoft日本語・中国語・韓国語IMEの実機動作は未確認です。</strong>すべてのアプリ・IMEでの動作を保証するものではありません。</p>
-        <p class="small">Windowsへのサインイン時の自動起動、診断保存画面の一連の操作、すべての旧版からの更新経路も未確認です。</p>
-      </div>
-    </section>
-
-    <section id="usage">
-      <h2>使い方</h2>
-      <ol>
-        <li>Windowsに、使いたいIMEと切替先のキーボード配列を追加します。</li>
-        <li>ソフトを起動し、切替元のIMEと切替先の配列を選びます。</li>
-        <li>設定を保存すると、通知領域に常駐します。</li>
-      </ol>
-      <p>更新するときは、起動中の旧版を終了してから新しい版を入れてください。</p>
-      <p class="small">V1とV2は、どちらか一方を起動して使います。各版の設定は個別に保存されます。旧プロトタイプの設定は初回に読み込み、元のファイルは残します。</p>
-    </section>
-
-    <section id="notes">
-      <h2>動作について</h2>
-      <ul>
-        <li>キーボード配列を切り替えるソフトです。IMEそのものを置き換えるものではありません。</li>
-        <li>アプリやIMEによって、入力状態を取得できない場合があります。</li>
-        <li>入力欄を移った直後の最初のキーは、配列の切替に間に合わない場合があります。</li>
-      </ul>
-      <p>うまく動かないときは、Windowsのバージョン、IME、対象アプリ、切替先の配列を添えてお知らせください。入力した文章やパスワードを送る必要はありません。</p>
-      <p><a href="https://github.com/31916/ImeLayoutRouter/issues">不具合の報告・要望（GitHub）</a></p>
-    </section>
-
-    <section id="history">
-      <h2>更新履歴</h2>
-      <dl class="history">
-        <dt>2026/09/20</dt><dd>V1 1.1.0・V2 2.0.0を公開。入力欄の判定と切替処理を改善し、版別の設定保存、アンインストール時の自動起動設定の後始末に対応しました。</dd>
-        <dt>旧プロトタイプ</dt><dd>初期テスト版の配布は終了しました。現在の配布はこのページのV1・V2です。</dd>
-      </dl>
-    </section>
-  </main>
-  <footer>
-    <hr>
-    <p><a href="https://github.com/31916/ImeLayoutRouter">ソースコード</a> ｜ <a href="#top">ページの先頭へ</a></p>
-    <p class="small">IME Layout Router — 31916</p>
-  </footer>
-</div>
+    <p class="small centered">仕様・使い方・動作確認状況は、V1・V2のリンク先をご覧ください。</p>
+  </section>
+  <section id="history">
+    <h2><span aria-hidden="true">★ </span>更新履歴<span aria-hidden="true"> ★</span></h2>
+    <dl class="history">
+      <dt><time datetime="2026-09-20">2026/09/20</time></dt><dd><a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v1-1.1.0.md">V1 1.1.0</a>・<a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v2-2.0.0.md">V2 2.0.0</a>を公開。</dd>
+      <dt><time datetime="2026-08-14">2026/08/14</time></dt><dd><a href="https://github.com/31916/ImeLayoutRouter/commit/94c569d220f47fd3ece2a1203e3f3932275351f5">設定画面と通知領域への常駐機能を追加。</a></dd>
+      <dt><time datetime="2026-08-11">2026/08/11</time></dt><dd><a href="https://github.com/31916/ImeLayoutRouter/commit/6472d7ed9215dcde28d939c78cefd1de69c7e354">初期プロトタイプの双方向切替機能を実装。</a></dd>
+    </dl>
+    <p class="small centered"><a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/history.md">詳しい開発履歴（Gitの記録・日本時間）</a></p>
+  </section>
+</main>
+<footer>
+  <p><a href="https://github.com/31916/ImeLayoutRouter">ソースコード</a> ｜ <a href="https://github.com/31916/ImeLayoutRouter/issues">不具合の報告・要望</a></p>
+  <p class="small">IME Layout Router — 31916</p>
+</footer>
 </body>
 </html>

@@ -34,6 +34,11 @@ milestones are not separate public editions.
 ## Download and upgrade
 
 [Download page](https://31916.ch/IMELayOutRouter/) — Japanese and English.
+
+Release notes: [V1 1.1.0](docs/releases/v1-1.1.0.md) / [English](docs/releases/v1-1.1.0.en.md),
+[V2 2.0.0](docs/releases/v2-2.0.0.md) / [English](docs/releases/v2-2.0.0.en.md).
+[Development history and date sources](docs/releases/history.md).
+
 Installers are distributed directly from this website, with tested environments and limitations.
 The old prototype release has been retired; GitHub Releases is no longer used.
 

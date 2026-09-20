@@ -3,119 +3,54 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="IME Layout Router is a Windows tray utility that switches IME direct input to your preferred keyboard layout. Download the simple Japanese edition or the full multilingual edition.">
-  <title>IME Layout Router — Home</title>
+  <meta name="description" content="Download IME Layout Router for Windows: V1 Japanese essentials and V2 full edition.">
+  <title>IME Layout Router — Downloads</title>
   <link rel="alternate" hreflang="ja" href="./">
   <link rel="alternate" hreflang="en" href="en.html">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="app.ico" type="image/vnd.microsoft.icon">
 </head>
-<body id="top">
+<body>
 <a class="skip" href="#downloads">Skip to downloads</a>
-<div class="page">
-  <header>
-    <div class="top-line">
-      <p class="small top-note">Keyboard layout switching for Windows</p>
-      <nav class="language-switch" aria-label="Display language"><a href="./" lang="ja" hreflang="ja">日本語</a> | <span lang="en" aria-current="page">English</span></nav>
+<header>
+  <nav class="language" aria-label="Language"><a href="./" lang="ja" hreflang="ja">日本語</a> | <span aria-current="page">English</span></nav>
+  <div class="title"><img src="app.ico" width="48" height="48" alt=""><h1>IME Layout Router</h1></div>
+  <p class="intro">A Windows utility that switches IME direct input to your preferred keyboard layout.<br>Choose V1 for Japanese essentials or V2 for advanced features.</p>
+</header>
+<main>
+  <section id="downloads">
+    <h2><span aria-hidden="true">★ </span>Downloads<span aria-hidden="true"> ★</span></h2>
+    <table class="downloads">
+      <caption>Installers for Windows x64</caption>
+      <thead><tr><th scope="col">Installer</th><th scope="col">Version</th><th scope="col">Release date</th></tr></thead>
+      <tbody>
+        <tr><td><a href="downloads/ImeLayoutRouter-V1-1.1.0-Setup.exe" download>ImeLayoutRouter-V1-1.1.0-Setup.exe</a></td><td><a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v1-1.1.0.en.md">V1 1.1.0</a></td><td><time datetime="2026-09-20">2026/09/20</time></td></tr>
+        <tr><td><a href="downloads/ImeLayoutRouter-V2-2.0.0-Setup.exe" download>ImeLayoutRouter-V2-2.0.0-Setup.exe</a></td><td><a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v2-2.0.0.en.md">V2 2.0.0</a></td><td><time datetime="2026-09-20">2026/09/20</time></td></tr>
+      </tbody>
+    </table>
+  </section>
+  <section id="information">
+    <h2><span aria-hidden="true">★ </span>News<span aria-hidden="true"> ★</span></h2>
+    <div class="news">
+      <!-- Keep only the latest three short announcements; link to full version notes. -->
+      <p><time datetime="2026-09-20">2026/09/20</time> <a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v2-2.0.0.en.md">V2 2.0.0</a> released.</p>
+      <p><time datetime="2026-09-20">2026/09/20</time> <a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v1-1.1.0.en.md">V1 1.1.0</a> released.</p>
     </div>
-    <hr>
-    <img class="app-icon" src="app.ico" width="64" height="64" alt="">
-    <h1>IME Layout Router</h1>
-    <p class="tagline">Your IME for native text. Your preferred layout for Latin input.</p>
-    <nav aria-label="On this page">
-      <a href="#about">About</a> | <a href="#downloads">Downloads</a> | <a href="#usage">Getting started</a> | <a href="#history">History</a>
-    </nav>
-  </header>
-  <main>
-    <section id="about">
-      <h2>About this software</h2>
-      <p>When you use an IME, entering an email address or other Latin text can leave you with a keyboard layout you did not intend to use.</p>
-      <p>IME Layout Router is a Windows tray utility that watches the input state and switches to your chosen keyboard layout when direct input is active.</p>
-      <p class="routing-example"><span>あ / 中文 / 한글</span> → your IME &nbsp; / &nbsp; <span>A / Latin input</span> → your preferred layout</p>
-      <p class="small">V2 can select Chinese and Korean IMEs, but real-machine behavior with those IMEs remains unverified.</p>
-    </section>
-
-    <section id="information">
-      <h2>News</h2>
-      <div class="notice">
-        <p><strong>September 20, 2026 — V1 and V2 are available.</strong></p>
-        <p>Download V1 for Japanese essentials or V2 for multilingual selection and advanced controls.<br>Please read the tested environments and outstanding checks below.</p>
-      </div>
-    </section>
-
-    <section id="downloads">
-      <h2>Downloads</h2>
-      <article>
-        <h3>IME Layout Router V1 <small>Simple Japanese edition</small></h3>
-        <p>For people who use a Japanese IME alongside their preferred keyboard layout.<br>Includes a repair for field-triggered layout switching, Japanese-only settings, source/target selection and startup. Advanced features are omitted.</p>
-        <table>
-          <caption>V1 availability</caption>
-          <thead><tr><th scope="col">Format</th><th scope="col">Version</th><th scope="col">Status</th></tr></thead>
-          <tbody>
-            <tr><td><a href="downloads/ImeLayoutRouter-V1-1.1.0-Setup.exe" download>Download V1 (.exe)</a><br><small>Windows x64 · 51.34 MB (51,342,344 bytes)</small></td><td>1.1.0</td><td>Available</td></tr>
-          </tbody>
-        </table>
-      </article>
-      <article>
-        <h3>IME Layout Router V2 <small>Full edition</small></h3>
-        <p>For people who also use Chinese or Korean IMEs.<br>The main edition includes Japanese/English settings, application rules and exclusions, layout status, optional shortcuts, a typing check and diagnostic logs.</p>
-        <table>
-          <caption>V2 availability</caption>
-          <thead><tr><th scope="col">Format</th><th scope="col">Version</th><th scope="col">Status</th></tr></thead>
-          <tbody>
-            <tr><td><a href="downloads/ImeLayoutRouter-V2-2.0.0-Setup.exe" download>Download V2 (.exe)</a><br><small>Windows x64 · 51.37 MB (51,365,971 bytes)</small></td><td>2.0.0</td><td>Available</td></tr>
-          </tbody>
-        </table>
-      </article>
-      <p class="small">For Windows x64. Both editions include .NET; no separate runtime installation is needed. V1 omits advanced features, but its download size is similar to V2 because both include the same runtime.</p>
-      <p><a href="downloads/SHA256SUMS.txt" download>Download SHA-256 checksums</a></p>
-      <details><summary>Show file SHA-256 hashes</summary>
-        <p>V1 1.1.0<br><code class="checksum">64f48a8db7ed0c5da1f68b0ee772add861463e14d31ed3af9851f548ce73b22e</code></p>
-        <p>V2 2.0.0<br><code class="checksum">510616cb7a1be937ea4b546a99cfe8790295d67115519637539eb91c1e2ac088</code></p>
-      </details>
-      <div class="notice compatibility">
-        <p><strong>Tested environment and outstanding checks</strong></p>
-        <p>Windows 11 (build 26200), Google Japanese Input 3.34.6260.0 and a Swiss German keyboard: Japanese composition, layout switching and punctuation passed in native Windows test controls. Both installers passed install, reinstall and uninstall checks.</p>
-        <p><strong>Actual typing in Chrome/Edge/Firefox email fields and real-machine behavior with Microsoft Japanese, Chinese and Korean IMEs remain unverified.</strong>Compatibility with every application or IME is not guaranteed.</p>
-        <p class="small">Startup at Windows sign-in, the complete diagnostic-save UI flow and every historical upgrade path also remain unverified.</p>
-      </div>
-    </section>
-
-    <section id="usage">
-      <h2>Getting started</h2>
-      <ol>
-        <li>Add your preferred IME and target keyboard layout in Windows.</li>
-        <li>Start the application and select the source IME and target layout.</li>
-        <li>Save your settings. The application runs in the notification area.</li>
-      </ol>
-      <p>Before upgrading, exit the running older version, then install the new one.</p>
-      <p class="small">Use one edition at a time. Each edition stores its own settings. Existing prototype settings are imported on first use, and the original file is preserved.</p>
-    </section>
-
-    <section id="notes">
-      <h2>Compatibility notes</h2>
-      <ul>
-        <li>This utility switches keyboard layouts. It does not replace your IME.</li>
-        <li>Some applications or IMEs do not expose the input state the utility needs.</li>
-        <li>The first keystroke immediately after moving to another field may arrive before the layout has switched.</li>
-      </ul>
-      <p>If something does not work, include your Windows version, IME, application and target layout in your report. You do not need to share what you typed or any passwords.</p>
-      <p><a href="https://github.com/31916/ImeLayoutRouter/issues">Report a problem or request a feature (GitHub)</a></p>
-    </section>
-
-    <section id="history">
-      <h2>History</h2>
-      <dl class="history">
-        <dt>2026/09/20</dt><dd>Released V1 1.1.0 and V2 2.0.0 with improved field detection and routing, separate edition settings and startup-registration cleanup on uninstall.</dd>
-        <dt>Earlier prototype</dt><dd>The initial test download has been retired. Current V1 and V2 downloads are provided on this page.</dd>
-      </dl>
-    </section>
-  </main>
-  <footer>
-    <hr>
-    <p><a href="https://github.com/31916/ImeLayoutRouter">Source code</a> | <a href="#top">Back to top</a></p>
-    <p class="small">IME Layout Router — 31916</p>
-  </footer>
-</div>
+    <p class="small centered">Follow the V1 and V2 links for features, instructions and compatibility notes.</p>
+  </section>
+  <section id="history">
+    <h2><span aria-hidden="true">★ </span>History<span aria-hidden="true"> ★</span></h2>
+    <dl class="history">
+      <dt><time datetime="2026-09-20">2026/09/20</time></dt><dd><a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v1-1.1.0.en.md">V1 1.1.0</a> / <a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/v2-2.0.0.en.md">V2 2.0.0</a> released.</dd>
+      <dt><time datetime="2026-08-14">2026/08/14</time></dt><dd><a href="https://github.com/31916/ImeLayoutRouter/commit/94c569d220f47fd3ece2a1203e3f3932275351f5">Added settings and the tray application.</a></dd>
+      <dt><time datetime="2026-08-11">2026/08/11</time></dt><dd><a href="https://github.com/31916/ImeLayoutRouter/commit/6472d7ed9215dcde28d939c78cefd1de69c7e354">Implemented the initial bidirectional switching prototype.</a></dd>
+    </dl>
+    <p class="small centered"><a href="https://github.com/31916/ImeLayoutRouter/blob/V2/docs/releases/history.md">Detailed history (Git records, Japan time)</a></p>
+  </section>
+</main>
+<footer>
+  <p><a href="https://github.com/31916/ImeLayoutRouter">Source code</a> ｜ <a href="https://github.com/31916/ImeLayoutRouter/issues">Issues & requests</a></p>
+  <p class="small">IME Layout Router — 31916</p>
+</footer>
 </body>
 </html>
