@@ -82,3 +82,24 @@ Re-run `tools/Test-Installer.ps1` on final packages. For composition, build
 `tests/WindowsSmoke/WindowsSmoke.csproj` for the required edition and execute its
 edition-specific DLL with `--composition` in an interactive desktop session.
 The fixture never changes installed input methods or saves entered text.
+
+## Final distribution packages — 2026-09-20
+
+Built from application commit `fdfe2a5c0e21f9d8d103fb2848274323c70c674f` in
+[successful Windows CI run 35482636083](https://github.com/31916/ImeLayoutRouter/actions/runs/35482636083).
+Both edition jobs passed; the full regression suite passed 30 scenarios.
+The downloaded artifact ZIPs matched the SHA-256 digests returned by GitHub.
+
+| Edition | Installer | Bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| V1 | ImeLayoutRouter-V1-1.1.0-Setup.exe | 51,342,344 | `64f48a8db7ed0c5da1f68b0ee772add861463e14d31ed3af9851f548ce73b22e` |
+| V2 | ImeLayoutRouter-V2-2.0.0-Setup.exe | 51,365,971 | `510616cb7a1be937ea4b546a99cfe8790295d67115519637539eb91c1e2ac088` |
+
+Both exact final installers passed `tools/Test-Installer.ps1` on the user's PC:
+install, same-package reinstall, shared-instance startup, own-startup cleanup,
+other-edition startup preservation and unchanged existing settings. Additional
+checks verified the executable and uninstall registration versions and that the
+installed `Assets/app.ico` matches the canonical original icon byte-for-byte.
+Local evidence: `outputs/lifecycle-final-simple.log` and `lifecycle-final-full.log`.
+The icon SHA-256 is `f97e2a2030ff6e8b77fc2240a7690a206081d038d3a87a37165be4aee0f87857`.
+The browser and CJK compatibility limitations above are unchanged.
