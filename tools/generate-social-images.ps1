@@ -17,8 +17,8 @@ $smallFont = [System.Drawing.Font]::new('Meiryo', 24, [System.Drawing.FontStyle]
 $format = [System.Drawing.StringFormat]::GenericTypographic.Clone()
 $format.FormatFlags = [System.Drawing.StringFormatFlags]::NoWrap
 $editions = @(
-    @{ Language = 'ja'; Description = 'IME・キーボード配列を自動切替'; Editions = 'V1 日本語簡易版  /  V2 多機能版'; Download = '公式ダウンロード' },
-    @{ Language = 'en'; Description = 'Automatic IME keyboard layout switching'; Editions = 'V1 Japanese essentials  /  V2 Advanced'; Download = 'Official downloads' }
+    @{ Language = 'ja'; Description = 'IMEの直接入力を、指定した配列で'; Editions = 'V1 日本語簡易版  /  V2 多機能版'; Download = '公式ダウンロード' },
+    @{ Language = 'en'; Description = 'Your chosen layout for IME direct input'; Editions = 'V1 Japanese essentials  /  V2 Advanced'; Download = 'Official downloads' }
 )
 try {
     foreach ($edition in $editions) {
@@ -42,8 +42,10 @@ try {
             $graphics.DrawString($edition.Editions, $smallFont, $mutedBrush, 72, 526, $format)
             $domainWidth = $graphics.MeasureString('31916.ch', $smallFont, 1200, $format).Width
             $graphics.DrawString('31916.ch', $smallFont, $greenBrush, (1128 - $domainWidth), 526, $format)
-            $destination = Join-Path $repository ('site/social-' + $edition.Language + '-v1.png')
+            $destination = Join-Path $repository ('site/social-' + $edition.Language + '-v2.png')
             $canvas.Save($destination, [System.Drawing.Imaging.ImageFormat]::Png)
+            # Previously shared cards may still request the original image URL.
+            Copy-Item -LiteralPath $destination -Destination (Join-Path $repository ('site/social-' + $edition.Language + '-v1.png'))
             Write-Output $destination
         } finally {
             $graphics.Dispose()
