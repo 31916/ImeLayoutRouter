@@ -25,4 +25,4 @@ public downloads were verified against the published SHA-256 hashes. The table's
 `v1.0.0` は軽量タグで、独立したタグ作成日時を保持していません。旧プロトタイプの配布は終了しています。
 The lightweight `v1.0.0` tag has no separate tag-creation timestamp. The prototype download has been retired.
 
-[V1 1.1.0](v1-1.1.0.md) ｜ [V2 2.0.0](v2-2.0.0.md) ｜ [配布ページ / Downloads](https://31916.ch/IMELayOutRouter/)
+[V1 1.1.0](v1-1.1.0.md) ｜ [V2 2.0.0](v2-2.0.0.md) ｜ [配布ページ / Downloads](https://31916.ch/IMELayoutRouter/)
