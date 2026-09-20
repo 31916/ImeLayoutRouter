@@ -11,6 +11,8 @@ if (!$installDirectory.StartsWith($root.TrimEnd('\') + '\', [StringComparison]::
     throw 'Installation must stay inside the test root.'
 }
 $editionName = if ($Edition -eq 'Simple') { 'V1' } else { 'V2' }
+$expectedVersion = if ($Edition -eq 'Simple') { '1.1.0' } else { '2.0.0' }
+$expectedIconHash = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot '../Assets/app.ico') -Algorithm SHA256).Hash
 $appId = if ($Edition -eq 'Simple') { '{CB27A979-27AB-40E2-A613-52CC5EFCB128}' } else { '{62EBC270-35B4-4E79-A170-426D38FEAA8C}' }
 $uninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\${appId}_is1"
 if (Test-Path -LiteralPath $uninstallKey) { throw "$editionName is already installed; refusing to replace its registration." }
@@ -37,6 +39,9 @@ function Install-TestPackage([string]$phase) {
     $registration = Get-ItemProperty -LiteralPath $uninstallKey
     if ($registration.InstallLocation.TrimEnd('\') -ne $installDirectory) { throw 'Unexpected installation registration.' }
     if (!(Get-Item -LiteralPath $exe).VersionInfo.ProductName.Contains($editionName)) { throw 'Wrong product edition in executable.' }
+    if ((Get-Item -LiteralPath $exe).VersionInfo.ProductVersion.Split('+')[0] -ne $expectedVersion) { throw 'Wrong executable version.' }
+    if ($registration.DisplayVersion -ne $expectedVersion) { throw 'Wrong installer version.' }
+    if ((Get-FileHash -LiteralPath (Join-Path $installDirectory 'Assets/app.ico') -Algorithm SHA256).Hash -ne $expectedIconHash) { throw 'Original application icon was changed.' }
     Write-Output "PASS $Edition $phase and product metadata"
 }
 function Uninstall-TestPackage {

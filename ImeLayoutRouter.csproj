@@ -7,8 +7,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version Condition="'$(Edition)' == 'Simple'">1.1.0-rc.1</Version>
-    <Version Condition="'$(Edition)' == 'Full'">2.0.0-rc.1</Version>
+    <Version Condition="'$(Edition)' == 'Simple'">1.1.0</Version>
+    <Version Condition="'$(Edition)' == 'Full'">2.0.0</Version>
     <Product Condition="'$(Edition)' == 'Simple'">IME Layout Router V1 日本語簡易版</Product>
     <Product Condition="'$(Edition)' == 'Full'">IME Layout Router V2 Full</Product>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
