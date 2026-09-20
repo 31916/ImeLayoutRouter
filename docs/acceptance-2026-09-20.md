@@ -4,7 +4,8 @@
 after browser automation was blocked and the incomplete tests were disclosed,
 the owner explicitly authorized release. Unrun cases below remain unverified.
 V1 1.1.0 / V2 2.0.0 will be distributed from the Japanese/English page at
-https://31916.ch/IMELayOutRouter/. GitHub Releases is no longer used.
+https://31916.ch/IMELayOutRouter/ (canonical URL corrected to
+https://31916.ch/IMELayoutRouter/ on 2026-09-21). GitHub Releases is no longer used.
 Only that subdirectory was added to the portfolio; no root navigation was changed.
 
 ## Completed evidence
