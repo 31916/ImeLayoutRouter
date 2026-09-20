@@ -8,7 +8,8 @@ three palettes. The palette picker is a review tool and is excluded from deploys
 The user selected the forest-green-on-ivory palette (B). Japanese lives at `/`
 and English at `en.html`; both link to each other without
 automatic language redirects. Keep availability and limitations equivalent.
-The production pages need no JavaScript, external fonts, analytics or framework.
+The production pages need no executable JavaScript, external fonts, analytics or
+framework. JSON-LD in the head describes the public page and product for crawlers.
 
 Use the existing `Assets/app.ico` for the page masthead and favicon, matching the
 application, settings windows, tray and installer. The site build copies this
@@ -34,6 +35,17 @@ Keep the original icon and selected palette; no status column or long feature bl
 Update the stylesheet URL version in both pages when changing CSS so returning
 visitors do not combine the new HTML with their cached previous design.
 History dates must have Git evidence and distinguish implementation from release.
+
+Use the exact product spelling `IMELayoutRouter` in titles, headings and descriptions;
+retain `IME Layout Router` as an alternate name in metadata. Titles and descriptions
+should explain that this is a Windows IME/keyboard-layout utility. Keep reciprocal
+Japanese/English `hreflang` links fully qualified and each page self-canonical.
+`sitemap.xml` lists only the two current canonical pages. Update its `lastmod` dates
+only when the corresponding pages materially change, not on every deployment.
+The portfolio's root `robots.txt` advertises this sitemap and allows crawling.
+Keep the portfolio homepage free of a new navigation link, as requested.
+WebPage JSON-LD describes existing visible content; do not invent ratings, reviews,
+downloads or compatibility claims to obtain software rich results.
 
 Production uses the existing GitHub Pages site, not the historical Cloudflare
 design preview. The portfolio repository's Pages workflow packages the static
