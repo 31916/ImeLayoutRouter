@@ -31,6 +31,8 @@ Date each V1/V2 news item and link the edition to its article in
 unverified environments in those Japanese/English GitHub Markdown articles.
 The website points readers to the articles for compatibility information.
 Keep the original icon and selected palette; no status column or long feature blocks.
+Update the stylesheet URL version in both pages when changing CSS so returning
+visitors do not combine the new HTML with their cached previous design.
 History dates must have Git evidence and distinguish implementation from release.
 
 Production uses the existing GitHub Pages site, not the historical Cloudflare
