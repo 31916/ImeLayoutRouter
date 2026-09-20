@@ -15,8 +15,13 @@ Use the existing `Assets/app.ico` for the page masthead and favicon, matching th
 application, settings windows, tray and installer. The site build copies this
 canonical asset byte-for-byte to `app.ico`; do not replace it with a new design.
 
-Social link previews use the checked-in 1200 x 630 PNG files `social-ja-v1.png`
-and `social-en-v1.png`, composed from the same original icon and site palette.
+Social link previews use the checked-in 1200 x 630 PNG files `social-ja-v2.png`
+and `social-en-v2.png`, composed from the same original icon and site palette.
+Describe the purpose as "IMEの直接入力を、指定した配列で" / "Your chosen layout
+for IME direct input", not a broad claim of automatic keyboard layout switching.
+The image revision suffix is separate from the application's V1/V2 editions.
+Keep the original `social-*-v1.png` URLs serving the corrected artwork too, for
+previously cached cards that still reference them.
 Regenerate them on Windows with
 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/generate-social-images.ps1`
 (uses built-in System.Drawing and the Windows Georgia/Meiryo fonts).
