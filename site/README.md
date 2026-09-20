@@ -19,19 +19,18 @@ Build the palette comparison with `npm run site:build -- --review`; its separate
 `.site-review-dist` output adds noindex headers and is deployed to a preview branch.
 The application repository's default branch is `V2`. The requested public download
 page belongs under `31916.ch/IMELayOutRouter/` in the existing portfolio repository;
-do not add a homepage link. Do not publish downloads before desktop acceptance passes.
-The site's text honestly marks both new editions as unavailable; it does not
-link to nonexistent downloads or present the old v1 test build as the new V1.
+do not add a homepage link. The owner approved publication with incomplete
+compatibility coverage on 2026-09-20. Both languages must identify verified
+environments and unverified browser/CJK behavior beside the downloads.
 
 Production uses the existing GitHub Pages site, not the historical Cloudflare
 design preview. The user has retired the prototype GitHub Release. Do not create
-new releases. After desktop acceptance, place validated installers under
+new GitHub releases. After final package checks, place installers under
 `IMELayOutRouter/downloads/` in the portfolio repository and link to them relatively.
 Keep individual files below 100 MiB and the complete site below 1 GB. Include the
-actual file size and SHA-256; never publish an untested installer, even unlinked.
+actual file size and SHA-256; require final-version installer lifecycle checks.
 
-Before release: confirm hosting/domain, replace preparation
-copy with actual verified versions/assets/checksums, publish verification results,
+Before release: use actual versions/assets/checksums, publish verification results,
 and check the download links after upload. See `docs/release-plan.md`.
 
 Limits: https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits

@@ -1,6 +1,18 @@
 # Change log
 
-## Unreleased — priority routing controls
+## 2026-09-20 — V1 1.1.0 / V2 2.0.0
+
+- Publish separate Japanese essentials (V1) and full (V2) installers on the
+  Japanese/English website; retain the original application icon throughout.
+- Both editions include the repaired direct-input/field-metadata routing engine,
+  separate settings and installer identities, and startup ownership cleanup.
+- V1 excludes advanced controls and runtime modules; V2 includes the controls below.
+- Publication was approved with incomplete compatibility coverage. Native Google
+  Japanese/Swiss layout checks and installer lifecycle checks passed; browser
+  fields, Microsoft Japanese, Chinese and Korean IME composition remain unverified.
+  See [acceptance evidence](docs/acceptance-2026-09-20.md).
+
+### V2 routing controls
 
 - Wake on foreground/focus changes and refreshed field metadata; use a 50 ms
   routing fallback and isolate event delivery from slow accessibility providers.
@@ -39,6 +51,6 @@
 - Bound native restoration and cross-process IME message waits.
 - Add deterministic regression traces and read-only diagnostics.
 
-These entries describe development milestones; consult GitHub Releases for
-published packages. Chinese/Korean and browser acceptance testing remain
-required before promoting the previews to stable.
+The preview entries above are historical internal milestones. Public installers
+are available only from https://31916.ch/IMELayOutRouter/; GitHub Releases is no
+longer used. Browser/CJK acceptance remains follow-up work, not a completed check.

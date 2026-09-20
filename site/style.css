@@ -72,3 +72,6 @@ footer { text-align: center; padding-bottom: 24px; font-size: .88rem; }
   h3 small { margin-left: 0; display: block; }
   .history { grid-template-columns: 75px 1fr; gap: 10px; }
 }
+
+.checksum { overflow-wrap: anywhere; font-size: .85rem; }
+.compatibility { margin-top: 24px; text-align: left; }

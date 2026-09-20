@@ -1,8 +1,10 @@
 # Acceptance record — 2026-09-20
 
-**Neither edition is approved for public installer distribution.** GitHub Releases
-is no longer used. The Japanese/English information page is published at
-https://31916.ch/IMELayOutRouter/ with both editions explicitly unavailable.
+**Publication approved with incomplete compatibility coverage.** On 2026-09-20,
+after browser automation was blocked and the incomplete tests were disclosed,
+the owner explicitly authorized release. Unrun cases below remain unverified.
+V1 1.1.0 / V2 2.0.0 will be distributed from the Japanese/English page at
+https://31916.ch/IMELayOutRouter/. GitHub Releases is no longer used.
 Only that subdirectory was added to the portfolio; no root navigation was changed.
 
 ## Completed evidence
@@ -33,7 +35,7 @@ acceptance remains pending below. The input list remains de-CH plus Japanese/Goo
     `2d462ebfd34258903c4b5ae3b477662efba589f5002e3e86d66a48fdc5d1e5e4`.
   - V2 `2.0.0-rc.1`: 51,359,388 bytes,
     `b31ccded2bde9d7120b12bb2856d17f17a6887c4612081db5a45058328e7acf5`.
-  Both fit direct GitHub Pages hosting; no binary is published before acceptance.
+  These are historical RC artifacts, not the final distribution files.
 - In a native WinForms fixture running the actual routing engine, both editions
   passed physical-key Google Japanese Input composition (`a` → `あ`, then Enter)
   and Swiss German layout punctuation (`Ctrl+Right Alt+2` → `@`). No Unicode paste
@@ -60,7 +62,7 @@ acceptance remains pending below. The input list remains de-CH plus Japanese/Goo
 - `dotnet run` with custom edition output paths could execute a stale default-edition
   test binary locally. CI now builds and executes the exact edition DLL explicitly.
 
-## Still required before release
+## Unverified compatibility / follow-up acceptance
 
 - Browser email/URL/telephone/number/password fields, rapid focus changes, native
   return and target punctuation on Chrome/Edge and Firefox.
@@ -69,10 +71,35 @@ acceptance remains pending below. The input list remains de-CH plus Japanese/Goo
   language/input list. These cases need another suitable Windows test environment.
 - Complete startup-at-sign-in and diagnostic-save UI acceptance, a complete installed-app
   walkthrough, and the remaining historical-version upgrade cases.
-- Final accepted installer versions, per-file SHA-256/size, direct website upload
-  and download integrity verification. Do not upload unvalidated packages.
+
+## Final package publication checks
+
+Before upload, require successful final-version CI, installer lifecycle checks,
+per-file SHA-256/size and preserved icon. After upload, verify HTTPS downloads
+against those hashes. Record final package evidence separately below.
 
 Re-run `tools/Test-Installer.ps1` on final packages. For composition, build
 `tests/WindowsSmoke/WindowsSmoke.csproj` for the required edition and execute its
 edition-specific DLL with `--composition` in an interactive desktop session.
 The fixture never changes installed input methods or saves entered text.
+
+## Final distribution packages — 2026-09-20
+
+Built from application commit `fdfe2a5c0e21f9d8d103fb2848274323c70c674f` in
+[successful Windows CI run 35482636083](https://github.com/31916/ImeLayoutRouter/actions/runs/35482636083).
+Both edition jobs passed; the full regression suite passed 30 scenarios.
+The downloaded artifact ZIPs matched the SHA-256 digests returned by GitHub.
+
+| Edition | Installer | Bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| V1 | ImeLayoutRouter-V1-1.1.0-Setup.exe | 51,342,344 | `64f48a8db7ed0c5da1f68b0ee772add861463e14d31ed3af9851f548ce73b22e` |
+| V2 | ImeLayoutRouter-V2-2.0.0-Setup.exe | 51,365,971 | `510616cb7a1be937ea4b546a99cfe8790295d67115519637539eb91c1e2ac088` |
+
+Both exact final installers passed `tools/Test-Installer.ps1` on the user's PC:
+install, same-package reinstall, shared-instance startup, own-startup cleanup,
+other-edition startup preservation and unchanged existing settings. Additional
+checks verified the executable and uninstall registration versions and that the
+installed `Assets/app.ico` matches the canonical original icon byte-for-byte.
+Local evidence: `outputs/lifecycle-final-simple.log` and `lifecycle-final-full.log`.
+The icon SHA-256 is `f97e2a2030ff6e8b77fc2240a7690a206081d038d3a87a37165be4aee0f87857`.
+The browser and CJK compatibility limitations above are unchanged.

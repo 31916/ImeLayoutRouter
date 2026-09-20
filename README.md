@@ -22,29 +22,30 @@ rules, status, shortcuts and guided setup. Fixes are shared; V1 excludes the
 advanced UI and runtime modules at build time. `dotnet build -c Release` uses
 the branch's default. Override with `-p:Edition=Simple` or `-p:Edition=Full`.
 
-**Both branches are unreleased development code.** No new public release or
-download may be published before its desktop acceptance tests pass. The intended
-download page is `31916.ch/IMELayOutRouter/`, without a portfolio entry link. See the
-[release plan](docs/release-plan.md) and [website preview instructions](site/README.md).
-The internal v3 package is not being published under this new plan.
-The previously published v1.0.0 does not include the email-field repair.
-Chinese/Korean support and the new field detector are preview features; see
-the [validation status and acceptance matrix](docs/diagnosis.md).
+**V1 1.1.0 and V2 2.0.0** are the website distribution versions.
+The owner approved publication on 2026-09-20 after the incomplete acceptance
+coverage was disclosed. This does not turn unrun tests into passes.
+Google Japanese Input with a Swiss German keyboard passed native Windows fixture
+checks; browser email-field routing and Microsoft Japanese/Chinese/Korean IMEs
+remain unverified. See the [acceptance record](docs/acceptance-2026-09-20.md).
+The old v1.0.0 prototype lacks the repaired engine. Internal 2.0/3.0 preview
+milestones are not separate public editions.
 
 ## Download and upgrade
 
 [Download page](https://31916.ch/IMELayOutRouter/) — Japanese and English.
-Installers will be distributed directly from this website after desktop acceptance.
+Installers are distributed directly from this website, with tested environments and limitations.
 The old prototype release has been retired; GitHub Releases is no longer used.
 
-For an installer release, download `ImeLayoutRouter-Setup.exe`.
-For a portable preview, extract the complete ZIP and run `ImeLayoutRouter.exe`.
+Choose `ImeLayoutRouter-V1-1.1.0-Setup.exe` (Japanese essentials) or
+`ImeLayoutRouter-V2-2.0.0-Setup.exe` (full edition). Check its SHA-256 against
+the checksum file on the download page.
 The self-contained Windows x64 package does not require a separate .NET install.
 
 1. Exit an older running copy using its tray menu before upgrading from v1.
 2. Start the new application and open **Settings**.
 3. Select a **Source IME** and **Target Keyboard Layout**.
-4. Optionally enable **Route all enabled Japanese, Chinese and Korean IMEs**.
+4. In V2, optionally enable **Route all enabled Japanese, Chinese and Korean IMEs**.
 5. Save. Legacy `settings.json` can be imported. New saves use `settings-v1.json`
    or `settings-v2.json` and preserve the original file. Only one edition runs at a time.
 
@@ -83,7 +84,7 @@ Full-width Latin is preserved in ordinary fields.
 A second launch opens the existing instance's settings, including across editions.
 A monitor failure is reported through the tray rather than silently stopping.
 
-## Priority features (development build, not yet released)
+## V2 guided setup and application rules
 
 Settings now has four guided pages, displayed in Japanese or English according
 to the Windows UI language: IME/layout, applications, shortcuts and a typing check.
@@ -111,7 +112,7 @@ request in the same window; it does not force the IME into a conversion mode.
 Settings schema 3 preserves schema 1/2 selections and adds these preferences.
 Back up settings before downgrading: older binaries cannot read schema 3.
 See [priority feature validation](docs/priority-features.md) for the remaining
-interactive checks. These changes do not constitute a V1/V2 release.
+interactive checks. The full acceptance coverage is still incomplete.
 
 ## Version progression
 
@@ -139,9 +140,10 @@ claim that every version has been published as a stable release.
   alone never triggers a switch.
 - InputScope-only custom controls, elevated applications, remote desktops,
   secure desktops and some TSF-only IMEs can require additional support.
-- Chinese/Korean native composition and browser-specific behavior need the
-  manual acceptance matrix before a stable release. Synthetic tests are not
-  a substitute for those checks.
+- Browser email/URL/telephone/number/password routing and Microsoft Japanese,
+  Chinese and Korean IME composition remain unverified. The release includes
+  their implementation without claiming verified compatibility. Synthetic tests
+  are not a substitute for these checks.
 - Foreground/focus events and new field metadata wake the monitor; a 50 ms
   fallback detects changes that do not emit events. The accessibility worker
   retains its 100 ms fallback. Slow providers and asynchronous application
@@ -154,8 +156,10 @@ Requirements: Windows and the .NET 8 SDK.
 
 ```powershell
 dotnet build -c Release
-dotnet run --project tests/RoutingTests.csproj -c Release
-dotnet run --project tests/UiSmoke/UiSmoke.csproj -c Release
+dotnet build tests/RoutingTests.csproj -c Release -p:Edition=Full
+dotnet tests/bin/Full/Release/net8.0-windows/RoutingTests.dll
+dotnet build tests/UiSmoke/UiSmoke.csproj -c Release -p:Edition=Full
+dotnet tests/UiSmoke/bin/Full/Release/net8.0-windows/UiSmoke.dll
 dotnet publish -c Release -r win-x64 --self-contained true
 ```
 
@@ -166,7 +170,8 @@ deactivation, changes only its own window's layout, and restores that layout
 on exit. See the validation record for which live checks have actually passed.
 
 ```powershell
-dotnet run --project tests/WindowsSmoke/WindowsSmoke.csproj -c Release
+dotnet build tests/WindowsSmoke/WindowsSmoke.csproj -c Release -p:Edition=Full
+dotnet tests/WindowsSmoke/bin/Full/Release/net8.0-windows/WindowsSmoke.dll
 ```
 
 Build the installer with [Inno Setup 6](https://jrsoftware.org/isinfo.php):
@@ -175,9 +180,8 @@ Build the installer with [Inno Setup 6](https://jrsoftware.org/isinfo.php):
 iscc installer/ImeLayoutRouter.iss
 ```
 
-The CI workflow builds and runs deterministic tests on Windows. The release
-workflow builds preview ZIP and installer artifacts for manual review; it does
-not automatically publish a stable release.
+The CI workflows run Windows tests and package separate installer/portable
+artifacts. Publication to the website is a separate reviewed step.
 
 Read-only diagnostic CLI (works alongside an existing router):
 
@@ -185,5 +189,6 @@ Read-only diagnostic CLI (works alongside an existing router):
 .\ImeLayoutRouter.exe --diagnose 30 .\diagnostic.log
 ```
 
-Configuration is stored in `%LOCALAPPDATA%\ImeLayoutRouter\settings.json`.
+Configuration is stored in `%LOCALAPPDATA%\ImeLayoutRouter\settings-v1.json`
+or `settings-v2.json`; legacy `settings.json` is imported without replacing it.
 See [the investigation](docs/diagnosis.md) and [change log](CHANGELOG.md).
