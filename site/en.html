@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="IME Layout Router is a Windows tray utility that switches IME direct input to your preferred keyboard layout. A simple Japanese edition and a full multilingual edition are in preparation.">
+  <meta name="description" content="IME Layout Router is a Windows tray utility that switches IME direct input to your preferred keyboard layout. Download the simple Japanese edition or the full multilingual edition.">
   <title>IME Layout Router — Home</title>
   <link rel="alternate" hreflang="ja" href="./">
   <link rel="alternate" hreflang="en" href="en.html">
@@ -32,14 +32,14 @@
       <p>When you use an IME, entering an email address or other Latin text can leave you with a keyboard layout you did not intend to use.</p>
       <p>IME Layout Router is a Windows tray utility that watches the input state and switches to your chosen keyboard layout when direct input is active.</p>
       <p class="routing-example"><span>あ / 中文 / 한글</span> → your IME &nbsp; / &nbsp; <span>A / Latin input</span> → your preferred layout</p>
-      <p class="small">Chinese and Korean support is planned for V2. Behavior varies by application and input field. Tested configurations will be listed when each edition is released.</p>
+      <p class="small">V2 can select Chinese and Korean IMEs, but real-machine behavior with those IMEs remains unverified.</p>
     </section>
 
     <section id="information">
       <h2>News</h2>
       <div class="notice">
-        <p><strong>V1 and V2 are undergoing pre-release validation.</strong></p>
-        <p>We are preparing a simple Japanese edition, V1, and a full multilingual edition, V2.<br>Each edition will be available here after the required validation is complete.</p>
+        <p><strong>September 20, 2026 — V1 and V2 are available.</strong></p>
+        <p>Download V1 for Japanese essentials or V2 for multilingual selection and advanced controls.<br>Please read the tested environments and outstanding checks below.</p>
       </div>
     </section>
 
@@ -47,28 +47,38 @@
       <h2>Downloads</h2>
       <article>
         <h3>IME Layout Router V1 <small>Simple Japanese edition</small></h3>
-        <p>For people who use a Japanese IME alongside their preferred keyboard layout.<br>This edition will combine essential everyday controls with the email-field routing repair.</p>
+        <p>For people who use a Japanese IME alongside their preferred keyboard layout.<br>Includes a repair for field-triggered layout switching, Japanese-only settings, source/target selection and startup. Advanced features are omitted.</p>
         <table>
           <caption>V1 availability</caption>
           <thead><tr><th scope="col">Format</th><th scope="col">Version</th><th scope="col">Status</th></tr></thead>
           <tbody>
-            <tr><td>Installer</td><td>1.1.0 (planned)</td><td>Desktop validation in progress; unavailable</td></tr>
+            <tr><td><a href="downloads/ImeLayoutRouter-V1-1.1.0-Setup.exe" download>Download V1 (.exe)</a><br><small>Windows x64 · 51.34 MB (51,342,344 bytes)</small></td><td>1.1.0</td><td>Available</td></tr>
           </tbody>
         </table>
       </article>
       <article>
         <h3>IME Layout Router V2 <small>Full edition</small></h3>
-        <p>For people who also use Chinese or Korean IMEs.<br>This edition will include multiple-IME routing and advanced controls, and will be released after validation.</p>
+        <p>For people who also use Chinese or Korean IMEs.<br>The main edition includes Japanese/English settings, application rules and exclusions, layout status, optional shortcuts, a typing check and diagnostic logs.</p>
         <table>
           <caption>V2 availability</caption>
           <thead><tr><th scope="col">Format</th><th scope="col">Version</th><th scope="col">Status</th></tr></thead>
           <tbody>
-            <tr><td>Installer</td><td>2.0.0 (planned)</td><td>Desktop validation in progress; unavailable</td></tr>
+            <tr><td><a href="downloads/ImeLayoutRouter-V2-2.0.0-Setup.exe" download>Download V2 (.exe)</a><br><small>Windows x64 · 51.37 MB (51,365,971 bytes)</small></td><td>2.0.0</td><td>Available</td></tr>
           </tbody>
         </table>
       </article>
-      <p class="small">Planned platform: Windows x64. Tested environments, file sizes and SHA-256 checksums will be listed when downloads become available.</p>
-      <p>Validated installers will be available directly from this page. Downloads are not available yet.</p>
+      <p class="small">For Windows x64. Both editions include .NET; no separate runtime installation is needed. V1 omits advanced features, but its download size is similar to V2 because both include the same runtime.</p>
+      <p><a href="downloads/SHA256SUMS.txt" download>Download SHA-256 checksums</a></p>
+      <details><summary>Show file SHA-256 hashes</summary>
+        <p>V1 1.1.0<br><code class="checksum">64f48a8db7ed0c5da1f68b0ee772add861463e14d31ed3af9851f548ce73b22e</code></p>
+        <p>V2 2.0.0<br><code class="checksum">510616cb7a1be937ea4b546a99cfe8790295d67115519637539eb91c1e2ac088</code></p>
+      </details>
+      <div class="notice compatibility">
+        <p><strong>Tested environment and outstanding checks</strong></p>
+        <p>Windows 11 (build 26200), Google Japanese Input 3.34.6260.0 and a Swiss German keyboard: Japanese composition, layout switching and punctuation passed in native Windows test controls. Both installers passed install, reinstall and uninstall checks.</p>
+        <p><strong>Actual typing in Chrome/Edge/Firefox email fields and real-machine behavior with Microsoft Japanese, Chinese and Korean IMEs remain unverified.</strong>Compatibility with every application or IME is not guaranteed.</p>
+        <p class="small">Startup at Windows sign-in, the complete diagnostic-save UI flow and every historical upgrade path also remain unverified.</p>
+      </div>
     </section>
 
     <section id="usage">
@@ -96,8 +106,8 @@
     <section id="history">
       <h2>History</h2>
       <dl class="history">
-        <dt>In progress</dt><dd>Preparing the dedicated website and validating the simple Japanese V1 and full V2 editions.</dd>
-        <dt>Earlier prototype</dt><dd>The initial test download has been retired. The new V1 and V2 editions will be available after validation.</dd>
+        <dt>2026/09/20</dt><dd>Released V1 1.1.0 and V2 2.0.0 with improved field detection and routing, separate edition settings and startup-registration cleanup on uninstall.</dd>
+        <dt>Earlier prototype</dt><dd>The initial test download has been retired. Current V1 and V2 downloads are provided on this page.</dd>
       </dl>
     </section>
   </main>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="IME Layout Router は、IMEの直接入力を好みのキーボード配列へ切り替えるWindows用の常駐ソフトです。日本語簡易版V1と多言語対応版V2を準備しています。">
+  <meta name="description" content="IME Layout Router は、IMEの直接入力を好みのキーボード配列へ切り替えるWindows用の常駐ソフトです。日本語簡易版V1と多言語対応版V2のインストーラーを配布しています。">
   <title>IME Layout Router のホームページ</title>
   <link rel="alternate" hreflang="ja" href="./">
   <link rel="alternate" hreflang="en" href="en.html">
@@ -32,14 +32,14 @@
       <p>IMEを使っていると、メールアドレスなどの入力時にも、思いどおりのキーボード配列にならないことがあります。</p>
       <p>IME Layout Router は入力状態を見守り、直接入力になったときに、指定したキーボード配列へ切り替えるWindows用の常駐ソフトです。</p>
       <p class="routing-example"><span>あ・中文・한글</span> → IMEで入力　／　<span>A・英数</span> → 好きな配列で入力</p>
-      <p class="small">※ 中国語・韓国語への対応はV2で予定しています。アプリや入力欄によって動作が異なるため、確認できた環境を公開時に記載します。</p>
+      <p class="small">※ V2は中国語・韓国語IMEの選択にも対応していますが、これらのIMEでの実機動作は未確認です。</p>
     </section>
 
     <section id="information">
       <h2>お知らせ</h2>
       <div class="notice">
-        <p><strong>V1・V2は公開前の動作確認中です。</strong></p>
-        <p>日本語向けの簡易版V1と、多言語・詳細機能を備えたV2を準備中です。<br>必要な動作確認を終えた版から、このページで配布します。</p>
+        <p><strong>2026年9月20日 — V1・V2を公開しました。</strong></p>
+        <p>日本語向けの簡易版V1と、多言語・詳細機能を備えたV2を配布しています。<br>下記の確認済み環境・未確認の項目をご確認ください。</p>
       </div>
     </section>
 
@@ -47,28 +47,38 @@
       <h2>ダウンロード</h2>
       <article>
         <h3>IME Layout Router V1 <small>日本語簡易版</small></h3>
-        <p>日本語IMEと、好きなキーボード配列を使いたい方へ。<br>メール欄への対応を含め、普段使う機能をわかりやすくまとめた版です。</p>
+        <p>日本語IMEと、好きなキーボード配列を使いたい方へ。<br>メール欄の配列切替に対処する修正を含み、日本語の設定画面・配列選択・自動起動に機能を絞った版です。</p>
         <table>
           <caption>V1の配布状況</caption>
           <thead><tr><th scope="col">形式</th><th scope="col">バージョン</th><th scope="col">状況</th></tr></thead>
           <tbody>
-            <tr><td>インストーラー版</td><td>1.1.0（予定）</td><td>実機確認中・未配布</td></tr>
+            <tr><td><a href="downloads/ImeLayoutRouter-V1-1.1.0-Setup.exe" download>V1をダウンロード (.exe)</a><br><small>Windows x64 · 51.34 MB (51,342,344 bytes)</small></td><td>1.1.0</td><td>公開中</td></tr>
           </tbody>
         </table>
       </article>
       <article>
         <h3>IME Layout Router V2 <small>完全版</small></h3>
-        <p>日本語に加え、中国語・韓国語のIMEも使いたい方へ。<br>複数IMEへの対応や詳細機能をまとめ、動作確認を終えてから公開する予定です。</p>
+        <p>日本語に加え、中国語・韓国語のIMEも使いたい方へ。<br>日本語・英語の設定画面、アプリ別ルール・除外、現在の配列表示、任意のショートカット、入力確認欄、診断ログを備えたメイン版です。</p>
         <table>
           <caption>V2の配布状況</caption>
           <thead><tr><th scope="col">形式</th><th scope="col">バージョン</th><th scope="col">状況</th></tr></thead>
           <tbody>
-            <tr><td>インストーラー版</td><td>2.0.0（予定）</td><td>実機確認中・未配布</td></tr>
+            <tr><td><a href="downloads/ImeLayoutRouter-V2-2.0.0-Setup.exe" download>V2をダウンロード (.exe)</a><br><small>Windows x64 · 51.37 MB (51,365,971 bytes)</small></td><td>2.0.0</td><td>公開中</td></tr>
           </tbody>
         </table>
       </article>
-      <p class="small">対応予定：Windows x64。詳しい動作確認環境・ファイルサイズ・SHA-256は、配布開始時に掲載します。</p>
-      <p>確認を通過したインストーラーを、このページから直接ダウンロードできるようにします。現在はダウンロードできません。</p>
+      <p class="small">Windows x64用。どちらも.NETを同梱しているため、別途インストールする必要はありません。V1は高度な機能を省いていますが、同梱ランタイムが共通のため配布サイズはV2とほぼ同じです。</p>
+      <p><a href="downloads/SHA256SUMS.txt" download>SHA-256チェックサムをダウンロード</a></p>
+      <details><summary>ファイルのSHA-256を表示</summary>
+        <p>V1 1.1.0<br><code class="checksum">64f48a8db7ed0c5da1f68b0ee772add861463e14d31ed3af9851f548ce73b22e</code></p>
+        <p>V2 2.0.0<br><code class="checksum">510616cb7a1be937ea4b546a99cfe8790295d67115519637539eb91c1e2ac088</code></p>
+      </details>
+      <div class="notice compatibility">
+        <p><strong>確認済みの環境と、未確認の項目</strong></p>
+        <p>Windows 11（ビルド26200）、Google日本語入力 3.34.6260.0、スイス・ドイツ語配列で、検証用のWindows入力画面における日本語入力・配列切替・記号入力を確認しました。両版のインストール・再インストール・アンインストールも確認しています。</p>
+        <p><strong>Chrome・Edge・Firefoxのメール欄などでの実入力、およびMicrosoft日本語・中国語・韓国語IMEの実機動作は未確認です。</strong>すべてのアプリ・IMEでの動作を保証するものではありません。</p>
+        <p class="small">Windowsへのサインイン時の自動起動、診断保存画面の一連の操作、すべての旧版からの更新経路も未確認です。</p>
+      </div>
     </section>
 
     <section id="usage">
@@ -96,8 +106,8 @@
     <section id="history">
       <h2>更新履歴</h2>
       <dl class="history">
-        <dt>準備中</dt><dd>日本語簡易版V1・完全版V2の配布に向け、動作確認と専用サイトを整備しています。</dd>
-        <dt>旧プロトタイプ</dt><dd>初期テスト版の配布は終了しました。新しいV1・V2は動作確認後に公開します。</dd>
+        <dt>2026/09/20</dt><dd>V1 1.1.0・V2 2.0.0を公開。入力欄の判定と切替処理を改善し、版別の設定保存、アンインストール時の自動起動設定の後始末に対応しました。</dd>
+        <dt>旧プロトタイプ</dt><dd>初期テスト版の配布は終了しました。現在の配布はこのページのV1・V2です。</dd>
       </dl>
     </section>
   </main>
