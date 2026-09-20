@@ -1,4 +1,7 @@
-# IME Layout Router
+# IMELayoutRouter (IME Layout Router)
+
+[Official downloads / 公式ダウンロード](https://31916.ch/IMELayoutRouter/)
+— Windows用のIME・キーボード配列自動切替ソフト。日本語簡易版V1と多機能版V2を配布しています。
 
 A Windows tray utility that routes IME direct/Latin input to your preferred
 keyboard layout, while keeping native Japanese, Chinese and Korean input
