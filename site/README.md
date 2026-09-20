@@ -15,6 +15,17 @@ Use the existing `Assets/app.ico` for the page masthead and favicon, matching th
 application, settings windows, tray and installer. The site build copies this
 canonical asset byte-for-byte to `app.ico`; do not replace it with a new design.
 
+Social link previews use the checked-in 1200 x 630 PNG files `social-ja-v1.png`
+and `social-en-v1.png`, composed from the same original icon and site palette.
+Regenerate them on Windows with
+`powershell -NoProfile -ExecutionPolicy Bypass -File tools/generate-social-images.ps1`
+(uses built-in System.Drawing and the Windows Georgia/Meiryo fonts).
+Both pages declare absolute HTTPS Open Graph image URLs and X/Twitter large-image
+cards with matching language-specific alternative text. These images are metadata
+assets, not added page content. When the artwork changes, use a new filename and
+update both the metadata and build/preview allowlists to avoid stale image caches.
+The portfolio's legacy redirect pages inherit the canonical page's sharing metadata.
+
 Build with `npm run site:build`. Static output directory: `.site-dist`.
 Build the palette comparison with `npm run site:build -- --review`; its separate
 `.site-review-dist` output adds noindex headers and is deployed to a preview branch.

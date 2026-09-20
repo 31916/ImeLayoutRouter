@@ -5,7 +5,7 @@ const review = process.argv.includes('--review');
 const output = new URL(review ? '.site-review-dist/' : '.site-dist/', root);
 await mkdir(output, { recursive: true });
 // Explicit allowlist: draft controls and unpublished packages are not deployed.
-const files = ['index.html', 'en.html', 'style.css', '_headers', 'app.ico', 'sitemap.xml'];
+const files = ['index.html', 'en.html', 'style.css', '_headers', 'app.ico', 'sitemap.xml', 'social-ja-v1.png', 'social-en-v1.png'];
 if (review) files.push('preview.html', 'preview.css', 'preview.js');
 for (const existing of await readdir(output)) {
   if (!files.includes(existing)) throw new Error('Unexpected file in deployment output: ' + existing);
