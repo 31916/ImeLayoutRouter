@@ -5,6 +5,24 @@
 
 # dotenv files
 .env
+.env.*
+!.env.example
+!.env.template
+
+# Local credentials and private review output must never enter Git history.
+.codex/
+.claude/
+.cursor/
+.ssh/
+credentials.json
+secrets.json
+*.pem
+*.key
+*.p12
+*.snk
+*.har
+*.dmp
+outputs/
 
 # Static website output and Cloudflare local state
 .site-dist/
