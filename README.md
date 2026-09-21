@@ -7,6 +7,10 @@ A Windows tray utility that selects an existing Windows input layout for IME
 direct/Latin input. Choose a source IME and a target layout already enabled in
 Windows. V1 covers Japanese; V2 also offers Chinese and Korean source selection.
 
+不具合の報告では、入力した文章・個人の文書・パスワードを添付しないでください。
+診断ファイルを共有する前に、[公開時の注意と脆弱性の非公開報告先](SECURITY.md)を確認してください。
+For safe diagnostic sharing and private vulnerability reports, see [SECURITY.md](SECURITY.md).
+
 ```text
 あ / 中文 / 한글  →  native IME input
 A / Latin input  →  your target layout, e.g. Deutsch (Schweiz)

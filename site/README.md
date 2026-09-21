@@ -62,12 +62,25 @@ Use the exact product spelling `IMELayoutRouter` in titles, headings and descrip
 retain `IME Layout Router` as an alternate name in metadata. Titles and descriptions
 should explain that this is a Windows IME/keyboard-layout utility. Keep reciprocal
 Japanese/English `hreflang` links fully qualified and each page self-canonical.
+Use `x-default` for the Japanese default page, and retain reciprocal language
+alternates in the sitemap. The document title identifies the official downloads;
+the page remains compact, with no extra SEO-only text or navigation on the portfolio.
 `sitemap.xml` lists only the two current canonical pages. Update its `lastmod` dates
 only when the corresponding pages materially change, not on every deployment.
 The portfolio's root `robots.txt` advertises this sitemap and allows crawling.
 Keep the portfolio homepage free of a new navigation link, as requested.
 WebPage JSON-LD describes existing visible content; do not invent ratings, reviews,
 downloads or compatibility claims to obtain software rich results.
+
+Search Console ownership and indexing requests are separate from publishing SEO
+metadata. After owner verification, submit `sitemap.xml` and inspect the two
+canonical URLs. Record Google's actual status; a successful deployment, sitemap
+submission or indexing request is not evidence that a page appears in search.
+Do not request recrawls repeatedly or promise a ranking or completion date.
+
+The portfolio packager uses a file allowlist, including for legacy aliases.
+Add public assets deliberately; never change it to recursively publish a working
+directory that may contain logs, credentials or private review files.
 
 Production uses the existing GitHub Pages site, not the historical Cloudflare
 design preview. The portfolio repository's Pages workflow packages the static
