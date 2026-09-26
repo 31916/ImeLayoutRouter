@@ -1,4 +1,4 @@
-# Browser field detection correction (not yet released)
+# Browser field detection correction — Ver1.1.1 / Ver2.0.1
 
 ## Defect and correction
 
@@ -41,7 +41,10 @@ was the only cause of the reported failure on the contact page.
   Chrome's current URL. No physical-key end-to-end test was completed. Browser DOM
   focus checks and test doubles are not substitutes for that test.
 
-No public installer was replaced, and the installed application was not changed.
+The initial investigation did not replace public installers or the installed
+application. The owner subsequently approved publishing this correction as
+Ver1.1.1 / Ver2.0.1 on September 26 with the remaining test limitation disclosed.
+The existing installed application is not silently upgraded by website publication.
 
 ## Commands
 
@@ -65,4 +68,5 @@ On a fresh browser session with only the patched router providing accessibility
 requests, switch from a Japanese text field to the reported email field and verify
 the configured target layout and actual punctuation keys. Repeat after focus changes
 and page navigation, and confirm ordinary Japanese composition is preserved.
-Complete this check before updating public installers.
+This check remains outstanding after the approved publication. Do not describe
+the reported browser-input issue as confirmed resolved until it passes.

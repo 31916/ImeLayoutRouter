@@ -60,12 +60,14 @@ rules, status, shortcuts and guided setup. Fixes are shared; V1 excludes the
 advanced UI and runtime modules at build time. `dotnet build -c Release` uses
 the branch's default. Override with `-p:Edition=Simple` or `-p:Edition=Full`.
 
-**V1 1.1.0 and V2 2.0.0** are the website distribution versions.
-The owner approved publication on 2026-09-20 after the incomplete acceptance
+**Ver1.1.1 (Japanese essentials) and Ver2.0.1 (full edition)** are the website distribution versions.
+They include the browser field metadata initialization correction.
+The owner approved publication on 2026-09-26 after the incomplete acceptance
 coverage was disclosed. This does not turn unrun tests into passes.
 Google Japanese Input with a Swiss German keyboard passed native Windows fixture
 checks; browser email-field routing and Microsoft Japanese/Chinese/Korean IMEs
-remain unverified. See the [acceptance record](docs/acceptance-2026-09-20.md).
+remain unverified. See the [current validation record](docs/browser-field-fix-2026-09-26.md)
+and [original acceptance record](docs/acceptance-2026-09-20.md).
 The old v1.0.0 prototype lacks the repaired engine. Internal 2.0/3.0 preview
 milestones are not separate public editions.
 
@@ -73,15 +75,15 @@ milestones are not separate public editions.
 
 [Download page](https://31916.ch/IMELayoutRouter/) — Japanese and English.
 
-Release notes: [V1 1.1.0](docs/releases/v1-1.1.0.md) / [English](docs/releases/v1-1.1.0.en.md),
-[V2 2.0.0](docs/releases/v2-2.0.0.md) / [English](docs/releases/v2-2.0.0.en.md).
+Release notes: [Ver1.1.1](docs/releases/v1-1.1.1.md) / [English](docs/releases/v1-1.1.1.en.md),
+[Ver2.0.1](docs/releases/v2-2.0.1.md) / [English](docs/releases/v2-2.0.1.en.md).
 [Development history and date sources](docs/releases/history.md).
 
 Installers are distributed directly from this website, with tested environments and limitations.
 The old prototype release has been retired; GitHub Releases is no longer used.
 
-Choose `ImeLayoutRouter-V1-1.1.0-Setup.exe` (Japanese essentials) or
-`ImeLayoutRouter-V2-2.0.0-Setup.exe` (full edition). Check its SHA-256 against
+Choose `ImeLayoutRouter-1.1.1-Setup.exe` (Japanese essentials) or
+`ImeLayoutRouter-2.0.1-Setup.exe` (full edition). Check its SHA-256 against
 the checksum file on the download page.
 The self-contained Windows x64 package does not require a separate .NET install.
 

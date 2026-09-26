@@ -3,11 +3,11 @@
 #endif
 #if Edition == "Simple"
   #define EditionName "V1"
-  #define AppVersion "1.1.0"
+  #define AppVersion "1.1.1"
   #define EditionId "{{CB27A979-27AB-40E2-A613-52CC5EFCB128}"
 #else
   #define EditionName "V2"
-  #define AppVersion "2.0.0"
+  #define AppVersion "2.0.1"
   #define EditionId "{{62EBC270-35B4-4E79-A170-426D38FEAA8C}"
 #endif
 
@@ -19,7 +19,7 @@ AppPublisher=31916
 DefaultDirName={localappdata}\Programs\IME Layout Router {#EditionName}
 DefaultGroupName=IME Layout Router {#EditionName}
 OutputDir=output
-OutputBaseFilename=ImeLayoutRouter-{#EditionName}-{#AppVersion}-Setup
+OutputBaseFilename=ImeLayoutRouter-{#AppVersion}-Setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
