@@ -8,6 +8,14 @@ static class Smoke
     [STAThread]
     static void Main(string[] args)
     {
+        if (args.Length == 2 && args[0] == "--field-metadata")
+        {
+            var worker = new Thread(() => FocusedInputProbe.DiagnoseWindow(new IntPtr(long.Parse(args[1])), Console.WriteLine));
+            worker.SetApartmentState(ApartmentState.MTA);
+            worker.Start();
+            if (!worker.Join(TimeSpan.FromSeconds(10))) Environment.Exit(2);
+            return;
+        }
         if (args.Length == 2 && args[0] == "--browser") { BrowserProbe.Run(args); return; }
         Application.EnableVisualStyles();
         if (args.Length == 1 && args[0] == "--composition") { CompositionProbe.Run(); return; }
