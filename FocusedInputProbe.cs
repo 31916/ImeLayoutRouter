@@ -93,20 +93,62 @@ sealed class FocusedInputProbe : IDisposable
         }
     }
 
-    private static (FocusedFieldKind, int) Inspect(IntPtr focus)
+    // Opt-in diagnostics report only API results and structural field metadata.
+    internal static void DiagnoseWindow(IntPtr window, Action<string> trace)
+    {
+        uint thread = GetWindowThreadProcessId(window, IntPtr.Zero);
+        var gui = new GUIINFO { Size = Marshal.SizeOf<GUIINFO>() };
+        if (thread == 0 || !GetGUIThreadInfo(thread, ref gui)) { trace("Window unavailable"); return; }
+        trace($"foreground={GetForegroundWindow() == window} focus=0x{gui.Focus:X}");
+        var result = Inspect(gui.Focus == IntPtr.Zero ? window : gui.Focus, trace);
+        trace($"result={result.Item1} element={result.Item2}");
+    }
+
+    private static (FocusedFieldKind, int) Inspect(IntPtr focus, Action<string>? trace = null)
     {
         IAccessible? accessible = null;
         try
         {
             Guid iid = typeof(IAccessible).GUID;
-            if (AccessibleObjectFromWindow(focus, 0xFFFFFFFC, ref iid, out accessible) != 0 || accessible == null)
+            int hr = AccessibleObjectFromWindow(focus, 0xFFFFFFFC, ref iid, out accessible);
+            trace?.Invoke($"MSAA client hr=0x{hr:X8}");
+            if (hr != 0 || accessible == null)
                 return (FocusedFieldKind.Unknown, 0);
+            var owned = accessible;
+            accessible = null;
+            return InspectAccessible(owned, node => ReadIa2(node, trace), trace);
+        }
+        catch (Exception ex) when (ex is COMException or InvalidCastException or ArgumentException
+            or InvalidOperationException or NotImplementedException)
+        {
+            trace?.Invoke($"failure={ex.GetType().Name} hr=0x{ex.HResult:X8}");
+            return (FocusedFieldKind.Unknown, 0);
+        }
+        finally { Release(accessible); }
+    }
+
+    // Takes ownership of the supplied accessibility reference. The metadata
+    // delegate also allows the browser's lazy provider to be regression tested.
+    internal static (FocusedFieldKind, int) InspectAccessible(IAccessible accessible,
+        Func<IAccessible, (FocusedFieldKind, int)> metadata, Action<string>? trace = null)
+    {
+        try
+        {
             object child = 0;
             // Browser DOM focus need not change the HWND. Follow accFocus to the
             // focused element, bounded to protect against broken providers.
             for (int depth = 0; depth < 20; depth++)
             {
+                // Chromium initially exposes only a document/host placeholder.
+                // Query IA2 at each level *before* asking for DOM focus or
+                // rejecting an unfocused/read-only node. This requests web
+                // accessibility metadata; a later poll sees the hydrated tree.
+                // Never use an ancestor's type as the focused field's type.
+                (FocusedFieldKind, int) hint;
+                try { hint = metadata(accessible); }
+                catch (COMException) { hint = (FocusedFieldKind.Unknown, 0); }
                 object? next = accessible.accFocus;
+                trace?.Invoke($"focus depth={depth} kind={(next is IAccessible ? "object" : next is int ? "child" : "none")}");
                 if (next is IAccessible nested && !ReferenceEquals(nested, accessible))
                 {
                     Release(accessible);
@@ -114,30 +156,34 @@ sealed class FocusedInputProbe : IDisposable
                     continue;
                 }
                 if (next is int childId) child = childId;
-                break;
+                int state = Convert.ToInt32(accessible.get_accState(child));
+                trace?.Invoke($"state=0x{state:X8} child={child}");
+                if ((state & 0x00000004) == 0) return (FocusedFieldKind.Unknown, 0); // FOCUSED
+                if ((state & 0x00000001) != 0 || (state & 0x00000040) != 0) // unavailable/read-only
+                    return (FocusedFieldKind.Unknown, 0);
+                if ((state & 0x20000000) != 0) return (FocusedFieldKind.Direct, 0); // PROTECTED
+                if (!Equals(child, 0)) return (FocusedFieldKind.Unknown, 0);
+                return hint;
             }
-            int state = Convert.ToInt32(accessible.get_accState(child));
-            if ((state & 0x00000004) == 0) return (FocusedFieldKind.Unknown, 0); // FOCUSED
-            if ((state & 0x00000001) != 0 || (state & 0x00000040) != 0) // unavailable/read-only
-                return (FocusedFieldKind.Unknown, 0);
-            if ((state & 0x20000000) != 0) return (FocusedFieldKind.Direct, 0); // PROTECTED
-            if (!Equals(child, 0)) return (FocusedFieldKind.Unknown, 0);
-            return ReadIa2(accessible);
+            return (FocusedFieldKind.Unknown, 0); // Cycle or excessive provider depth.
         }
         catch (Exception ex) when (ex is COMException or InvalidCastException or ArgumentException
             or InvalidOperationException or NotImplementedException)
         {
+            trace?.Invoke($"failure={ex.GetType().Name} hr=0x{ex.HResult:X8}");
             return (FocusedFieldKind.Unknown, 0);
         }
         finally { Release(accessible); }
     }
 
-    private static (FocusedFieldKind, int) ReadIa2(IAccessible accessible)
+    private static (FocusedFieldKind, int) ReadIa2(IAccessible accessible, Action<string>? trace = null)
     {
-        if (accessible is not IServiceProvider provider) return (FocusedFieldKind.Unknown, 0);
+        if (accessible is not IServiceProvider provider) { trace?.Invoke("No IServiceProvider"); return (FocusedFieldKind.Unknown, 0); }
         Guid service = typeof(IAccessible).GUID;
         Guid iid = new("E89F726E-C4F4-4C19-BB19-B647D7FA8478");
-        if (provider.QueryService(ref service, ref iid, out IntPtr ia2) != 0 || ia2 == IntPtr.Zero)
+        int hr = provider.QueryService(ref service, ref iid, out IntPtr ia2);
+        trace?.Invoke($"IA2 service hr=0x{hr:X8}");
+        if (hr != 0 || ia2 == IntPtr.Zero)
             return (FocusedFieldKind.Unknown, 0);
         try
         {
@@ -148,7 +194,9 @@ sealed class FocusedInputProbe : IDisposable
             var getId = Marshal.GetDelegateForFunctionPointer<GetUniqueId>(Marshal.ReadIntPtr(table, 41 * IntPtr.Size));
             var getAttributes = Marshal.GetDelegateForFunctionPointer<GetAttributes>(Marshal.ReadIntPtr(table, 45 * IntPtr.Size));
             if (getId(ia2, out int id) != 0) id = 0;
-            if (getAttributes(ia2, out string attributes) != 0) return (FocusedFieldKind.Unknown, id);
+            hr = getAttributes(ia2, out string attributes);
+            trace?.Invoke($"IA2 attributes hr=0x{hr:X8} kind={ClassifyAttributes(attributes)} element={id}");
+            if (hr != 0) return (FocusedFieldKind.Unknown, id);
             return (ClassifyAttributes(attributes), id);
         }
         finally { Marshal.Release(ia2); }

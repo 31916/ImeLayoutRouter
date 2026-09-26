@@ -27,6 +27,61 @@ static class Tests
 
     static void Main()
     {
+        Test("Lazy browser provider is requested before trusting focus state", () =>
+        {
+            var email = new LazyField { Kind = FocusedFieldKind.Direct, Id = 42 };
+            var document = new LazyField { Child = email, Kind = FocusedFieldKind.Unknown };
+            var root = new LazyField { Child = document, Kind = FocusedFieldKind.Unknown };
+            var result = FocusedInputProbe.InspectAccessible(root, value =>
+            {
+                var field = (LazyField)value;
+                field.MetadataRequested = true;
+                return (field.Kind, field.Id);
+            });
+            Equal((FocusedFieldKind.Direct, 42), result);
+            Equal(true, root.MetadataRequested && document.MetadataRequested && email.MetadataRequested);
+        });
+        Test("Unfocused lazy document cannot route using its own metadata", () =>
+        {
+            var document = new LazyField { Kind = FocusedFieldKind.Direct, IsFocused = false };
+            Equal((FocusedFieldKind.Unknown, 0), FocusedInputProbe.InspectAccessible(document, value =>
+            {
+                var field = (LazyField)value;
+                field.MetadataRequested = true;
+                return (field.Kind, 42);
+            }));
+        });
+        Test("Parent direct metadata cannot leak into a normal text field", () =>
+        {
+            var field = new LazyField { Kind = FocusedFieldKind.Text, Id = 7 };
+            var root = new LazyField { Child = field, Kind = FocusedFieldKind.Direct, Id = 42 };
+            Equal((FocusedFieldKind.Text, 7), FocusedInputProbe.InspectAccessible(root, value =>
+            {
+                var node = (LazyField)value;
+                node.MetadataRequested = true;
+                return (node.Kind, node.Id);
+            }));
+        });
+        Test("Providers without IA2 retain protected-field detection", () =>
+        {
+            var field = new LazyField { MetadataRequested = true, Protected = true };
+            Equal((FocusedFieldKind.Direct, 0), FocusedInputProbe.InspectAccessible(field,
+                _ => throw new System.Runtime.InteropServices.COMException("Unsupported", unchecked((int)0x80004002))));
+        });
+        Test("Cyclic focus providers fail closed", () =>
+        {
+            var a = new LazyField { Kind = FocusedFieldKind.Direct };
+            var b = new LazyField { Child = a, Kind = FocusedFieldKind.Direct };
+            a.Child = b;
+            int reads = 0;
+            Equal((FocusedFieldKind.Unknown, 0), FocusedInputProbe.InspectAccessible(a, value =>
+            {
+                reads++;
+                ((LazyField)value).MetadataRequested = true;
+                return (FocusedFieldKind.Direct, 42);
+            }));
+            Equal(20, reads);
+        });
         Test("A already active at startup", () => Equal(RoutingAction.SwitchToTarget,
             new RoutingPolicy(Config).Evaluate(State(ImeInputMode.Direct), 0)));
         Test("Email after another app used native IME", () =>
@@ -296,4 +351,21 @@ static class Tests
         });
         Console.WriteLine($"{passed} regression scenarios passed.");
     }
+}
+
+sealed class LazyField : System.Windows.Forms.AccessibleObject
+{
+    internal LazyField? Child;
+    internal bool MetadataRequested;
+    internal bool IsFocused = true;
+    internal bool Protected;
+    internal FocusedFieldKind Kind;
+    internal int Id;
+    public override System.Windows.Forms.AccessibleObject? GetFocused() =>
+        MetadataRequested ? Child ?? this : null;
+    public override System.Windows.Forms.AccessibleStates State =>
+        MetadataRequested && Child == null && IsFocused
+            ? System.Windows.Forms.AccessibleStates.Focused
+                | (Protected ? System.Windows.Forms.AccessibleStates.Protected : 0)
+            : System.Windows.Forms.AccessibleStates.ReadOnly;
 }

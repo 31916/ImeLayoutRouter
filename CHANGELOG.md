@@ -1,5 +1,18 @@
 # Change log
 
+## Unreleased — browser field detection
+
+- Request structural IAccessible2 metadata along the focus chain before rejecting
+  an unfocused/read-only browser placeholder. Chromium can expose the actual input
+  field only after these requests enable web accessibility metadata.
+- Keep routing restricted to the final focused, enabled, writable field; never use
+  a parent/document's input type. Bound cyclic providers and retain native password
+  detection when IAccessible2 is unavailable.
+- Add five regression cases and an opt-in, metadata-only Windows diagnostic.
+- V1/V2 builds and noninteractive settings checks pass. Physical-key verification
+  on the reported contact page is still pending; this is not a published release.
+  See [validation details](docs/browser-field-fix-2026-09-26.md).
+
 ## 2026-09-20 — V1 1.1.0 / V2 2.0.0
 
 - Publish separate Japanese essentials (V1) and full (V2) installers on the
