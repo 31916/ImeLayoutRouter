@@ -37,7 +37,12 @@ jobs:
         shell: pwsh
         run: |
           $installer = (Get-ChildItem installer/output/*-Setup.exe).FullName
-          ./tools/Test-Installer.ps1 -Installer $installer -Edition '${{ matrix.edition }}' -TestRoot "$env:RUNNER_TEMP/ime-installer-test"
+          $previousName = if ('${{ matrix.edition }}' -eq 'Simple') { 'ImeLayoutRouter-V1-1.1.0-Setup.exe' } else { 'ImeLayoutRouter-V2-2.0.0-Setup.exe' }
+          $previous = Join-Path $env:RUNNER_TEMP $previousName
+          Invoke-WebRequest "https://31916.ch/IMELayoutRouter/downloads/$previousName" -OutFile $previous
+          $expectedHash = if ('${{ matrix.edition }}' -eq 'Simple') { '64f48a8db7ed0c5da1f68b0ee772add861463e14d31ed3af9851f548ce73b22e' } else { '510616cb7a1be937ea4b546a99cfe8790295d67115519637539eb91c1e2ac088' }
+          if ((Get-FileHash $previous -Algorithm SHA256).Hash -ne $expectedHash) { throw 'Previous installer checksum mismatch.' }
+          ./tools/Test-Installer.ps1 -Installer $installer -Edition '${{ matrix.edition }}' -TestRoot "$env:RUNNER_TEMP/ime-installer-test" -PreviousInstaller $previous
       - uses: actions/upload-artifact@v4
         with:
           name: ImeLayoutRouter-${{ matrix.edition }}-installer-win-x64
