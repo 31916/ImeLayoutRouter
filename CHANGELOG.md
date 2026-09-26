@@ -1,6 +1,6 @@
 # Change log
 
-## Unreleased — browser field detection
+## 2026-09-26 — Ver1.1.1 / Ver2.0.1
 
 - Request structural IAccessible2 metadata along the focus chain before rejecting
   an unfocused/read-only browser placeholder. Chromium can expose the actual input
@@ -10,8 +10,11 @@
   detection when IAccessible2 is unavailable.
 - Add five regression cases and an opt-in, metadata-only Windows diagnostic.
 - V1/V2 builds and noninteractive settings checks pass. Physical-key verification
-  on the reported contact page is still pending; this is not a published release.
+  on the reported contact page is still pending. Publication was approved with
+  this limitation disclosed; it is not counted as a successful compatibility test.
   See [validation details](docs/browser-field-fix-2026-09-26.md).
+- Use a single version label on the download page and installer filenames:
+  `Ver1.1.1` / `Ver2.0.1`, and `ImeLayoutRouter-<version>-Setup.exe`.
 
 ## 2026-09-20 — V1 1.1.0 / V2 2.0.0
 
