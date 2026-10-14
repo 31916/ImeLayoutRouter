@@ -53,15 +53,20 @@ function Uninstall-TestPackage {
     if ((Test-Path -LiteralPath $exe) -or (Test-Path -LiteralPath $uninstallKey)) { throw 'Uninstall did not remove executable and registration.' }
 }
 try {
+    $runKey.DeleteValue('ImeLayoutRouter', $false)
     if ($previousInstallerPath) {
         $previousVersion = if ($Edition -eq 'Simple') { '1.1.0' } else { '2.0.0' }
         Install-TestPackage 'previous-version' $previousInstallerPath $previousVersion
+        $ownCommand = '"' + $exe + '"'
+        $runKey.SetValue('ImeLayoutRouter', $ownCommand, [Microsoft.Win32.RegistryValueKind]::String)
         Install-TestPackage 'upgrade-from-previous'
+        if ($runKey.GetValue('ImeLayoutRouter') -ne $ownCommand) { throw 'Upgrade changed own startup registration.' }
         if ((Get-SettingsFingerprint) -ne $settingsBefore) { throw 'Upgrade changed existing settings.' }
         Uninstall-TestPackage
         Write-Output "PASS $Edition upgrade from $previousVersion to $expectedVersion"
     }
     Install-TestPackage 'install'
+    if ($null -ne $runKey.GetValue('ImeLayoutRouter')) { throw 'Fresh installation enabled startup without an existing opt-in.' }
     $installedHash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
     Install-TestPackage 'reinstall-upgrade'
     if ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash -ne $installedHash) { throw 'Reinstallation corrupted the executable.' }
@@ -80,9 +85,21 @@ try {
     Uninstall-TestPackage
     if ($null -ne $runKey.GetValue('ImeLayoutRouter')) { throw 'Own startup registration survived uninstall.' }
     Write-Output "PASS $Edition uninstall removes its own startup registration"
-    Install-TestPackage 'cross-edition-cleanup'
+
+    # Reproduce the reported state: Run still targets the prototype's original
+    # directory, even if that directory is missing or contains incomplete files.
+    $prototypeExe = Join-Path $env:LOCALAPPDATA 'Programs\IME Layout Router\ImeLayoutRouter.exe'
+    $runKey.SetValue('ImeLayoutRouter', '"' + $prototypeExe + '"', [Microsoft.Win32.RegistryValueKind]::String)
+    Install-TestPackage 'prototype-startup-migration'
+    if ($runKey.GetValue('ImeLayoutRouter') -ne ('"' + $exe + '"')) { throw 'Prototype startup was not migrated to the installed executable.' }
+    Uninstall-TestPackage
+    if ($null -ne $runKey.GetValue('ImeLayoutRouter')) { throw 'Migrated startup registration survived uninstall.' }
+    Write-Output "PASS $Edition prototype startup migration and uninstall cleanup"
+
     $otherCommand = '"C:\IME-test-other-edition\ImeLayoutRouter.exe"'
     $runKey.SetValue('ImeLayoutRouter', $otherCommand, [Microsoft.Win32.RegistryValueKind]::String)
+    Install-TestPackage 'cross-edition-cleanup'
+    if ($runKey.GetValue('ImeLayoutRouter') -ne $otherCommand) { throw 'Installation replaced another edition startup registration.' }
     Uninstall-TestPackage
     if ($runKey.GetValue('ImeLayoutRouter') -ne $otherCommand) { throw 'Uninstall removed another edition startup registration.' }
     if ((Get-SettingsFingerprint) -ne $settingsBefore) { throw 'Installer lifecycle changed existing settings.' }
