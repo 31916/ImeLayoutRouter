@@ -60,7 +60,23 @@ Name: "desktopicon"; Description: "{cm:DesktopShortcut}"; GroupDescription: "{cm
 [Run]
 Filename: "{app}\ImeLayoutRouter.exe"; Parameters: "--first-run"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
 
+[Registry]
+; Preserve an existing opt-in when replacing the prototype. Do not enable a
+; missing entry, take another edition's slot, or change Windows startup approval.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "ImeLayoutRouter"; ValueData: """{app}\ImeLayoutRouter.exe"""; Check: ShouldMigratePrototypeStartup
+
 [Code]
+function ShouldMigratePrototypeStartup: Boolean;
+var
+  Command: String;
+begin
+  Result := False;
+  if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run',
+    'ImeLayoutRouter', Command) then
+    Result := CompareText(Command, '"' +
+      ExpandConstant('{localappdata}\Programs\IME Layout Router\ImeLayoutRouter.exe') + '"') = 0;
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Command: String;

@@ -1,5 +1,16 @@
 # Change log
 
+## Unreleased — prototype startup migration
+
+- When a prototype startup registration still points to its original default
+  directory, the installer updates it to the newly installed edition. Previously,
+  upgrading could leave Windows launching an obsolete or incomplete prototype.
+- Preserve disabled startup, Windows startup approval, and another edition's
+  registration. Existing installations can repair the path by saving the current
+  edition's settings with **Start with Windows** enabled.
+- Add installer regression coverage for prototype migration, an existing edition's
+  upgrade, fresh installations with startup off, and another edition's ownership.
+
 ## 2026-09-26 — Ver1.1.1 / Ver2.0.1
 
 - Request structural IAccessible2 metadata along the focus chain before rejecting
