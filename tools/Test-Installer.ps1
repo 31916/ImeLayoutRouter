@@ -13,7 +13,7 @@ if (!$installDirectory.StartsWith($root.TrimEnd('\') + '\', [StringComparison]::
     throw 'Installation must stay inside the test root.'
 }
 $editionName = if ($Edition -eq 'Simple') { 'V1' } else { 'V2' }
-$expectedVersion = if ($Edition -eq 'Simple') { '1.1.1' } else { '2.0.1' }
+$expectedVersion = if ($Edition -eq 'Simple') { '1.1.2' } else { '2.0.2' }
 $expectedIconHash = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot '../Assets/app.ico') -Algorithm SHA256).Hash
 $appId = if ($Edition -eq 'Simple') { '{CB27A979-27AB-40E2-A613-52CC5EFCB128}' } else { '{62EBC270-35B4-4E79-A170-426D38FEAA8C}' }
 $uninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\${appId}_is1"
@@ -55,7 +55,7 @@ function Uninstall-TestPackage {
 try {
     $runKey.DeleteValue('ImeLayoutRouter', $false)
     if ($previousInstallerPath) {
-        $previousVersion = if ($Edition -eq 'Simple') { '1.1.0' } else { '2.0.0' }
+        $previousVersion = if ($Edition -eq 'Simple') { '1.1.1' } else { '2.0.1' }
         Install-TestPackage 'previous-version' $previousInstallerPath $previousVersion
         $ownCommand = '"' + $exe + '"'
         $runKey.SetValue('ImeLayoutRouter', $ownCommand, [Microsoft.Win32.RegistryValueKind]::String)

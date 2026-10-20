@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../EditionPolicy.cs" Link="EditionPolicy.cs" />
+    <Compile Include="../ConsoleProfileSelector.cs" Link="ConsoleProfileSelector.cs" />
     <Compile Remove="WindowsSmoke/**/*.cs" />
     <Compile Remove="UiSmoke/**/*.cs" />
     <Compile Include="../RoutingPolicy.cs" Link="RoutingPolicy.cs" />

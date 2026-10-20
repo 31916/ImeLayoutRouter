@@ -1,6 +1,23 @@
 # Change log
 
-## Unreleased — prototype startup migration
+## 2026-10-20 — Ver1.1.2 / Ver2.0.2
+
+- Handle failures while reading accessibility focus metadata without allowing
+  them to terminate the application. A Windows crash record from the affected
+  V2 installation showed an unhandled `NullReferenceException` from
+  `IAccessible.get_accFocus` in the field-monitoring thread.
+- Treat an inaccessible field as unknown and keep monitoring. Do not infer an
+  input type or change routing solely from a failed accessibility read. Both
+  editions receive the shared engine repair.
+
+- Stop console configuration cleanly when standard input ends or is unavailable.
+- Remove unused version constants and routine console state output; explicitly
+  requested diagnostic logs remain available.
+- Limit packaged documentation to user-facing files. Keep development records
+  in the repository and remove the obsolete website build/preview copy; the
+  production website and existing installers remain in the website repository.
+
+### Prototype startup migration
 
 - When a prototype startup registration still points to its original default
   directory, the installer updates it to the newly installed edition. Previously,
@@ -21,9 +38,8 @@
   detection when IAccessible2 is unavailable.
 - Add five regression cases and an opt-in, metadata-only Windows diagnostic.
 - V1/V2 builds and noninteractive settings checks pass. Physical-key verification
-  on the reported contact page is still pending. Publication was approved with
-  this limitation disclosed; it is not counted as a successful compatibility test.
-  See [validation details](docs/browser-field-fix-2026-09-26.md).
+  on the reported contact page is still pending and is not counted as a successful
+  compatibility test. See [validation details](https://github.com/31916/ImeLayoutRouter/blob/V2/docs/browser-field-fix-2026-09-26.md).
 - Use a single version label on the download page and installer filenames:
   `Ver1.1.1` / `Ver2.0.1`, and `ImeLayoutRouter-<version>-Setup.exe`.
 
@@ -34,10 +50,9 @@
 - Both editions include the repaired direct-input/field-metadata routing engine,
   separate settings and installer identities, and startup ownership cleanup.
 - V1 excludes advanced controls and runtime modules; V2 includes the controls below.
-- Publication was approved with incomplete compatibility coverage. Native Google
-  Japanese/Swiss layout checks and installer lifecycle checks passed; browser
+- Native Google Japanese/Swiss layout checks and installer lifecycle checks passed; browser
   fields, Microsoft Japanese, Chinese and Korean IME composition remain unverified.
-  See [acceptance evidence](docs/acceptance-2026-09-20.md).
+  See [acceptance evidence](https://github.com/31916/ImeLayoutRouter/blob/V2/docs/acceptance-2026-09-20.md).
 
 ### V2 routing controls
 
@@ -79,5 +94,5 @@
 - Add deterministic regression traces and read-only diagnostics.
 
 The preview entries above are historical internal milestones. Public installers
-are available only from https://31916.ch/IMELayOutRouter/; GitHub Releases is no
+are available only from https://31916.ch/IMELayoutRouter/; GitHub Releases is no
 longer used. Browser/CJK acceptance remains follow-up work, not a completed check.

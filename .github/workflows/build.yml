@@ -37,10 +37,10 @@ jobs:
         shell: pwsh
         run: |
           $installer = (Get-ChildItem installer/output/*-Setup.exe).FullName
-          $previousName = if ('${{ matrix.edition }}' -eq 'Simple') { 'ImeLayoutRouter-V1-1.1.0-Setup.exe' } else { 'ImeLayoutRouter-V2-2.0.0-Setup.exe' }
+          $previousName = if ('${{ matrix.edition }}' -eq 'Simple') { 'ImeLayoutRouter-1.1.1-Setup.exe' } else { 'ImeLayoutRouter-2.0.1-Setup.exe' }
           $previous = Join-Path $env:RUNNER_TEMP $previousName
           Invoke-WebRequest "https://31916.ch/IMELayoutRouter/downloads/$previousName" -OutFile $previous
-          $expectedHash = if ('${{ matrix.edition }}' -eq 'Simple') { '64f48a8db7ed0c5da1f68b0ee772add861463e14d31ed3af9851f548ce73b22e' } else { '510616cb7a1be937ea4b546a99cfe8790295d67115519637539eb91c1e2ac088' }
+          $expectedHash = if ('${{ matrix.edition }}' -eq 'Simple') { 'bbfcc7293ca977c13aa9fde64107ec8bd6671cae2011608fd93b17ab67feb28a' } else { '4a529c09d6dddadd84308171df43c6350d1c953c903f281e32e05ad3b04e2fda' }
           if ((Get-FileHash $previous -Algorithm SHA256).Hash -ne $expectedHash) { throw 'Previous installer checksum mismatch.' }
           ./tools/Test-Installer.ps1 -Installer $installer -Edition '${{ matrix.edition }}' -TestRoot "$env:RUNNER_TEMP/ime-installer-test" -PreviousInstaller $previous
       - uses: actions/upload-artifact@v4

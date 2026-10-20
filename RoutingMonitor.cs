@@ -5,8 +5,6 @@ using System.Threading;
 
 static class RoutingMonitor
 {
-    public static void Run(RoutingConfiguration configuration) => Run(configuration, CancellationToken.None);
-
 #if SIMPLE_EDITION
     public static void Run(RoutingConfiguration configuration, CancellationToken cancellationToken,
         IntPtr allowedForeground = default)
@@ -41,7 +39,6 @@ static class RoutingMonitor
         using var fields = new FocusedInputProbe(() => session.Wake.Set());
         var applications = new ForegroundApplication();
         var manual = new ManualRoutingState();
-        InputSnapshot? previous = null;
         (InputContext Context, IntPtr Layout, bool Native, long At)? pending = null;
         (InputContext Context, string Text, long Until)? notice = null;
         bool wasPaused = session.Paused;
@@ -54,7 +51,6 @@ static class RoutingMonitor
                 && (allowedForeground == IntPtr.Zero || current.Context.Foreground == allowedForeground))
             {
                 manual.Observe(current);
-                if (current != previous) Console.WriteLine(Describe(current));
                 string reason = current.RequiresDirectInput ? UiText.T("英数専用の入力欄", "Direct-input field")
                     : current.Mode == ImeInputMode.Direct ? UiText.T("IMEが英数入力", "IME direct input")
                     : UiText.T("入力状態を監視中", "Watching input state");
@@ -149,12 +145,10 @@ static class RoutingMonitor
                 if (pending == null && notice is { } feedback && feedback.Context == current.Context
                     && Environment.TickCount64 < feedback.Until) reason = feedback.Text;
                 session.Publish(new RoutingStatus(current, reason, paused));
-                previous = current;
             }
             else
             {
                 policy = new RoutingPolicy(configuration);
-                previous = null;
                 pending = null;
                 notice = null;
                 manual.RetainOnlyWindow(GetForegroundWindow());
