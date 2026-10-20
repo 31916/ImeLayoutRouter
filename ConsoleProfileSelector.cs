@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 
 static class ConsoleProfileSelector
 {
@@ -44,10 +45,11 @@ static class ConsoleProfileSelector
             "Select Source: "
         );
 
-        int sourceIndex =
+        int? sourceIndex =
             ReadSelection(
-                candidates.Sources.Count
+                candidates.Sources.Count, Console.In, Console.Out
             );
+        if (!sourceIndex.HasValue) return null;
 
         Console.WriteLine();
 
@@ -70,25 +72,29 @@ static class ConsoleProfileSelector
             "Select Target: "
         );
 
-        int targetIndex =
+        int? targetIndex =
             ReadSelection(
-                candidates.Targets.Count
+                candidates.Targets.Count, Console.In, Console.Out
             );
+        if (!targetIndex.HasValue) return null;
 
         return new RoutingConfiguration(
-            candidates.Sources[sourceIndex],
-            candidates.Targets[targetIndex]
+            candidates.Sources[sourceIndex.Value],
+            candidates.Targets[targetIndex.Value]
         );
     }
 
-    private static int ReadSelection(
-        int count
+    internal static int? ReadSelection(
+        int count, TextReader inputReader, TextWriter output
     )
     {
         while (true)
         {
             string? input =
-                Console.ReadLine();
+                inputReader.ReadLine();
+            // A GUI executable or a closed pipe may not provide standard input.
+            // Treat EOF as cancellation instead of retrying forever.
+            if (input == null) return null;
 
             if (
                 int.TryParse(
@@ -104,7 +110,7 @@ static class ConsoleProfileSelector
                 return number - 1;
             }
 
-            Console.Write(
+            output.Write(
                 $"Enter a number from 1 to {count}: "
             );
         }

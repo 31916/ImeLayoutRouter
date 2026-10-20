@@ -1,16 +1,16 @@
 # V1 / V2 distribution plan
 
-On 2026-09-20 the owner explicitly approved publication after being told that
-browser automation was blocked and real-machine compatibility coverage remained
-incomplete. This supersedes the previous instruction to wait for the entire
-acceptance matrix. It does not mark unrun tests as passed. Record and prominently
-publish the remaining limitations in both website languages.
+Ver1.1.2 and Ver2.0.2 are the patch versions prepared on 2026-10-20 for the
+accessibility-monitor crash and the prototype startup migration in CHANGELOG.md.
+Until their validated installers are deployed, the public files remain
+Ver1.1.1 and Ver2.0.1 from 2026-09-26. Browser end-to-end and some IME compatibility
+checks remain incomplete. Keep those limitations visible in both website languages.
 
 ## Editions and branches
 
 | | V1 | V2 (default branch) |
 | --- | --- | --- |
-| Version | 1.1.0 | 2.0.0 |
+| Patch version | 1.1.2 | 2.0.2 |
 | Build edition | Simple | Full |
 | Source IMEs | Japanese | Japanese, Chinese regional variants, Korean |
 | UI | Japanese essentials | Japanese/English guided settings |
@@ -34,9 +34,12 @@ old package to a new version: assembly, settings UI and installer versions must 
    Input / Swiss German layout composition passed in native fixtures; browser
    fields and Microsoft Japanese/Chinese/Korean IMEs are unverified. Startup at
    sign-in, diagnostic-save UI and every historical upgrade path are also pending.
+6. Publish the prepared download tables, release articles and announcements only
+   after both new EXE files and their verified SHA-256 entries are present. Keep
+   all previous download files and Actions artifacts available.
 
-The user declined adding input methods to this PC. Keep its input list unchanged.
-Remaining IME checks require a suitable separate Windows environment. An immediate
+Remaining IME checks require a suitable Windows test environment with the relevant
+input methods enabled. An immediate
 first key can precede asynchronous routing; do not claim universal compatibility.
 
 ## Hosting
@@ -47,7 +50,9 @@ first key can precede asynchronous routing; do not claim universal compatibility
   portfolio repository. Do not add a root navigation link or create GitHub Releases.
 - Keep each asset below GitHub's 100 MiB file limit and the site below 1 GB;
   use Git, not LFS. Do not buy services or change DNS/hosting for this release.
-- The local site build produces page assets; verified binaries are copied into
-  the portfolio subdirectory separately. Update pages and binaries together.
+- The portfolio repository owns the production pages and its Pages build. This
+  application repository retains the original icon, social image sources and
+  release articles, but no separate website build. Update production pages and
+  verified binaries together when publishing a new version.
 
 See [the roadmap](roadmap.md) for later work.

@@ -41,10 +41,9 @@ was the only cause of the reported failure on the contact page.
   Chrome's current URL. No physical-key end-to-end test was completed. Browser DOM
   focus checks and test doubles are not substitutes for that test.
 
-The initial investigation did not replace public installers or the installed
-application. The owner subsequently approved publishing this correction as
-Ver1.1.1 / Ver2.0.1 on September 26 with the remaining test limitation disclosed.
-The existing installed application is not silently upgraded by website publication.
+This correction was published as Ver1.1.1 / Ver2.0.1 on September 26 with the
+remaining test limitation disclosed. Publishing a website download does not
+upgrade an already installed application.
 
 ## Commands
 
@@ -68,5 +67,5 @@ On a fresh browser session with only the patched router providing accessibility
 requests, switch from a Japanese text field to the reported email field and verify
 the configured target layout and actual punctuation keys. Repeat after focus changes
 and page navigation, and confirm ordinary Japanese composition is preserved.
-This check remains outstanding after the approved publication. Do not describe
+This check remains outstanding after publication. Do not describe
 the reported browser-input issue as confirmed resolved until it passes.

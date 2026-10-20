@@ -27,6 +27,25 @@ static class Tests
 
     static void Main()
     {
+        Test("Console setup cancels when standard input is unavailable", () =>
+        {
+            using var input = new System.IO.StringReader("");
+            using var output = new System.IO.StringWriter();
+            Equal<int?>(null, ConsoleProfileSelector.ReadSelection(2, input, output));
+            Equal("", output.ToString());
+        });
+        Test("Console setup cancels after invalid input reaches EOF", () =>
+        {
+            using var input = new System.IO.StringReader("invalid\n");
+            using var output = new System.IO.StringWriter();
+            Equal<int?>(null, ConsoleProfileSelector.ReadSelection(2, input, output));
+            Equal("Enter a number from 1 to 2: ", output.ToString());
+        });
+        Test("Console setup can retry and select a valid item", () =>
+        {
+            using var input = new System.IO.StringReader("0\n3\n2\n");
+            Equal<int?>(1, ConsoleProfileSelector.ReadSelection(2, input, System.IO.TextWriter.Null));
+        });
         Test("Lazy browser provider is requested before trusting focus state", () =>
         {
             var email = new LazyField { Kind = FocusedFieldKind.Direct, Id = 42 };
@@ -67,6 +86,35 @@ static class Tests
             var field = new LazyField { MetadataRequested = true, Protected = true };
             Equal((FocusedFieldKind.Direct, 0), FocusedInputProbe.InspectAccessible(field,
                 _ => throw new System.Runtime.InteropServices.COMException("Unsupported", unchecked((int)0x80004002))));
+        });
+        Test("A disconnected focus provider cannot terminate subsequent observations", () =>
+        {
+            // Regression for the installed app's accFocus NullReferenceException.
+            // This provider uses no windows, hooks, registry or actual keyboard input.
+            var broken = new FailingField { FocusFailure = new NullReferenceException("Provider disconnected") };
+            Equal((FocusedFieldKind.Unknown, 0), FocusedInputProbe.InspectAccessible(broken,
+                _ => (FocusedFieldKind.Direct, 42)));
+            var healthy = new LazyField { MetadataRequested = true, Kind = FocusedFieldKind.Direct, Id = 7 };
+            Equal((FocusedFieldKind.Direct, 7), FocusedInputProbe.InspectAccessible(healthy,
+                _ => (FocusedFieldKind.Direct, 7)));
+        });
+        Test("A failing state provider cannot preserve direct-field metadata", () =>
+        {
+            var field = new FailingField { StateFailure = new NullReferenceException("Provider disconnected") };
+            Equal((FocusedFieldKind.Unknown, 0), FocusedInputProbe.InspectAccessible(field,
+                _ => (FocusedFieldKind.Direct, 42)));
+        });
+        Test("A disconnected nested provider invalidates the complete observation", () =>
+        {
+            var nested = new FailingField { FocusFailure = new System.Runtime.InteropServices.InvalidComObjectException() };
+            var root = new FailingField { Child = nested };
+            Equal((FocusedFieldKind.Unknown, 0), FocusedInputProbe.InspectAccessible(root,
+                _ => (FocusedFieldKind.Direct, 42)));
+        });
+        Test("A failing metadata provider does not escape the accessibility boundary", () =>
+        {
+            Equal((FocusedFieldKind.Unknown, 0), FocusedInputProbe.InspectAccessible(new FailingField(),
+                _ => throw new NullReferenceException("Provider disconnected")));
         });
         Test("Cyclic focus providers fail closed", () =>
         {
@@ -368,4 +416,15 @@ sealed class LazyField : System.Windows.Forms.AccessibleObject
             ? System.Windows.Forms.AccessibleStates.Focused
                 | (Protected ? System.Windows.Forms.AccessibleStates.Protected : 0)
             : System.Windows.Forms.AccessibleStates.ReadOnly;
+}
+
+sealed class FailingField : System.Windows.Forms.AccessibleObject
+{
+    internal Exception? FocusFailure;
+    internal Exception? StateFailure;
+    internal System.Windows.Forms.AccessibleObject? Child;
+    public override System.Windows.Forms.AccessibleObject? GetFocused() =>
+        FocusFailure is { } failure ? throw failure : Child ?? this;
+    public override System.Windows.Forms.AccessibleStates State =>
+        StateFailure is { } failure ? throw failure : System.Windows.Forms.AccessibleStates.Focused;
 }

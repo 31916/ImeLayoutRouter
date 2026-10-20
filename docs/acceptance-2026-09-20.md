@@ -1,9 +1,8 @@
 # Acceptance record — 2026-09-20
 
-**Publication approved with incomplete compatibility coverage.** On 2026-09-20,
-after browser automation was blocked and the incomplete tests were disclosed,
-the owner explicitly authorized release. Unrun cases below remain unverified.
-V1 1.1.0 / V2 2.0.0 will be distributed from the Japanese/English page at
+**Historical validation record with incomplete compatibility coverage.**
+Unrun cases below remain unverified. V1 1.1.0 / V2 2.0.0 were distributed from
+the Japanese/English page at
 https://31916.ch/IMELayOutRouter/ (canonical URL corrected to
 https://31916.ch/IMELayoutRouter/ on 2026-09-21). GitHub Releases is no longer used.
 Only that subdirectory was added to the portfolio; no root navigation was changed.
@@ -25,13 +24,13 @@ acceptance remains pending below. The input list remains de-CH plus Japanese/Goo
   installer metadata, installation, same-package reinstallation, shared-instance
   startup, uninstall cleanup and preservation of another edition's startup value.
   Reinstallation is not evidence of every historical-version upgrade path.
-- On the user's desktop, the pre-fix V1 installer reproduced stale startup
+- On the Windows verification machine, the pre-fix V1 installer reproduced stale startup
   registration after uninstall. The lifecycle test restores the pre-test startup
   value and preserves the installed old prototype and its settings.
-- The repaired V1 and V2 installers then passed the complete lifecycle script on the user's
-  PC, including both own-startup removal and preservation of another edition's
+- The repaired V1 and V2 installers then passed the complete lifecycle script on that
+  machine, including both own-startup removal and preservation of another edition's
   startup registration. The existing prototype settings were unchanged.
-- Development installer bytes/hashes (not public release approval):
+- Historical development installer bytes/hashes:
   - V1 `1.1.0-rc.1`: 51,343,668 bytes,
     `2d462ebfd34258903c4b5ae3b477662efba589f5002e3e86d66a48fdc5d1e5e4`.
   - V2 `2.0.0-rc.1`: 51,359,388 bytes,
@@ -49,7 +48,7 @@ acceptance remains pending below. The input list remains de-CH plus Japanese/Goo
   using physical key injection through Computer Use. The fixture unregisters the
   shortcuts when it loses focus or closes. This complements the separate live
   pause/target/restore routing tests; it is not a full tray-application walkthrough.
-- V2 successfully loaded the user's legacy settings read-only and wrote a two-second
+- V2 successfully loaded legacy settings read-only and wrote a two-second
   diagnostic report containing profile names, handles, layout/mode and field flags.
   No entered text is collected. The original settings file was preserved.
 
@@ -68,8 +67,7 @@ acceptance remains pending below. The input list remains de-CH plus Japanese/Goo
 - Browser email/URL/telephone/number/password fields, rapid focus changes, native
   return and target punctuation on Chrome/Edge and Firefox.
 - Microsoft Japanese, Pinyin, Bopomofo and Korean IME desktop composition/routing.
-  The user declined adding input methods to this PC; do not change the installed
-  language/input list. These cases need another suitable Windows test environment.
+  These cases need a Windows test environment with the corresponding input methods.
 - Complete startup-at-sign-in and diagnostic-save UI acceptance, a complete installed-app
   walkthrough, and the remaining historical-version upgrade cases.
 
@@ -86,7 +84,7 @@ The fixture never changes installed input methods or saves entered text.
 
 ## Final distribution packages — 2026-09-20
 
-Built from application commit `fdfe2a5c0e21f9d8d103fb2848274323c70c674f` in
+Built from application commit `422dd5857500b091c7fc4cf056b5cb855c9230cc` in
 [successful Windows CI run 35482636083](https://github.com/31916/ImeLayoutRouter/actions/runs/35482636083).
 Both edition jobs passed; the full regression suite passed 30 scenarios.
 The downloaded artifact ZIPs matched the SHA-256 digests returned by GitHub.
@@ -96,7 +94,7 @@ The downloaded artifact ZIPs matched the SHA-256 digests returned by GitHub.
 | V1 | ImeLayoutRouter-V1-1.1.0-Setup.exe | 51,342,344 | `64f48a8db7ed0c5da1f68b0ee772add861463e14d31ed3af9851f548ce73b22e` |
 | V2 | ImeLayoutRouter-V2-2.0.0-Setup.exe | 51,365,971 | `510616cb7a1be937ea4b546a99cfe8790295d67115519637539eb91c1e2ac088` |
 
-Both exact final installers passed `tools/Test-Installer.ps1` on the user's PC:
+Both exact final installers passed `tools/Test-Installer.ps1` on the verification machine:
 install, same-package reinstall, shared-instance startup, own-startup cleanup,
 other-edition startup preservation and unchanged existing settings. Additional
 checks verified the executable and uninstall registration versions and that the

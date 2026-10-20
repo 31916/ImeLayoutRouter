@@ -16,7 +16,6 @@ static class TsfProfileEnumerator
 
     private const uint TF_PROFILETYPE_INPUTPROCESSOR = 0x0001;
     private const uint TF_PROFILETYPE_KEYBOARDLAYOUT = 0x0002;
-    private const ushort JAPANESE_LANGUAGE_ID = 0x0411;
 
     public static void PrintAllProfiles()
     {

@@ -7,8 +7,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version Condition="'$(Edition)' == 'Simple'">1.1.1</Version>
-    <Version Condition="'$(Edition)' == 'Full'">2.0.1</Version>
+    <Version Condition="'$(Edition)' == 'Simple'">1.1.2</Version>
+    <Version Condition="'$(Edition)' == 'Full'">2.0.2</Version>
     <Product Condition="'$(Edition)' == 'Simple'">IME Layout Router V1 日本語簡易版</Product>
     <Product Condition="'$(Edition)' == 'Full'">IME Layout Router V2 Full</Product>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
@@ -17,7 +17,8 @@
   <ItemGroup>
     <Compile Remove="tests\**\*.cs" />
     <Compile Remove="Editions\**\*.cs" />
-    <Content Include="README.md;CHANGELOG.md;docs\**\*.md">
+    <!-- Ship user-facing documentation only; development records stay in Git. -->
+    <Content Include="README.md;CHANGELOG.md;SECURITY.md;docs\releases\history.md;docs\releases\v1-1.1.0.md;docs\releases\v1-1.1.0.en.md;docs\releases\v1-1.1.1.md;docs\releases\v1-1.1.1.en.md;docs\releases\v1-1.1.2.md;docs\releases\v1-1.1.2.en.md;docs\releases\v2-2.0.0.md;docs\releases\v2-2.0.0.en.md;docs\releases\v2-2.0.1.md;docs\releases\v2-2.0.1.en.md;docs\releases\v2-2.0.2.md;docs\releases\v2-2.0.2.en.md">
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="Assets\app.ico">

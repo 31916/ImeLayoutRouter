@@ -1,8 +1,0 @@
-{
-  "name": "imelayoutrouter-site",
-  "private": true,
-  "scripts": {
-    "site:build": "node tools/build-site.mjs",
-    "site:preview": "node tools/serve-site.mjs"
-  }
-}

@@ -30,8 +30,9 @@ on a separate background thread and cached hints expire.
 
 ## Limits of the evidence
 
-The current status is recorded in [the 2026-09-20 acceptance record](acceptance-2026-09-20.md).
-The chronological notes below describe earlier checks and do not supersede that record.
+The current published-version status is recorded in [the 2026-09-26 correction record](browser-field-fix-2026-09-26.md),
+following [the 2026-09-20 acceptance record](acceptance-2026-09-20.md).
+The chronological notes below describe earlier checks and do not supersede those records.
 
 19 deterministic regression scenarios cover decisions and field metadata.
 The Release build passes with warnings treated as errors. Three live Windows
@@ -48,7 +49,8 @@ regression scenarios. The desktop rerun could not acquire foreground focus
 on its test control, so that rerun is not a passing integration result.
 The fixture now requires the expected foreground control and cancels when
 its window loses activation. Run it in an interactive Windows session.
-This release remains a preview pending the full acceptance matrix.
+At that stage the repaired implementation was a preview; later publication and
+remaining compatibility limits are recorded in the records linked above.
 
 The later priority-controls development change passes 30 regression scenarios
 and Japanese/English settings round-trip checks. Its sandboxed desktop attempt

@@ -118,8 +118,7 @@ sealed class FocusedInputProbe : IDisposable
             accessible = null;
             return InspectAccessible(owned, node => ReadIa2(node, trace), trace);
         }
-        catch (Exception ex) when (ex is COMException or InvalidCastException or ArgumentException
-            or InvalidOperationException or NotImplementedException)
+        catch (Exception ex) when (IsProviderFailure(ex))
         {
             trace?.Invoke($"failure={ex.GetType().Name} hr=0x{ex.HResult:X8}");
             return (FocusedFieldKind.Unknown, 0);
@@ -167,8 +166,7 @@ sealed class FocusedInputProbe : IDisposable
             }
             return (FocusedFieldKind.Unknown, 0); // Cycle or excessive provider depth.
         }
-        catch (Exception ex) when (ex is COMException or InvalidCastException or ArgumentException
-            or InvalidOperationException or NotImplementedException)
+        catch (Exception ex) when (IsProviderFailure(ex))
         {
             trace?.Invoke($"failure={ex.GetType().Name} hr=0x{ex.HResult:X8}");
             return (FocusedFieldKind.Unknown, 0);
@@ -232,9 +230,22 @@ sealed class FocusedInputProbe : IDisposable
         yield return text[start..];
     }
 
+    // A window or accessibility provider can disappear during any COM getter.
+    // In particular, accFocus may throw NullReferenceException through interop
+    // rather than COMException. Keep these failures inside the provider boundary:
+    // the current field is unknown and the next polling iteration can recover.
+    // An exception escaping the dedicated Poll thread terminates the whole app.
+    private static bool IsProviderFailure(Exception error) =>
+        error is COMException or InvalidComObjectException or InvalidCastException or ArgumentException
+            or InvalidOperationException or NotImplementedException or NullReferenceException;
+
     private static void Release(object? value)
     {
-        if (value != null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value);
+        if (value == null || !Marshal.IsComObject(value)) return;
+        try { Marshal.ReleaseComObject(value); }
+        // A disconnected/released RCW must not turn failed observation cleanup
+        // into an unhandled exception on the polling thread.
+        catch (InvalidComObjectException) { }
     }
 
     public void Dispose()

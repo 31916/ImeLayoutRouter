@@ -1,103 +1,71 @@
-# Distribution website
+# Website assets and publication
 
-A small Japanese/English static site inspired by the information hierarchy of classic
-software distribution pages. Original text and styling; no copied assets.
+The production download pages are maintained in
+[31916/31916.github.io](https://github.com/31916/31916.github.io/tree/main/IMELayoutRouter),
+and published by that repository's GitHub Pages workflow:
 
-Run `npm run site:preview` and open `http://127.0.0.1:4173/preview.html` to compare
-three palettes. The palette picker is a review tool and is excluded from deploys.
-The user selected the forest-green-on-ivory palette (B). Japanese lives at `/`
-and English at `en.html`; both link to each other without
-automatic language redirects. Keep availability and limitations equivalent.
-The production pages need no executable JavaScript, external fonts, analytics or
-framework. JSON-LD in the head describes the public page and product for crawlers.
+- Japanese: https://31916.ch/IMELayoutRouter/
+- English: https://31916.ch/IMELayoutRouter/en.html
 
-Use the existing `Assets/app.ico` for the page masthead and favicon, matching the
-application, settings windows, tray and installer. The site build copies this
-canonical asset byte-for-byte to `app.ico`; do not replace it with a new design.
+This application repository contains the original icon, social sharing images,
+their generator and version articles. It does not build or deploy a second copy
+of the website. The obsolete HTML, palette comparison and npm website commands
+have been removed to prevent an older download page from being published again.
+Existing installers are maintained in the website repository and are unaffected.
 
-Social link previews use the checked-in 1200 x 630 PNG files `social-ja-v2.png`
-and `social-en-v2.png`, composed from the same original icon and site palette.
-Describe the purpose as "IMEの直接入力を、指定した配列で" / "Your chosen layout
-for IME direct input", not a broad claim of automatic keyboard layout switching.
-Explain that the router selects an existing, enabled Windows input layout for
-the application receiving input. The active layout and resulting characters can
-change; do not claim that layouts never change. Distinguish this from creating or
-editing individual key mappings, layout definitions or keyboard drivers, which
-the app does not do. Keep the brief clarification below the download table and
-the detailed explanation in the README and edition notes, in both languages.
-The image revision suffix is separate from the application's V1/V2 editions.
-Keep the original `social-*-v1.png` URLs serving the corrected artwork too, for
-previously cached cards that still reference them.
-Regenerate them on Windows with
-`powershell -NoProfile -ExecutionPolicy Bypass -File tools/generate-social-images.ps1`
-(uses built-in System.Drawing and the Windows Georgia/Meiryo fonts).
-Both pages declare absolute HTTPS Open Graph image URLs and X/Twitter large-image
-cards with matching language-specific alternative text. These images are metadata
-assets, not added page content. When the artwork changes, use a new filename and
-update both the metadata and build/preview allowlists to avoid stale image caches.
-The portfolio's legacy redirect pages inherit the canonical page's sharing metadata.
+## Shared artwork
 
-Build with `npm run site:build`. Static output directory: `.site-dist`.
-Build the palette comparison with `npm run site:build -- --review`; its separate
-`.site-review-dist` output adds noindex headers and is deployed to a preview branch.
-The application repository's default branch is `V2`. The requested public download
-page belongs under `31916.ch/IMELayoutRouter/` in the existing portfolio repository;
-do not add a homepage link. The owner approved publication with incomplete
-compatibility coverage on 2026-09-20. On 2026-09-21 the owner requested a compact
-AviUtl-inspired index. Put downloads immediately after the short introduction,
-before news, so both installers are visible on the initial desktop/mobile view.
-Keep the download table to installer, version and release date. Keep at most the
-three latest news items as short dated lines; put older details in the linked
-history article. This is static HTML, without a news widget or JavaScript.
-Date each V1/V2 news item and link the edition to its article in
-`docs/releases/`. Put feature details, instructions, sizes, SHA-256 and verified /
-unverified environments in those Japanese/English GitHub Markdown articles.
-The website points readers to the articles for compatibility information.
-Keep the original icon and selected palette; no status column or long feature blocks.
-Update the stylesheet URL version in both pages when changing CSS so returning
-visitors do not combine the new HTML with their cached previous design.
-History dates must have Git evidence and distinguish implementation from release.
+Use `Assets/app.ico` unchanged in the application and website. The social images
+are 1200 x 630 PNG files composed from this icon and the forest-green/ivory palette:
 
-Use the exact product spelling `IMELayoutRouter` in titles, headings and descriptions;
-retain `IME Layout Router` as an alternate name in metadata. Titles and descriptions
-should explain that this is a Windows IME/keyboard-layout utility. Keep reciprocal
-Japanese/English `hreflang` links fully qualified and each page self-canonical.
-Use `x-default` for the Japanese default page, and retain reciprocal language
-alternates in the sitemap. The document title identifies the official downloads;
-the page remains compact, with no extra SEO-only text or navigation on the portfolio.
-`sitemap.xml` lists only the two current canonical pages. Update its `lastmod` dates
-only when the corresponding pages materially change, not on every deployment.
-The portfolio's root `robots.txt` advertises this sitemap and allows crawling.
-Keep the portfolio homepage free of a new navigation link, as requested.
-WebPage JSON-LD describes existing visible content; do not invent ratings, reviews,
-downloads or compatibility claims to obtain software rich results.
+- `site/social-ja-v2.png`
+- `site/social-en-v2.png`
 
-Search Console ownership and indexing requests are separate from publishing SEO
-metadata. After owner verification, submit `sitemap.xml` and inspect the two
-canonical URLs. Record Google's actual status; a successful deployment, sitemap
-submission or indexing request is not evidence that a page appears in search.
-Do not request recrawls repeatedly or promise a ranking or completion date.
+The `social-*-v1.png` files intentionally contain the same corrected artwork;
+previously shared cards may still request those URLs. Keep these compatibility
+assets even though their contents are duplicated. The suffix identifies the
+image revision, not the application's V1/V2 edition.
 
-The portfolio packager uses a file allowlist, including for legacy aliases.
-Add public assets deliberately; never change it to recursively publish a working
-directory that may contain logs, credentials or private review files.
+Regenerate the images on Windows with:
 
-Production uses the existing GitHub Pages site, not the historical Cloudflare
-design preview. The portfolio repository's Pages workflow packages the static
-files with `tools/build-pages.py`. The canonical path is `/IMELayoutRouter/`;
-legacy `/IMELayOutRouter/` pages redirect to it, while old direct asset and installer
-URLs remain available. Aliases exist only in the deployment archive so Windows
-checkouts do not need two directories that differ only in letter case.
-The user has retired the prototype GitHub Release. Do not create
-new GitHub releases. After final package checks, place installers under
-`IMELayoutRouter/downloads/` in the portfolio repository and link to them relatively.
-Keep individual files below 100 MiB and the complete site below 1 GB. Include the
-actual file size and SHA-256 in the linked articles; require final-version
-installer lifecycle checks when changing a package. A page-only edit does not
-change the installer or its release date.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/generate-social-images.ps1
+```
 
-Before release: use actual versions/assets/checksums, publish verification results,
-and check the download links after upload. See `docs/release-plan.md`.
+The generator uses System.Drawing and the Windows Georgia/Meiryo fonts. Review
+the result and copy approved assets into the website repository. When changing
+the image revision, update the Japanese/English sharing metadata and explicit
+publication allowlists there. Preserve older image URLs for cached cards.
 
-Limits: https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits
-and https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github.
+## Product wording and page design
+
+Use the exact product name `IMELayoutRouter`. Describe its purpose as
+"IMEの直接入力を、指定した配列で" / "Your chosen layout for IME direct input".
+The application selects an existing Windows input layout for the application
+receiving input; the active layout and resulting characters can change. It does
+not create or edit individual key mappings, layout definitions or drivers.
+
+Keep the compact download table visible immediately after the introduction.
+Its columns are installer, version and release date. Show at most three short,
+dated news items, and link to the Japanese/English articles in `docs/releases/`
+for features, installation steps, checksums and compatibility limits. Keep those
+limits equivalent in both languages, including tests that remain incomplete.
+
+The canonical path is `/IMELayoutRouter/`. The website build retains legacy
+`/IMELayOutRouter/` redirects and old direct asset/download URLs. Canonical URLs,
+reciprocal language links, sharing metadata and sitemaps belong to the production
+website. Do not manufacture reviews, ratings or compatibility claims for search.
+
+## Publishing a version
+
+1. Complete the package checks in [the release plan](../docs/release-plan.md).
+2. Copy the verified installers into `IMELayoutRouter/downloads/` in the website
+   repository. Keep their existing version-specific filenames and SHA-256 records.
+3. Update the production download table and version articles with matching
+   versions and dates. A page-only change does not change an installer release date.
+4. After publication, verify HTTPS downloads against the recorded hashes.
+
+GitHub Releases is not used for distribution. The website packager uses an
+explicit allowlist; do not recursively publish a working directory containing
+local logs or credentials. Retain existing downloadable installers and archived
+version articles when adding a release.
