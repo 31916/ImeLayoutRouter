@@ -10,11 +10,16 @@ publication time is not inferred from its commit or tag.
 
 | 日時 / Date and time (JST) | 内容 / Event | Gitの記録 / Evidence |
 | --- | --- | --- |
+| 2026/10/21 00:12:44 | Ver1.1.2・Ver2.0.2のインストーラーを配布サイトへ追加。入力欄情報の取得時に終了する不具合を修正 / Added Ver1.1.2 and Ver2.0.2 with the accessibility-monitor crash fix | [配布コミット / Website commit](https://github.com/31916/31916.github.io/commit/dc727c465cc211cb22af5c562f68703d1a123f15) |
 | 2026/09/26 22:59:23 | Ver1.1.1・Ver2.0.1のインストーラーを配布サイトへ追加。ブラウザーの入力欄検出処理を修正 / Added the Ver1.1.1 and Ver2.0.1 installers with corrected browser field detection | [配布コミット / Website commit](https://github.com/31916/31916.github.io/commit/4fcf6bc59d2c7e4ad1a95cafdc50a9c931f2dbba) |
 | 2026/09/20 11:02:08 | V1 1.1.0・V2 2.0.0のインストーラーを配布サイトへ追加 / Added both installers to the distribution website | [配布コミット / Website commit](https://github.com/31916/31916.github.io/commit/56d553938fcbe38631daf3435f195ee2960b94b5) |
 | 2026/09/01 00:21:44 | 旧v1.0.0のタグが参照するコミット。READMEの配列説明を更新 / Commit referenced by the old v1.0.0 tag; updated the README | [9555755](https://github.com/31916/ImeLayoutRouter/commit/9555755e5fda336016c18f97542dd59b95ddcad9) |
 | 2026/08/14 17:24:35 | 設定画面と通知領域への常駐機能を追加 / Added settings and the tray application | [5696377](https://github.com/31916/ImeLayoutRouter/commit/569637761e661b2b3ce5795334542932d45c5ab5) |
 | 2026/08/11 17:30:19 | 初期プロトタイプの双方向切替機能を実装 / Implemented the initial bidirectional switching prototype | [5e8d912](https://github.com/31916/ImeLayoutRouter/commit/5e8d9129daa5434048cba49f291764f227d0c17e) |
+
+Ver1.1.2・Ver2.0.2は2026年10月21日に[サイトのデプロイ](https://github.com/31916/31916.github.io/actions/runs/39447285688)が完了し、公開URLから取得した両インストーラーのSHA-256が検証済みのWindows CI成果物と一致することを確認しました。表の2026/10/21 00:12:44は配布コミットの記録です。
+
+Ver1.1.2 and Ver2.0.2 became available after the October 21 website deployment. Both public downloads matched the verified Windows CI artifact SHA-256 hashes. The table records the distribution commit time, not the exact deployment time.
 
 Ver1.1.1・Ver2.0.1は2026年9月26日に[サイトのデプロイ](https://github.com/31916/31916.github.io/actions/runs/36247110823)が完了し、公開URLから取得した両インストーラーのSHA-256がWindows CIの成果物と一致することを確認しました。表の22:59:23は配布コミットの記録です。
 

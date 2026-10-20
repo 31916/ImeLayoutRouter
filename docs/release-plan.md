@@ -1,10 +1,12 @@
 # V1 / V2 distribution plan
 
-Ver1.1.2 and Ver2.0.2 are the patch versions prepared on 2026-10-20 for the
-accessibility-monitor crash and the prototype startup migration in CHANGELOG.md.
-Until their validated installers are deployed, the public files remain
-Ver1.1.1 and Ver2.0.1 from 2026-09-26. Browser end-to-end and some IME compatibility
-checks remain incomplete. Keep those limitations visible in both website languages.
+Ver1.1.2 and Ver2.0.2 were published on 2026-10-21 (Japan time), after
+Windows CI passed regression tests and both editions' UI smoke and installer
+lifecycle checks. The distributed installers come from [this CI run](https://github.com/31916/ImeLayoutRouter/actions/runs/39444535870)
+at source commit `e40ca1afba97713230ea0e85927b76cb231bdff5`. Public HTTPS downloads match the verified
+artifact SHA-256 hashes. All four previous installers remain available.
+Browser end-to-end and some IME compatibility checks remain incomplete;
+publication does not mark those checks as completed.
 
 ## Editions and branches
 
