@@ -16,7 +16,11 @@ internal static class Tsf
                 if (profile.Type != 1 || (profile.Flags & 2) == 0) continue;
                 if (Guid.TryParse(Environment.GetEnvironmentVariable("GUARD_TEST_IME_CLSID"), out var requested)
                     && profile.Clsid != requested) continue;
-                Marshal.ThrowExceptionForHR(manager.ActivateProfile(1, 0x411, ref profile.Clsid, ref profile.ProfileId, profile.Hkl, 0));
+                // ActivateProfile requires a matching current language and a
+                // NULL HKL for text services (the enumerated substitute is not
+                // a valid hkl argument for TF_PROFILETYPE_INPUTPROCESSOR).
+                if (LoadKeyboardLayoutW("00000411", 1) == 0) throw new InvalidOperationException("Could not select Japanese input language for fixture thread.");
+                Marshal.ThrowExceptionForHR(manager.ActivateProfile(1, 0x411, ref profile.Clsid, ref profile.ProfileId, 0, 0));
                 Console.WriteLine("Japanese TSF profile activated for fixture thread.");
                 return;
             }
@@ -28,6 +32,7 @@ internal static class Tsf
             Marshal.FinalReleaseComObject(managerObject);
         }
     }
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern nint LoadKeyboardLayoutW(string layout, uint flags);
     [StructLayout(LayoutKind.Sequential)] private struct Profile
     {
         public uint Type; public ushort Language; public Guid Clsid, ProfileId, Category;
