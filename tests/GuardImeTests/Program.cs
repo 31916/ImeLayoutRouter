@@ -217,7 +217,10 @@ internal static class Program
         if (tsf is { Shown: true })
         {
             Check(tsf.Sample.Contains("日本"), label + ": TSF candidates contain the fixed test word's conversion");
-            candidates.Add("TSF:" + tsf.Identity);
+            // GetGUID identifies this UI element, not a guaranteed stable
+            // class across separate compositions. Compare the verified
+            // candidate interface, visibility and test-word content instead.
+            candidates.Add("TSF:ITfCandidateListUIElement");
         }
         Check(candidates.Count > 0, label + ": conversion candidate UI is visible and drawable");
         if (guard == null) baselineCandidateClasses.UnionWith(candidates);

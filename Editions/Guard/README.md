@@ -43,55 +43,56 @@ V3のオン・オフで変わらないことを確認しました。Microsoft IM
 
 ## Validation gates
 
-- Policy/settings checks and synthetic native-window tests are automated.
-- [Run 39868972814](https://github.com/31916/ImeLayoutRouter/actions/runs/39868972814)
-  rechecked all 53 policy/native checks and installer lifecycle tests at commit
-  `2635dbe`. Upgrade and uninstall while running passed, saved choices survived
-  an upgrade, and both operations refused to continue with an invalid recovery
-  record. Japanese/English settings renders from the disposable VM were visually
-  reviewed; controls, text and the existing icon are visible without clipping.
-- Native tests create a separate Win32 desktop without switching the user's display.
-  They do not send keys, move the mouse, install an IME, or alter the default layout.
-- Synthetic windows test classification, cross-process masking, exact restoration,
-  candidate exclusion, owner-hide behavior and recovery after helper termination.
-  **They do not demonstrate real IME composition compatibility.**
-- On 2026-10-23 (JST), [CI run 39864840010](https://github.com/31916/ImeLayoutRouter/actions/runs/39864840010)
-  passed 25 policy/settings checks, 28 native fixture checks and the development
-  installer lifecycle checks. This includes helper DPI initialization, moving a
-  popup away from/back to the corner, recovery after helper termination, and
-  uninstalling while the app is running. The synthetic move-to-mask observations
-  were 53–82 ms across six trials; these are not real IME first-frame measurements.
-  Recovery also checks interrupted unpublished records and prevents a bounded
-  batch from reporting success while additional restoration records remain.
-- [Google IME run 39864840012](https://github.com/31916/ImeLayoutRouter/actions/runs/39864840012)
-  passed actual Japanese input on Windows Server 2025 with Google Japanese Input
-  3.34.6260.0. Real keystrokes produced `にほん`; both baseline and suppression-on
-  conversion committed `日本`. Escape cancellation, preserving the pending text,
-  restoring the real popup when disabled and leaving normal positioning drawable
-  passed. The captured baseline/masked/candidate images were visually reviewed:
-  only the fallback composition frame disappeared and conversion candidates
-  remained visible. This verifies that specific fixture and IME/OS combination.
-  Candidate visibility, switching to another fixture thread, a real Win32 caret
-  near the corner and ten consecutive composition/cancellation cycles also passed.
-  Show-event to empty-region observations were 15–94 ms in that run, and 31–125 ms
-  in [run 39864035466](https://github.com/31916/ImeLayoutRouter/actions/runs/39864035466).
-  These include event delivery, masking and observation delay; they are not
-  first-rendered-frame/video measurements and do not prove zero-frame prevention.
-- [Chrome compatibility run 39865503247](https://github.com/31916/ImeLayoutRouter/actions/runs/39865503247)
-  passed real Google IME typing in Chrome's ordinary text input and textarea.
-  With V3 off and on, both fields received `にほん`, emitted real composition
-  events and committed the same `日本` result. Chrome used a new, isolated profile
-  and a local HTML fixture. CDP prepared/read that page; OS keystrokes produced
-  the text. This checks ordinary browser input compatibility, not every website
-  or a reproduction of a specific browser's positioning bug.
-- [Run 39868972851](https://github.com/31916/ImeLayoutRouter/actions/runs/39868972851)
-  rechecked the full Google IME/native/Chrome suite at `2635dbe`. The fixture
-  verifies that the requested TSF profile is active and uses a native message
-  pump throughout composition. Its ten show-to-mask observations were 47–94 ms.
-- Before release: validate actual composition, conversion candidates, confirmation,
-  cancellation, application switching, multiple monitors/DPI, sleep/resume and exit
-  with the supported IMEs. No release installer or download-page update is authorized
-  by a passing synthetic test alone.
+- [Native and installer run 39872667272](https://github.com/31916/ImeLayoutRouter/actions/runs/39872667272)
+  passed at `bd81ab0`: 25 policy/settings checks, 38 native checks, and development
+  installer lifecycle checks. All 200 cross-process move/restore/remask cycles
+  and 100 custom-region move/restore cycles passed. The ordinary-region
+  move-to-mask observations were 35–98 ms, not real IME first-frame latency.
+  Japanese/English settings renders retain the existing icon and were visually
+  reviewed for missing text, overlap and clipping.
+- A rare restoration failure was reproduced in
+  [run 39871343642](https://github.com/31916/ImeLayoutRouter/actions/runs/39871343642).
+  During a window move, `GetWindowRgn` briefly returned 0 and then 1 for the same
+  masked window. The old code mistook the ambiguous 0 for an owner replacement,
+  removed its recovery token and left an empty region. The fix keeps ownership
+  on an ambiguous query and explicitly restores an originally unbounded window.
+  A saved custom region is rechecked after a bounded settling interval. Regression
+  tests inject the unavailable query and also verify deliberate owner changes.
+  Diagnostic traces and query injection are compiled only into the synthetic
+  test executable, never the application or real-IME fixture.
+- Native tests use synthetic windows on a separate, non-displayed Win32 desktop.
+  They check classification, candidate exclusion, owner-hide/change behavior,
+  custom-region restoration, helper EOF, abrupt helper termination, interrupted
+  recovery records and bounded recovery batches. **These tests do not establish
+  real IME compatibility.**
+- Installer tests cover installation, upgrade/uninstall while running, preserving
+  saved choices on upgrade, refusing both operations when recovery is incomplete,
+  and retaining V1/V2 startup registration. No release installer is uploaded.
+- [Google IME and Chrome run 39871728039](https://github.com/31916/ImeLayoutRouter/actions/runs/39871728039)
+  passed at `144332b` on Windows Server 2025 with Google Japanese Input 3.34.6260.0.
+  Actual keystrokes produced `にほん`; conversion committed `日本` with V3 off/on.
+  The baseline/masked/candidate images show that only the fallback composition
+  frame disappeared and candidates remained visible. Cancellation, preserving
+  pending text, disabling suppression, normal positioning, a real corner caret,
+  switching input threads and ten repeated input cycles passed. The ten
+  show-event-to-empty-region observations were 32–79 ms. These measurements include
+  event delivery and observation delay; they do not demonstrate zero-frame hiding.
+- The same Google IME run passed ordinary Chrome text input and textarea checks:
+  both emitted actual composition events and committed the same `日本` result
+  with V3 off/on. Chrome uses a unique profile, a local test page, and its verified
+  document window. CDP prepares/reads that page; OS keystrokes produce the text.
+  This is input compatibility evidence, not coverage of every website.
+- [Microsoft IME run 39871172870](https://github.com/31916/ImeLayoutRouter/actions/runs/39871172870)
+  passed its independent Chrome text/textarea input stage at `d29a698` on Windows
+  Server 2025. Actual preedit was `にほん` and the committed result was `日本`
+  with suppression off/on. The separate raw-window fallback stage failed before
+  V3 was enabled: the IME immediately committed each kana in that fixture.
+  The overall run is failed and does not establish Microsoft fallback-popup
+  suppression compatibility. A Windows 11 fixture reached uncommitted text and
+  a visible candidate panel; its full suppression validation is still pending.
+- Microsoft fallback-popup validation, other browsers/games, multiple physical monitors/DPI and
+  sleep/resume remain separate release gates. A passing synthetic test alone
+  does not authorize a release installer or download-page update.
 - The helper reacts to foreground/window show, hide, destroy and position events,
   with a 100 ms fallback scan and 10 ms event-burst coalescing. Notifications run
   outside the target process and do not inspect text. The helper uses per-monitor
@@ -135,6 +136,10 @@ that page's host by package identity. Any focus click must land on the fixture's
 own uncovered client area. These steps are restricted to the disposable VM.
 Ordinary browser typing and fallback-popup reproduction run separately; passing
 one never substitutes for the other.
+Modern Microsoft IME candidates can be absent from the legacy IMM candidate API.
+The fixture can also read `ITfCandidateListUIElement` on its own TSF thread,
+checking visibility, candidate text and selection without changing the IME UI.
+This test-only code is excluded from the application.
 
 ## Build / check
 
@@ -154,6 +159,11 @@ dotnet tests/GuardTests/bin/Guard/Release/net8.0-windows/GuardTests.dll
   defines region ownership and drawing behavior used here.
 - [Microsoft: SetProp and UIPI](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setpropw)
   limits window-property changes to processes at the same or a lower integrity level.
+- [Microsoft: LoadKeyboardLayout](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayoutw)
+  requires the caller to own keyboard focus on Windows 8 and later; the browser
+  fixture prepares its input language before handing focus to Chrome.
+- [Microsoft: TSF candidate UI](https://learn.microsoft.com/en-us/windows/win32/api/msctf/nn-msctf-itfcandidatelistuielement)
+  supplies candidate count, selection and strings for the integration fixture.
 - [Korean IME top-left composition report in WebView2](https://github.com/MicrosoftEdge/WebView2Feedback/issues/5675)
   confirms that the symptom is not limited to Japanese. Chinese IMEs also use
   composition, but Chinese behavior has not been validated in this project.

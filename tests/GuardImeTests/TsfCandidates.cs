@@ -31,7 +31,7 @@ internal static class TsfCandidates
                         Marshal.ThrowExceptionForHR(list.GetString(index, out string text));
                         sample.Add(text);
                     }
-                    Console.WriteLine($"Own TSF candidates: count={count}; selection={selection}; shown={shown}; sample={string.Join(",", sample)}");
+                    Console.WriteLine($"Own TSF candidates: id={identity}; count={count}; selection={selection}; shown={shown}; sample={string.Join(",", sample)}");
                     if (count > 0 && shown) return new(count, selection, shown, identity, sample.ToArray());
                 }
                 finally { Marshal.ReleaseComObject(element); }
