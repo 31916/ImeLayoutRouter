@@ -22,7 +22,22 @@ internal static class Tsf
                 if (LoadKeyboardLayoutW("00000411", 1) == 0) throw new InvalidOperationException("Could not select Japanese input language for fixture thread.");
                 // FORSESSION is used only by the disposable-VM browser fixture.
                 // It selects the active IME, not the persisted default layout.
-                Marshal.ThrowExceptionForHR(manager.ActivateProfile(1, 0x411, ref profile.Clsid, ref profile.ProfileId, 0, forTestDesktop ? 0x20000000u : 0));
+                int activated = manager.ActivateProfile(1, 0x411, ref profile.Clsid, ref profile.ProfileId, 0, forTestDesktop ? 0x20000000u : 0);
+                Marshal.ThrowExceptionForHR(activated);
+                // S_FALSE is non-negative, but means the profile was not
+                // enabled. ThrowExceptionForHR alone does not detect it.
+                if (activated != 0) throw new InvalidOperationException($"IME profile did not activate: HRESULT=0x{activated:X8}");
+                long deadline = Environment.TickCount64 + 1000;
+                Profile selected;
+                do
+                {
+                    Application.DoEvents();
+                    Marshal.ThrowExceptionForHR(manager.GetProfile(1, 0x411, ref profile.Clsid, ref profile.ProfileId, 0, out selected));
+                    if ((selected.Flags & 1) != 0) break;
+                    Thread.Sleep(20);
+                } while (Environment.TickCount64 < deadline);
+                Console.WriteLine($"Requested TSF profile after activation: clsid={selected.Clsid}; flags={selected.Flags}");
+                if ((selected.Flags & 1) == 0) throw new InvalidOperationException("Requested IME is not active on the fixture thread.");
                 Console.WriteLine("Japanese TSF profile activated for fixture thread.");
                 return;
             }
