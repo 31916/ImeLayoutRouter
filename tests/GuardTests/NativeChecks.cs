@@ -115,8 +115,10 @@ static class NativeChecks
             Wait(() => RegionType(corner.Handle) == 1 || child.HasExited);
             Check(!child.HasExited && RegionType(corner.Handle) == 1, "Real helper monitors while its parent pipe remains open (cross-process mask)");
             var observations = new List<long>();
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < 200; i++)
             {
+                try
+                {
                 SetWindowPos(corner.Handle, 0, 200, 200, 0, 0, 0x15);
                 Wait(() => RegionType(corner.Handle) != 1 || child.HasExited);
                 if (i == 0) Check(!child.HasExited && RegionType(corner.Handle) == 0, "Running helper restores a popup moved away from the corner");
@@ -125,8 +127,15 @@ static class NativeChecks
                 Wait(() => RegionType(corner.Handle) == 1 || child.HasExited);
                 if (i == 0) Check(!child.HasExited && RegionType(corner.Handle) == 1, "Running helper remasks a popup returned to the corner");
                 observations.Add(watch.ElapsedMilliseconds);
+                }
+                catch
+                {
+                    GetWindowRect(corner.Handle, out var bounds);
+                    Console.WriteLine($"Move-cycle failure {i}: bounds={bounds.Left},{bounds.Top},{bounds.Right},{bounds.Bottom}; region={RegionType(corner.Handle)}; token={GetPropW(corner.Handle, "ImeLayoutRouter.CompositionMask.Preview")}; helperExited={child.HasExited}; helperCpu={child.TotalProcessorTime.TotalMilliseconds}ms; journals={Directory.EnumerateFiles(recovery.DirectoryPath, "*.json").Count()}");
+                    throw;
+                }
             }
-            Console.WriteLine("Synthetic move-to-mask observations (ms, not real IME first-frame latency): " + string.Join(", ", observations));
+            Console.WriteLine($"Synthetic move-to-mask observations ({observations.Count} cycles, ms, not real IME first-frame latency): min={observations.Min()}, max={observations.Max()}");
             child.StandardInput.Close();
             Wait(() => child.HasExited);
             Check(child.ExitCode == 0 && RegionType(corner.Handle) == 0, "Parent-pipe EOF restores cross-process mask and exits helper");
@@ -220,6 +229,8 @@ static class NativeChecks
     [DllImport("user32.dll")] private static extern bool SetWindowPos(nint window, nint after, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] private static extern int SetWindowRgn(nint window, nint region, bool redraw);
     [DllImport("user32.dll")] private static extern int GetWindowRgn(nint window, nint region);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(nint window, out Rect rect);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern nint GetPropW(nint window, string name);
     [DllImport("gdi32.dll")] private static extern nint CreateRectRgn(int left, int top, int right, int bottom);
     [DllImport("gdi32.dll")] private static extern int GetRgnBox(nint region, out Rect rect);
     [DllImport("gdi32.dll")] private static extern bool DeleteObject(nint value);
