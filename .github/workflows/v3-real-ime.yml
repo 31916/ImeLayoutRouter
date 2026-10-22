@@ -1,18 +1,22 @@
 name: V3 real IME compatibility
 on:
   workflow_dispatch:
+    inputs:
+      test_os:
+        description: Disposable Windows image to validate
+        type: choice
+        options: [windows-11-arm, windows-2025]
+        default: windows-11-arm
 # Windows capability retrieval is environment-dependent. Run this explicitly
 # so ordinary fixture edits do not repeat a stalled OS package download.
 permissions:
   contents: read
 jobs:
   japanese-ime:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-2025, windows-11-arm]
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ inputs.test_os }}
     timeout-minutes: 40
+    env:
+      GUARD_TEST_IME_CLSID: 03B5835F-F03C-411B-9CE2-AA23E1171E36
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -43,7 +47,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v3-real-ime-validation-${{ matrix.os }}
+          name: v3-real-ime-validation-${{ inputs.test_os }}
           path: |
             ${{ runner.temp }}/v3-ime-*.txt
             ${{ runner.temp }}/v3-ime-*.png
