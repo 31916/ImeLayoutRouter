@@ -363,7 +363,7 @@ internal static class Program
         }
         return Native.DefWindowProcW(h, msg, wp, lp);
     }
-    private static void Pump(int ms) { long end = Environment.TickCount64 + ms; do { Application.DoEvents(); observation?.Sample(); Thread.Sleep(10); } while (Environment.TickCount64 < end); }
+    private static void Pump(int ms) { long end = Environment.TickCount64 + ms; do { Native.PumpMessages(); observation?.Sample(); Thread.Sleep(10); } while (Environment.TickCount64 < end); }
     private static void Wait(Func<bool> predicate, string name)
     {
         long end = Environment.TickCount64 + 5000;

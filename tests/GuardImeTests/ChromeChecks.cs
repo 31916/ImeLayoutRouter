@@ -106,7 +106,7 @@ internal static class ChromeChecks
         Pump(300);
     }
     private static void Pump(int milliseconds)
-    { long end = Environment.TickCount64 + milliseconds; do { Application.DoEvents(); Thread.Sleep(10); } while (Environment.TickCount64 < end); }
+    { long end = Environment.TickCount64 + milliseconds; do { Native.PumpMessages(); Thread.Sleep(10); } while (Environment.TickCount64 < end); }
     private static void Wait(Func<bool> predicate, string name)
     { long end = Environment.TickCount64 + 15000; while (!predicate() && Environment.TickCount64 < end) Pump(50); Check(predicate(), name); }
     private static void Check(bool value, string name)

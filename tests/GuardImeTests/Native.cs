@@ -3,6 +3,23 @@ using System.Text;
 
 internal static class Native
 {
+    // This fixture owns raw Win32 windows. Repeated Application.DoEvents calls
+    // create and tear down WinForms/OLE loop components between keystrokes;
+    // keep the native message dispatch stable while an IME is composing.
+    internal static void PumpMessages()
+    {
+        for (int i = 0; i < 128 && PeekMessageW(out var message, 0, 0, 0, 1); i++)
+        {
+            if (message.Id == 0x12) throw new InvalidOperationException("Disposable input fixture received WM_QUIT");
+            TranslateMessage(ref message);
+            DispatchMessageW(ref message);
+        }
+    }
+    [StructLayout(LayoutKind.Sequential)] private struct Message
+    { internal nint Window; internal uint Id; internal nuint WParam; internal nint LParam; internal uint Time; internal int X, Y; internal uint Private; }
+    [DllImport("user32.dll")] private static extern bool PeekMessageW(out Message message, nint window, uint min, uint max, uint remove);
+    [DllImport("user32.dll")] private static extern bool TranslateMessage(ref Message message);
+    [DllImport("user32.dll")] private static extern nint DispatchMessageW(ref Message message);
     internal delegate nint WindowProc(nint window, uint message, nint wp, nint lp);
     internal delegate bool EnumProc(nint window, nint data);
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] internal struct WindowClass

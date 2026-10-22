@@ -31,7 +31,7 @@ internal static class Tsf
                 Profile selected;
                 do
                 {
-                    Application.DoEvents();
+                    Native.PumpMessages();
                     Marshal.ThrowExceptionForHR(manager.GetProfile(1, 0x411, ref profile.Clsid, ref profile.ProfileId, 0, out selected));
                     if ((selected.Flags & 1) != 0) break;
                     Thread.Sleep(20);
