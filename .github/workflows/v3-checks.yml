@@ -1,0 +1,36 @@
+name: V3 development checks
+on:
+  push:
+    branches: [V3]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guard:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build V3 and regression checks
+        shell: pwsh
+        run: |
+          dotnet build -c Release -p:Edition=Guard --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build tests/GuardTests/GuardTests.csproj -c Release -p:Edition=Guard --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet tests/GuardTests/bin/Guard/Release/net8.0-windows/GuardTests.dll
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Native API and recovery checks on a non-displayed desktop
+        shell: pwsh
+        run: |
+          ./tools/Test-GuardDesktop.ps1 -Assembly "$PWD/tests/GuardTests/bin/Guard/Release/net8.0-windows/GuardTests.dll" -OutputPath "$env:RUNNER_TEMP/v3-native-checks.txt"
+      - name: Save validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-development-validation
+          path: ${{ runner.temp }}/v3-native-checks.txt
+          if-no-files-found: warn

@@ -5,5 +5,6 @@
     <BaseOutputPath>bin\$(Edition)\</BaseOutputPath>
     <DefaultItemExcludes>$(DefaultItemExcludes);**/obj/**;**/bin/**;artifacts/**</DefaultItemExcludes>
     <DefineConstants Condition="'$(Edition)' == 'Simple'">$(DefineConstants);SIMPLE_EDITION</DefineConstants>
+    <DefineConstants Condition="'$(Edition)' == 'Guard'">$(DefineConstants);GUARD_EDITION</DefineConstants>
   </PropertyGroup>
 </Project>

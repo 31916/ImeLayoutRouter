@@ -11,6 +11,8 @@
     <Version Condition="'$(Edition)' == 'Full'">2.0.2</Version>
     <Product Condition="'$(Edition)' == 'Simple'">IME Layout Router V1 日本語簡易版</Product>
     <Product Condition="'$(Edition)' == 'Full'">IME Layout Router V2 Full</Product>
+    <Version Condition="'$(Edition)' == 'Guard'">3.0.0-preview.1</Version>
+    <Product Condition="'$(Edition)' == 'Guard'">IME Layout Router V3 Composition Guard Preview</Product>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
 
@@ -30,7 +32,11 @@
     <Compile Include="Editions\Simple\*.cs" />
   </ItemGroup>
   <Target Name="ValidateEdition" BeforeTargets="PrepareForBuild">
-    <Error Condition="'$(Edition)' != 'Simple' and '$(Edition)' != 'Full'" Text="Edition must be Simple or Full." />
+    <Error Condition="'$(Edition)' != 'Simple' and '$(Edition)' != 'Full' and '$(Edition)' != 'Guard'" Text="Edition must be Simple, Full or Guard." />
   </Target>
+  <ItemGroup Condition="'$(Edition)' == 'Guard'">
+    <Compile Remove="*.cs" />
+    <Compile Include="Editions\Guard\*.cs" />
+  </ItemGroup>
 
 </Project>

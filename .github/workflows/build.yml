@@ -1,6 +1,7 @@
 name: Build and regression tests
 on:
   push:
+    branches-ignore: [V3]
   pull_request:
 permissions:
   contents: read
