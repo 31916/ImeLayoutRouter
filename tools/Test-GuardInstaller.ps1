@@ -37,6 +37,26 @@ try {
         $helper.StandardInput.Close()
         if (!$helper.WaitForExit(5000) -or $helper.ExitCode -ne 0) { throw 'Packaged helper failed to exit cleanly.' }
     } finally { $helper.Dispose() }
+    # An unreadable restoration record must stop both replacement and removal,
+    # retaining the installed executable and the record for investigation.
+    $recoveryDirectory = Join-Path $env:LOCALAPPDATA 'ImeLayoutRouter/v3-recovery'
+    [IO.Directory]::CreateDirectory($recoveryDirectory) | Out-Null
+    $blockedRecord = Join-Path $recoveryDirectory ([Guid]::NewGuid().ToString('N') + '.json')
+    [IO.File]::WriteAllText($blockedRecord, '{')
+    try {
+        foreach ($taskBlockedOperation in @(
+            @($Installer, @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=""', "/DIR=`"$testRoot`"")),
+            @((Join-Path $testRoot 'unins000.exe'), @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'))
+        )) {
+            $blocked = Start-Process -FilePath $taskBlockedOperation[0] -ArgumentList $taskBlockedOperation[1] -WindowStyle Hidden -PassThru -Wait
+            try {
+                if ($blocked.ExitCode -eq 0 -or !(Test-Path -LiteralPath $executable) -or !(Test-Path -LiteralPath $blockedRecord)) {
+                    throw 'Installer proceeded despite an unresolved display-restoration record.'
+                }
+            } finally { $blocked.Dispose() }
+        }
+        Write-Output 'PASS Upgrade and uninstall abort safely when display recovery is incomplete.'
+    } finally { Remove-Item -LiteralPath $blockedRecord }
     Set-ItemProperty -Path $runKey -Name ImeLayoutRouterV3 -Value ('"' + $executable + '"')
     $settingsDirectory = Join-Path $env:LOCALAPPDATA 'ImeLayoutRouter'
     $settingsFile = Join-Path $settingsDirectory 'settings-v3.json'
