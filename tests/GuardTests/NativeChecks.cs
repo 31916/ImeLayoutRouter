@@ -193,6 +193,33 @@ static class NativeChecks
                 }
             }
             Console.WriteLine($"Synthetic move-to-mask observations ({observations.Count} cycles, ms, not real IME first-frame latency): min={observations.Min()}, max={observations.Max()}");
+            SetWindowPos(corner.Handle, 0, 200, 200, 0, 0, 0x15);
+            Wait(() => RegionType(corner.Handle) == 0);
+            SetWindowRgn(corner.Handle, CreateRectRgn(4, 5, 80, 25), true);
+            bool CustomRestored()
+            {
+                using var region = new Region();
+                if (GetWindowRgn(corner.Handle, region.Handle) != 2) return false;
+                GetRgnBox(region.Handle, out var bounds);
+                return bounds.Left == 4 && bounds.Top == 5 && bounds.Right == 80 && bounds.Bottom == 25;
+            }
+            try
+            {
+                for (int i = 0; i < 100; i++)
+                {
+                    SetWindowPos(corner.Handle, 0, 0, 0, 0, 0, 0x15);
+                    Wait(() => RegionType(corner.Handle) == 1);
+                    SetWindowPos(corner.Handle, 0, 200, 200, 0, 0, 0x15);
+                    Wait(CustomRestored);
+                }
+                Check(CustomRestored() && !child.HasExited, "100 cross-process custom-region move cycles preserve the exact original geometry");
+            }
+            catch
+            {
+                Console.WriteLine("Custom-region move failure; bounded helper trace:\n" + string.Join("\n", trace));
+                throw;
+            }
+            SetWindowRgn(corner.Handle, 0, true);
             child.StandardInput.Close();
             Wait(() => child.HasExited);
             Check(child.ExitCode == 0 && RegionType(corner.Handle) == 0, "Parent-pipe EOF restores cross-process mask and exits helper");
