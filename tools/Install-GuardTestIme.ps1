@@ -25,6 +25,12 @@ try {
         if ($taskService.StartType -eq 'Disabled') { Set-Service $taskServiceName -StartupType Manual }
         Start-Service $taskServiceName
     }
+    # Disposable VMs have no useful LAN peers. Use the documented HTTP-only
+    # delivery mode instead of waiting for peer/cache sources.
+    $taskDeliveryKey = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization'
+    if (!(Test-Path $taskDeliveryKey)) { New-Item -Path $taskDeliveryKey | Out-Null }
+    New-ItemProperty -Path $taskDeliveryKey -Name DODownloadMode -Value 0 -PropertyType DWord -Force | Out-Null
+    Write-Output 'Delivery Optimization: HTTP-only downloads; peer sharing disabled on this disposable VM.'
     foreach ($taskFeature in @('Language.Basic~~~ja-JP~0.0.1.0', 'Language.Fonts.Jpan~~~und-JPAN~0.0.1.0')) {
         $taskCapability = Get-WindowsCapability -Online -Name $taskFeature
         if (!$taskCapability) { throw "Required input capability is unavailable: $taskFeature" }
@@ -42,6 +48,13 @@ try {
                     Wait-Job -Job $taskInstallJob -Timeout 30 | Out-Null
                     if ($taskInstallJob.State -notin @('NotStarted', 'Running')) { break }
                     Write-Output "Capability install still pending after $([int]$taskTimer.Elapsed.TotalSeconds) seconds."
+                    Get-Content "$env:WINDIR/Logs/CBS/CBS.log" -Tail 80 -ErrorAction SilentlyContinue |
+                        Select-String 'WULib DownloadProgress' | Select-Object -Last 1 | ForEach-Object { Write-Output $_.Line }
+                    if (Get-Command Get-DeliveryOptimizationStatus -ErrorAction SilentlyContinue) {
+                        Get-DeliveryOptimizationStatus -ErrorAction SilentlyContinue |
+                            Select-Object Status, FileSize, BytesFromHttp, DownloadMode |
+                            Format-List | Out-String | Write-Output
+                    }
                     if ($taskTimer.Elapsed.TotalMinutes -ge 12) { throw "Capability installation timed out: $taskFeature" }
                 }
                 $taskInstall = Receive-Job -Job $taskInstallJob -ErrorAction Stop

@@ -35,9 +35,12 @@ V1・V2とは設定・起動登録を分けているため、既存版と同時�
 - Synthetic windows test classification, cross-process masking, exact restoration,
   candidate exclusion, owner-hide behavior and recovery after helper termination.
   **They do not demonstrate real IME composition compatibility.**
-- On the development PC, the non-displayed desktop exposed no enabled Japanese IME.
-  Subsequent unsigned test builds were blocked by Windows Code Integrity; the policy
-  was not changed. A separate Windows CI workflow runs the development tests.
+- On 2026-10-23 (JST), [CI run 39858977969](https://github.com/31916/ImeLayoutRouter/actions/runs/39858977969)
+  passed 24 policy/settings checks, 20 native fixture checks and the development
+  installer lifecycle checks. This includes helper DPI initialization, moving a
+  popup away from/back to the corner, recovery after helper termination, and
+  uninstalling while the app is running. The synthetic move-to-mask observations
+  were 35–71 ms across six trials; these are not real IME first-frame measurements.
 - Before release: validate actual composition, conversion candidates, confirmation,
   cancellation, application switching, multiple monitors/DPI, sleep/resume and exit
   with the supported IMEs. No release installer or download-page update is authorized
