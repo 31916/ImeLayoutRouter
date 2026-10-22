@@ -7,15 +7,32 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hoste
 $taskEvidence = Join-Path $env:RUNNER_TEMP 'v3-ime-provisioning.txt'
 Start-Transcript -Path $taskEvidence
 try {
-    Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture
-    Get-Process -Id $PID | Select-Object SessionId
+    $taskOs = Get-CimInstance Win32_OperatingSystem
+    Write-Output "OS: $($taskOs.Caption); version: $($taskOs.Version); architecture: $($taskOs.OSArchitecture)"
+    Write-Output "Session: $((Get-Process -Id $PID).SessionId)"
+    # runner-images/Configure-System.ps1 blocks Windows Update, including FoD
+    # downloads. Permit this explicit capability install on the disposable VM.
+    # Keep NoAutoUpdate unchanged: do not initiate a general OS update.
+    $taskUpdateKey = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+    if (Test-Path $taskUpdateKey) {
+        foreach ($taskSetting in @('DoNotConnectToWindowsUpdateInternetLocations', 'DisableWindowsUpdateAccess')) {
+            Set-ItemProperty -Path $taskUpdateKey -Name $taskSetting -Value 0 -Type DWord
+        }
+    }
+    foreach ($taskServiceName in @('wuauserv', 'BITS')) {
+        $taskService = Get-Service $taskServiceName
+        Write-Output "Download service $taskServiceName : $($taskService.Status), $($taskService.StartType)"
+        if ($taskService.StartType -eq 'Disabled') { Set-Service $taskServiceName -StartupType Manual }
+        Start-Service $taskServiceName
+    }
     foreach ($taskFeature in @('Language.Basic~~~ja-JP~0.0.1.0', 'Language.Fonts.Jpan~~~und-JPAN~0.0.1.0')) {
         $taskCapability = Get-WindowsCapability -Online -Name $taskFeature
         if (!$taskCapability) { throw "Required input capability is unavailable: $taskFeature" }
-        $taskCapability | Select-Object Name, State
+        Write-Output "$taskFeature : $($taskCapability.State)"
         if ($taskCapability.State -ne 'Installed') {
+            Write-Output "Installing $taskFeature from Windows Update at $([DateTime]::UtcNow.ToString('O'))"
             $taskInstall = Add-WindowsCapability -Online -Name $taskFeature
-            $taskInstall | Select-Object Online, RestartNeeded
+            Write-Output "Installation returned; restart required: $($taskInstall.RestartNeeded)"
             if ($taskInstall.RestartNeeded) { throw 'IME installation requires a restart; this run cannot validate actual input.' }
         }
         if ((Get-WindowsCapability -Online -Name $taskFeature).State -ne 'Installed') { throw "Capability was not installed: $taskFeature" }

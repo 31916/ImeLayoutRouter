@@ -72,6 +72,7 @@ internal static class Program
         Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "V3 masks the real corner composition popup");
         Console.WriteLine($"Mask observation after completed typing: {watch.ElapsedMilliseconds} ms (not a first-frame latency measurement)");
         Check(Composition() == "にほん", "Masking preserves the uncommitted string");
+        DumpWindows("masked");
         string enabled = ConvertAndCommit("enabled", guard);
         Check(enabled == baseline, "V3 preserves exactly the baseline committed result");
 
@@ -113,7 +114,19 @@ internal static class Program
         Check(Native.ImmGetCandidateListW(context, 0, buffer, bytes) == bytes && BitConverter.ToUInt32(buffer, 8) > 0,
             label + ": conversion candidate list is nonempty");
         DumpWindows(label + "-candidates");
-        if (guard != null) Check(guard.CheckError() == null, "Helper stays alive during conversion");
+        // Always choose the first candidate so learning from the baseline does
+        // not change a later 'second candidate' and create a false difference.
+        for (int i = 0; BitConverter.ToUInt32(buffer, 12) != 0 && i < 20; i++)
+        {
+            Key(0x26); Pump(100);
+            Check(Native.ImmGetCandidateListW(context, 0, buffer, bytes) == bytes, "Candidate list remains available during selection");
+        }
+        Check(BitConverter.ToUInt32(buffer, 12) == 0, label + ": first conversion candidate can be selected");
+        if (guard != null)
+        {
+            Check(guard.CheckError() == null, "Helper stays alive during conversion");
+            Check(FindComposition() is var popup && popup != 0 && EmptyRegion(popup), "Real composition remains masked during candidate selection");
+        }
         Key(0x0D);
         Wait(() => committed.Length > 0 && Composition().Length == 0, label + ": Enter commits composition");
         Console.WriteLine(label + ": committed fixture text=" + committed);
@@ -189,6 +202,17 @@ internal static class Program
             }
             return true;
         }, 0);
+        // Capture only this disposable VM, after the entry-point environment
+        // checks. These images allow visual review beyond WS_VISIBLE flags.
+        try
+        {
+            Rectangle bounds = Screen.PrimaryScreen!.Bounds;
+            using var bitmap = new Bitmap(bounds.Width, bounds.Height);
+            using (var graphics = Graphics.FromImage(bitmap))
+                graphics.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
+            bitmap.Save(Path.Combine(evidence, "v3-ime-" + label + ".png"), System.Drawing.Imaging.ImageFormat.Png);
+        }
+        catch (Exception ex) { Console.WriteLine("Screenshot unavailable: " + ex.Message); }
     }
     private static nint WndProc(nint h, uint msg, nint wp, nint lp)
     {

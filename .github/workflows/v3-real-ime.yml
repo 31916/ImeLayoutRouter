@@ -38,5 +38,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: v3-real-ime-validation-${{ matrix.os }}
-          path: ${{ runner.temp }}/v3-ime-*.txt
+          path: |
+            ${{ runner.temp }}/v3-ime-*.txt
+            ${{ runner.temp }}/v3-ime-*.png
+          retention-days: 7
           if-no-files-found: error
