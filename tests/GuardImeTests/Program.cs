@@ -8,6 +8,7 @@ using System.Text;
 internal static class Program
 {
     private static nint window;
+    private static nint backdrop;
     private static readonly StringBuilder committed = new();
     private static readonly Native.WindowProc procedure = WndProc;
     private static nint context;
@@ -21,13 +22,14 @@ internal static class Program
         if (CompositionGuardClient.TryRunWorker(args)) return Environment.ExitCode;
         evidence = Environment.GetEnvironmentVariable("RUNNER_TEMP")!;
         using var output = new StreamWriter(Path.Combine(evidence, "v3-ime-checks.txt")) { AutoFlush = true };
-        Console.SetOut(output);
+        Console.SetOut(TextWriter.Synchronized(new TeeWriter(Console.Out, output)));
         try { Run(); Console.WriteLine("PASS Real Japanese IME checks completed."); return 0; }
         catch (Exception ex) { Console.WriteLine(ex); DumpWindows("failure"); return 1; }
         finally
         {
             if (context != 0) Native.ImmReleaseContext(window, context);
             if (window != 0) Native.DestroyWindow(window);
+            if (backdrop != 0) Native.DestroyWindow(backdrop);
         }
     }
 
@@ -37,6 +39,11 @@ internal static class Program
         Console.WriteLine($"OS={Environment.OSVersion}; process={RuntimeInformation.ProcessArchitecture}; session={Process.GetCurrentProcess().SessionId}");
         var cls = new Native.WindowClass { Proc = procedure, Instance = Native.GetModuleHandleW(null), Name = "ImeGuardRealInputFixture", Background = (nint)6 };
         Check(Native.RegisterClassW(ref cls) != 0, "Own input fixture registered");
+        var desktop = Screen.PrimaryScreen!.Bounds;
+        // Keep unrelated runner console/desktop content out of test screenshots.
+        backdrop = Native.CreateWindowExW(0x08000000, cls.Name!, "Disposable IME test backdrop", 0x90000000,
+            desktop.Left, desktop.Top, desktop.Width, desktop.Height, 0, 0, cls.Instance, 0);
+        Check(backdrop != 0, "Own screenshot backdrop created");
         window = Native.CreateWindowExW(0, cls.Name!, "V3 Japanese IME compatibility fixture", 0x10CF0000, 350, 250, 800, 400, 0, 0, cls.Instance, 0);
         Check(window != 0, "Own input fixture created");
         Focus();
@@ -194,11 +201,15 @@ internal static class Program
         Console.WriteLine("Window evidence: " + label);
         Native.EnumWindows((h, _) => {
             string name = Class(h);
-            if (name.Contains("IME", StringComparison.OrdinalIgnoreCase) || name.Contains("Candidate", StringComparison.OrdinalIgnoreCase))
+            Native.GetWindowRect(h, out var rect);
+            if (name.Contains("IME", StringComparison.OrdinalIgnoreCase) || name.Contains("Candidate", StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith("GoogleJapaneseInput", StringComparison.Ordinal)
+                || (Native.IsWindowVisible(h) && rect.Right > rect.Left && rect.Bottom > rect.Top && Math.Abs(rect.Left) < 20 && Math.Abs(rect.Top) < 20))
             {
                 uint thread = Native.GetWindowThreadProcessId(h, out uint pid);
-                Native.GetWindowRect(h, out var rect);
-                Console.WriteLine($"class={name}; visible={Native.IsWindowVisible(h)}; pid={pid}; tid={thread}; rect={rect.Left},{rect.Top},{rect.Right},{rect.Bottom}; empty={EmptyRegion(h)}");
+                nint owner = Native.GetWindow(h, 4);
+                uint ownerThread = Native.GetWindowThreadProcessId(owner, out uint ownerPid);
+                Console.WriteLine($"class={name}; visible={Native.IsWindowVisible(h)}; pid={pid}; tid={thread}; rect={rect.Left},{rect.Top},{rect.Right},{rect.Bottom}; empty={EmptyRegion(h)}; style=0x{Native.GetWindowLongW(h, -16):X}; classStyle=0x{Native.GetClassLongW(h, -26):X}; ownerClass={Class(owner)}; ownerPid={ownerPid}; ownerTid={ownerThread}");
             }
             return true;
         }, 0);
@@ -232,4 +243,11 @@ internal static class Program
         Check(predicate(), name);
     }
     private static void Check(bool value, string name) { if (!value) throw new InvalidOperationException("FAIL " + name); Console.WriteLine("PASS " + name); }
+    private sealed class TeeWriter(TextWriter console, TextWriter file) : TextWriter
+    {
+        public override Encoding Encoding => Encoding.UTF8;
+        public override void Write(char value) { console.Write(value); file.Write(value); }
+        public override void Write(string? value) { console.Write(value); file.Write(value); }
+        public override void WriteLine(string? value) { console.WriteLine(value); file.WriteLine(value); }
+    }
 }
