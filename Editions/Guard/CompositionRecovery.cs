@@ -32,7 +32,13 @@ internal sealed class CompositionRecovery
         // published and therefore never authorized a window mutation. Clean
         // only our generated names; unrelated files in this folder are kept.
         foreach (string path in Directory.EnumerateFiles(DirectoryPath, "*.json.pending").Take(64))
-            if (Guid.TryParseExact(Path.GetFileName(path)[..^13], "N", out _)) File.Delete(path);
+        {
+            if (!Guid.TryParseExact(Path.GetFileName(path)[..^13], "N", out _)) continue;
+            // Termination and filesystem filters can briefly retain the file.
+            // This unused draft must never prevent recovery of actual masks.
+            try { File.Delete(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
         bool recovered = true;
         foreach (string path in Directory.EnumerateFiles(DirectoryPath, "*.json").Take(64))
         {
