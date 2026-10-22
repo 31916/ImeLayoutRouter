@@ -1,3 +1,4 @@
+param([switch]$RefreshShell)
 $ErrorActionPreference = 'Stop'
 # Only disposable hosted VMs: never change a developer's desktop or services.
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or !$env:RUNNER_TEMP) {
@@ -21,6 +22,14 @@ try {
                 Stop-Process -Id $_.Id -ErrorAction Stop
             }
     }
+    if ($RefreshShell -and (Get-CimInstance Win32_OperatingSystem).ProductType -eq 1) {
+        # Apply the first-logon policy to the disposable shell that owns the
+        # observed Shell_OOBEProxy window. No user account is signed out.
+        Get-Process -Name explorer -ErrorAction SilentlyContinue |
+            Where-Object SessionId -eq $taskSession | Stop-Process
+        Start-Process -FilePath "$env:WINDIR/explorer.exe" -WindowStyle Hidden
+        Start-Sleep -Seconds 3
+    }
     # Record framework readiness separately from IME compatibility. Microsoft
     # documents this service as required for IME mode/input-method switching.
     foreach ($taskServiceName in @('TextInputManagementService', 'TabletInputService')) {
@@ -34,4 +43,6 @@ try {
     Start-Process -FilePath "$env:WINDIR/System32/ctfmon.exe" -WindowStyle Hidden
     Get-Process -Name ctfmon, TextInputHost, imebroker, CloudExperienceHost, CloudExperienceHostBroker, UserOOBEBroker -ErrorAction SilentlyContinue |
         Where-Object SessionId -eq $taskSession | Select-Object ProcessName, Id, SessionId | Format-Table | Out-String | Write-Output
+    Get-CimInstance Win32_Process | Where-Object { $_.SessionId -eq $taskSession -and $_.Name -match 'oobe|experience|wwahost|explorer' } |
+        Select-Object Name, ProcessId, ExecutablePath | Format-Table -AutoSize | Out-String -Width 220 | Write-Output
 } finally { Stop-Transcript }

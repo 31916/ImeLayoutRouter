@@ -26,7 +26,7 @@ jobs:
         shell: pwsh
         timeout-minutes: 3
         run: |
-          ./tools/Initialize-GuardTestDesktop.ps1
+          ./tools/Initialize-GuardTestDesktop.ps1 -RefreshShell
           dotnet build tests/GuardImeTests/GuardImeTests.csproj -c Release -p:Edition=Guard --warnaserror
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet tests/GuardImeTests/bin/Guard/Release/net8.0-windows/GuardImeTests.dll --check-desktop
