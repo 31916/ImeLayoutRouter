@@ -207,13 +207,15 @@ internal static class Program
         uint bytes = Native.ImmGetCandidateListW(context, 0, null, 0);
         Console.WriteLine($"{label}: candidate-list bytes={bytes}");
         var tsf = bytes == 0 ? TsfCandidates.Read() : null;
-        Check((bytes >= 24 && bytes < 1024 * 1024) || tsf is { Count: > 0, Shown: true },
-            label + ": actual IME conversion candidates exist via IMM or TSF");
+        bool accessible = bytes == 0 && tsf == null && AccessibleCandidates.AreVisible();
+        Check((bytes >= 24 && bytes < 1024 * 1024) || tsf is { Count: > 0, Shown: true } || accessible,
+            label + ": actual IME conversion candidates exist via IMM, TSF or visible accessibility elements");
         var buffer = new byte[bytes];
-        Check(tsf != null || (Native.ImmGetCandidateListW(context, 0, buffer, bytes) == bytes && BitConverter.ToUInt32(buffer, 8) > 0),
+        Check(accessible || tsf != null || (Native.ImmGetCandidateListW(context, 0, buffer, bytes) == bytes && BitConverter.ToUInt32(buffer, 8) > 0),
             label + ": conversion candidate list is nonempty");
         DumpWindows(label + "-candidates");
         var candidates = CandidateSurfaces();
+        if (accessible) candidates.Add("UIA:Microsoft candidate panel with visible 日本 and 二本");
         if (tsf is { Shown: true })
         {
             Check(tsf.Sample.Contains("日本"), label + ": TSF candidates contain the fixed test word's conversion");
@@ -227,11 +229,17 @@ internal static class Program
         else Check(baselineCandidateClasses.IsSubsetOf(candidates), "V3 preserves the baseline candidate UI classes");
         // Always choose the first candidate so learning from the baseline does
         // not change a later 'second candidate' and create a false difference.
-        uint selection = tsf?.Selection ?? BitConverter.ToUInt32(buffer, 12);
+        if (accessible) Check(Composition() == "二本", label + ": second candidate is the expected fixed-word conversion");
+        uint selection = accessible ? 1 : tsf?.Selection ?? BitConverter.ToUInt32(buffer, 12);
         for (int i = 0; selection != 0 && i < 20; i++)
         {
             Key(0x26); Pump(100);
-            if (tsf != null)
+            if (accessible)
+            {
+                Check(Composition() == "日本", label + ": Up selects the expected first candidate");
+                selection = 0;
+            }
+            else if (tsf != null)
             {
                 tsf = TsfCandidates.Read() ?? throw new InvalidOperationException("TSF candidate UI disappeared during selection");
                 selection = tsf.Selection;

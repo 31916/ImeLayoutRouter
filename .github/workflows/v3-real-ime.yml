@@ -7,6 +7,11 @@ on:
         type: choice
         options: [windows-11-arm, windows-2025]
         default: windows-11-arm
+      repair_window:
+        description: Keep a failed prepared VM for up to 10 minutes to validate new V3 revisions
+        type: choice
+        options: ['0', '10']
+        default: '0'
 # Windows capability retrieval is environment-dependent. Run this explicitly
 # so ordinary fixture edits do not repeat a stalled OS package download.
 permissions:
@@ -14,7 +19,7 @@ permissions:
 jobs:
   japanese-ime:
     runs-on: ${{ inputs.test_os }}
-    timeout-minutes: 40
+    timeout-minutes: 50
     env:
       GUARD_TEST_IME_CLSID: 03B5835F-F03C-411B-9CE2-AA23E1171E36
     steps:
@@ -36,6 +41,8 @@ jobs:
         shell: powershell
         run: ./tools/Install-GuardTestIme.ps1
       - name: Validate ordinary browser input independently of the fallback fixture
+        id: browser
+        continue-on-error: true
         shell: pwsh
         timeout-minutes: 3
         run: |
@@ -43,6 +50,8 @@ jobs:
           dotnet tests/GuardImeTests/bin/Guard/Release/net8.0-windows/GuardImeTests.dll --browser-only
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Validate real composition using only the disposable VM's fixture
+        id: fallback
+        continue-on-error: true
         if: always() && steps.provision.conclusion == 'success'
         shell: pwsh
         timeout-minutes: 3
@@ -70,3 +79,29 @@ jobs:
             ${{ runner.temp }}/v3-ime-*.png
           retention-days: 7
           if-no-files-found: error
+      - name: Validate an explicitly requested repair on the same disposable VM
+        id: repair
+        if: always() && steps.provision.outcome == 'success' && inputs.repair_window == '10' && (steps.browser.outcome != 'success' || steps.fallback.outcome != 'success')
+        timeout-minutes: 15
+        shell: pwsh
+        run: ./tools/Test-GuardPreparedVmRevision.ps1 -Minutes 10
+      - name: Preserve each repair revision separately
+        if: always() && steps.repair.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-real-ime-repairs-${{ inputs.test_os }}
+          path: ${{ runner.temp }}/v3-repairs/**
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Require actual passing input and fallback tests
+        if: always()
+        shell: pwsh
+        env:
+          INITIAL_BROWSER: ${{ steps.browser.outcome }}
+          INITIAL_FALLBACK: ${{ steps.fallback.outcome }}
+          REPAIR_PASSED: ${{ steps.repair.outputs.passed }}
+          REPAIR_REVISION: ${{ steps.repair.outputs.revision }}
+        run: |
+          if ($env:INITIAL_BROWSER -eq 'success' -and $env:INITIAL_FALLBACK -eq 'success') { exit 0 }
+          if ($env:REPAIR_PASSED -eq 'true') { Write-Output "Passing repair revision: $env:REPAIR_REVISION"; exit 0 }
+          throw 'Real IME validation did not pass. See separately retained initial and repair evidence.'
