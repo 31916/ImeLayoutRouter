@@ -38,11 +38,25 @@ try {
         if (!$helper.WaitForExit(5000) -or $helper.ExitCode -ne 0) { throw 'Packaged helper failed to exit cleanly.' }
     } finally { $helper.Dispose() }
     Set-ItemProperty -Path $runKey -Name ImeLayoutRouterV3 -Value ('"' + $executable + '"')
-    Invoke-Setup (Join-Path $testRoot 'unins000.exe') @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+    $settingsDirectory = Join-Path $env:LOCALAPPDATA 'ImeLayoutRouter'
+    $settingsFile = Join-Path $settingsDirectory 'settings-v3.json'
+    if (Test-Path -LiteralPath $settingsFile) { throw 'Disposable runner unexpectedly contains existing V3 settings.' }
+    [IO.Directory]::CreateDirectory($settingsDirectory) | Out-Null
+    [IO.File]::WriteAllText($settingsFile, '{"Version":1,"Enabled":true}')
+    $app = Start-Process -FilePath $executable -WindowStyle Hidden -PassThru
+    try {
+        Start-Sleep -Milliseconds 1000
+        if ($app.HasExited) { throw 'Installed V3 did not remain running.' }
+        Invoke-Setup (Join-Path $testRoot 'unins000.exe') @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+        if (!$app.WaitForExit(5000)) { throw 'Uninstall left V3 running.' }
+    } finally {
+        $app.Dispose()
+        Remove-Item -LiteralPath $settingsFile -ErrorAction SilentlyContinue
+    }
     if (Test-Path -LiteralPath $executable) { throw 'Application was not uninstalled.' }
     if (Get-StartupValue 'ImeLayoutRouterV3') { throw 'V3 owned startup was not removed.' }
     if ((Get-StartupValue 'ImeLayoutRouter') -ne 'preserved V2 startup') { throw 'Uninstall touched V2 startup.' }
-    Write-Output 'PASS V3 installer, original icon, V3 documentation, packaged helper, uninstall and V2 startup isolation.'
+    Write-Output 'PASS V3 installer, original icon, V3 documentation, packaged helper, uninstall while running and V2 startup isolation.'
 } finally {
     foreach ($item in @(@('ImeLayoutRouter', $v2Backup), @('ImeLayoutRouterV3', $v3Backup))) {
         if ($null -eq $item[1]) { Remove-ItemProperty -Path $runKey -Name $item[0] -ErrorAction SilentlyContinue }

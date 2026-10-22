@@ -46,6 +46,22 @@ Name: "desktopicon"; Description: "{cm:DesktopShortcut}"; GroupDescription: "{cm
 Filename: "{app}\ImeLayoutRouter.exe"; Parameters: "--first-run"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+function InitializeUninstall(): Boolean;
+var
+  Code: Integer;
+  Executable: String;
+begin
+  Result := True;
+  Executable := ExpandConstant('{app}\ImeLayoutRouter.exe');
+  if FileExists(Executable) then
+  begin
+    Result := Exec(Executable, '--shutdown', '', SW_HIDE, ewWaitUntilTerminated, Code);
+    if Result then Result := Code = 0;
+    if not Result then
+      SuppressibleMsgBox('V3 could not restore the composition windows. Close the affected input application and retry uninstalling.', mbError, MB_OK, IDOK);
+  end;
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Command: String;

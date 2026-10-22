@@ -74,6 +74,7 @@ internal sealed class CompositionWindowMask : IDisposable
         // If the owner replaced the region, preserve its more recent decision.
         if (IsEmpty(window))
         {
+            if (SendMessageTimeoutW(window, 0, 0, 0, 2, 40, out _) == 0 && IsWindow(window)) return false;
             if (SetWindowRgn(window, original, true) == 0)
             {
                 if (IsWindow(window)) return false;

@@ -96,7 +96,15 @@ internal sealed class CompositionGuardClient : IDisposable
         // synchronously. Keep pipe waiting off the monitoring thread.
         var end = restoreOnly ? null : Task.Run(() => Console.In.Read());
         using var instance = new Mutex(false, @"Local\ImeLayoutRouter.CompositionGuard");
-        try { while (!instance.WaitOne(100)) { if (end?.IsCompleted == true) return true; } }
+        long deadline = Environment.TickCount64 + 5000;
+        try
+        {
+            while (!instance.WaitOne(100))
+            {
+                if (end?.IsCompleted == true) return true;
+                if (restoreOnly && Environment.TickCount64 > deadline) { Environment.ExitCode = 3; return true; }
+            }
+        }
         catch (AbandonedMutexException) { }
         try
         {
@@ -108,6 +116,7 @@ internal sealed class CompositionGuardClient : IDisposable
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException)
         { Environment.ExitCode = 1; }
+        finally { instance.ReleaseMutex(); }
         return true;
     }
 }

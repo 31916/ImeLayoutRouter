@@ -10,7 +10,7 @@ internal sealed class GuardTrayContext : ApplicationContext
     private bool settingsVisible;
     private bool errorShown;
     private readonly ToolStripMenuItem status;
-    internal GuardTrayContext(bool firstRun, EventWaitHandle request)
+    internal GuardTrayContext(bool firstRun, EventWaitHandle request, EventWaitHandle stopRequest)
     {
         var menu = new ContextMenuStrip();
         status = new ToolStripMenuItem(T("小窓の非表示: オフ", "Popup suppression: off")) { Enabled = false };
@@ -22,6 +22,7 @@ internal sealed class GuardTrayContext : ApplicationContext
         timer = new System.Windows.Forms.Timer { Interval = 500, Enabled = true };
         timer.Tick += (_, _) =>
         {
+            if (stopRequest.WaitOne(0)) { ExitThread(); return; }
             if (request.WaitOne(0)) ShowSettings();
             if (guard.CheckError() != null && !errorShown)
             {
