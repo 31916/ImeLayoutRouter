@@ -88,6 +88,24 @@ static class NativeChecks
             Check(bounds.Left == 9 && bounds.Top == 8, "Owner region changes take precedence over old saved state");
         }
         SetWindowRgn(corner.Handle, 0, true);
+        using (var ownerChanges = new CompositionGuard(() => fixture.Handle, recovery))
+        {
+            ownerChanges.Tick();
+            SetWindowRgn(corner.Handle, CreateRectRgn(9, 8, 70, 20), true);
+            ownerChanges.Tick(); ownerChanges.Tick();
+            using var region = new Region(); GetWindowRgn(corner.Handle, region.Handle); GetRgnBox(region.Handle, out var bounds);
+            Check(bounds.Left == 9 && bounds.Top == 8 && RegionType(corner.Handle) != 1,
+                "Guard yields to an owner region change across subsequent scans");
+            ShowWindow(corner.Handle, 0); ownerChanges.Tick();
+            ShowWindow(corner.Handle, 8); ownerChanges.Tick();
+            Check(RegionType(corner.Handle) == 1, "A new popup visibility cycle clears the previous owner-change yield");
+        }
+        using (var region = new Region())
+        {
+            GetWindowRgn(corner.Handle, region.Handle); GetRgnBox(region.Handle, out var bounds);
+            Check(bounds.Left == 9 && bounds.Top == 8, "Stopping after a new visibility cycle restores the owner's latest region");
+        }
+        SetWindowRgn(corner.Handle, 0, true);
         using (var changing = new CompositionGuard(() => fixture.Handle, recovery))
         {
             changing.Tick();
@@ -119,14 +137,14 @@ static class NativeChecks
             {
                 try
                 {
-                SetWindowPos(corner.Handle, 0, 200, 200, 0, 0, 0x15);
-                Wait(() => RegionType(corner.Handle) != 1 || child.HasExited);
-                if (i == 0) Check(!child.HasExited && RegionType(corner.Handle) == 0, "Running helper restores a popup moved away from the corner");
-                var watch = Stopwatch.StartNew();
-                SetWindowPos(corner.Handle, 0, 0, 0, 0, 0, 0x15);
-                Wait(() => RegionType(corner.Handle) == 1 || child.HasExited);
-                if (i == 0) Check(!child.HasExited && RegionType(corner.Handle) == 1, "Running helper remasks a popup returned to the corner");
-                observations.Add(watch.ElapsedMilliseconds);
+                    SetWindowPos(corner.Handle, 0, 200, 200, 0, 0, 0x15);
+                    Wait(() => RegionType(corner.Handle) != 1 || child.HasExited);
+                    if (i == 0) Check(!child.HasExited && RegionType(corner.Handle) == 0, "Running helper restores a popup moved away from the corner");
+                    var watch = Stopwatch.StartNew();
+                    SetWindowPos(corner.Handle, 0, 0, 0, 0, 0, 0x15);
+                    Wait(() => RegionType(corner.Handle) == 1 || child.HasExited);
+                    if (i == 0) Check(!child.HasExited && RegionType(corner.Handle) == 1, "Running helper remasks a popup returned to the corner");
+                    observations.Add(watch.ElapsedMilliseconds);
                 }
                 catch
                 {

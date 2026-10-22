@@ -80,7 +80,7 @@ static class Tests
             Check(key.GetValue(GuardStartup.ValueName) == null && key.GetValue("ImeLayoutRouter") as string == "existing V2 registration", "V3 startup never replaces or removes V1/V2 startup");
         }
         finally { Registry.CurrentUser.DeleteSubKeyTree(keyPath, false); }
-        Console.WriteLine("All V3 policy/settings checks passed. No live windows or input were operated.");
+        Console.WriteLine("All V3 policy/settings checks passed. Only fixture forms and a temporary registry key were used; no user input or application windows were operated.");
         return 0;
     }
 }
