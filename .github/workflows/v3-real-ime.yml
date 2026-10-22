@@ -1,0 +1,30 @@
+name: V3 real IME compatibility
+on:
+  workflow_dispatch:
+  push:
+    branches: [V3]
+    paths:
+      - '.github/workflows/v3-real-ime.yml'
+      - 'tools/Install-GuardTestIme.ps1'
+      - 'tests/GuardImeTests/**'
+permissions:
+  contents: read
+jobs:
+  japanese-ime:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Provision Japanese input on this disposable VM only
+        shell: powershell
+        run: ./tools/Install-GuardTestIme.ps1
+      - name: Save provisioning evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-real-ime-validation
+          path: ${{ runner.temp }}/v3-ime-*.txt
+          if-no-files-found: error
