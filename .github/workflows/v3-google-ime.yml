@@ -1,0 +1,44 @@
+name: V3 Google IME compatibility
+on:
+  workflow_dispatch:
+  push:
+    branches: [V3]
+    paths:
+      - '.github/workflows/v3-google-ime.yml'
+      - 'tools/Install-GuardGoogleIme.ps1'
+      - 'tests/GuardImeTests/**'
+      - 'Editions/Guard/*.cs'
+permissions:
+  contents: read
+jobs:
+  google-ime:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    env:
+      GUARD_TEST_IME_CLSID: D5A86FD5-5308-47EA-AD16-9C4EB160EC3C
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install signed Google Japanese IME on this disposable VM only
+        shell: powershell
+        run: ./tools/Install-GuardGoogleIme.ps1
+      - name: Validate actual Japanese input and composition suppression
+        timeout-minutes: 3
+        shell: pwsh
+        run: |
+          dotnet build tests/GuardImeTests/GuardImeTests.csproj -c Release -p:Edition=Guard --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet tests/GuardImeTests/bin/Guard/Release/net8.0-windows/GuardImeTests.dll
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Save genuine IME validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-google-ime-validation
+          path: |
+            ${{ runner.temp }}/v3-ime-*.txt
+            ${{ runner.temp }}/v3-ime-*.png
+          retention-days: 7
+          if-no-files-found: warn

@@ -14,6 +14,8 @@ internal static class Tsf
             {
                 Console.WriteLine($"Japanese profile: type={profile.Type}; clsid={profile.Clsid}; profile={profile.ProfileId}; flags={profile.Flags}");
                 if (profile.Type != 1 || (profile.Flags & 2) == 0) continue;
+                if (Guid.TryParse(Environment.GetEnvironmentVariable("GUARD_TEST_IME_CLSID"), out var requested)
+                    && profile.Clsid != requested) continue;
                 Marshal.ThrowExceptionForHR(manager.ActivateProfile(1, 0x411, ref profile.Clsid, ref profile.ProfileId, profile.Hkl, 0));
                 Console.WriteLine("Japanese TSF profile activated for fixture thread.");
                 return;
