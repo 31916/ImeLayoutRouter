@@ -163,6 +163,7 @@ internal static class Program
         Console.WriteLine("Real popup show-event to empty-region observations (ms; not video/first-frame latency): " + string.Join(", ", timings));
         guard.SetEnabled(false);
         Pump(600);
+        if (Environment.GetEnvironmentVariable("GUARD_TEST_BROWSER") == "chrome") ChromeChecks.Run(guard);
     }
 
     private static string ConvertAndCommit(string label, CompositionGuardClient? guard)

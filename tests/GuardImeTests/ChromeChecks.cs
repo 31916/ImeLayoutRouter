@@ -1,0 +1,139 @@
+using System.Diagnostics;
+using System.Net.WebSockets;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json;
+
+// Ordinary Chrome inputs, using real OS keystrokes on the disposable VM.
+// CDP only prepares/reads our local fixture; it never supplies composition text.
+internal static class ChromeChecks
+{
+    internal static void Run(CompositionGuardClient guard)
+    {
+        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true"
+            || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted")
+            throw new InvalidOperationException("Browser input tests require a disposable GitHub-hosted VM");
+        string chrome = new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 }
+            .Select(folder => Path.Combine(Environment.GetFolderPath(folder), "Google", "Chrome", "Application", "chrome.exe"))
+            .FirstOrDefault(File.Exists) ?? throw new FileNotFoundException("The hosted image must provide Chrome");
+        string root = Path.Combine(Environment.GetEnvironmentVariable("RUNNER_TEMP")!, "guard-chrome-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string page = Path.Combine(root, "input.html");
+        File.WriteAllText(page, """
+            <!doctype html><meta charset="utf-8"><title>V3 local browser input fixture</title>
+            <style>body{font:24px sans-serif;margin:80px}input,textarea{font:28px sans-serif;display:block;margin:20px 0;width:600px}</style>
+            <h1>Disposable V3 input validation</h1><label>Text<input id="text"></label><label>Multiline<textarea id="area"></textarea></label>
+            <script>window.imeEvents=[];for(const type of ['compositionstart','compositionupdate','compositionend'])document.addEventListener(type,e=>imeEvents.push({type,data:e.data}));</script>
+            """, Encoding.UTF8);
+        string profile = Path.Combine(root, "profile");
+        var start = new ProcessStartInfo(chrome) { UseShellExecute = false };
+        foreach (string arg in new[] { "--user-data-dir=" + profile, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1",
+            "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--new-window", new Uri(page).AbsoluteUri })
+            start.ArgumentList.Add(arg);
+        using var browser = Process.Start(start) ?? throw new InvalidOperationException("Could not start fixture Chrome");
+        try
+        {
+            string portFile = Path.Combine(profile, "DevToolsActivePort");
+            Wait(() => File.Exists(portFile), "Chrome exposes only its isolated profile debugger");
+            int port = int.Parse(File.ReadAllLines(portFile)[0], System.Globalization.CultureInfo.InvariantCulture);
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            using var targets = JsonDocument.Parse(http.GetStringAsync($"http://127.0.0.1:{port}/json/list").GetAwaiter().GetResult());
+            var target = targets.RootElement.EnumerateArray().Single(t => t.GetProperty("type").GetString() == "page");
+            using var cdp = new Cdp(target.GetProperty("webSocketDebuggerUrl").GetString()!);
+            Wait(() => cdp.Value("document.title") == "V3 local browser input fixture", "Chrome loaded only the local test page");
+            nint window = 0;
+            Wait(() => {
+                Native.EnumWindows((h, _) => {
+                    Native.GetWindowThreadProcessId(h, out uint pid);
+                    if (pid == browser.Id && Native.IsWindowVisible(h)) window = h;
+                    return true;
+                }, 0);
+                return window != 0;
+            }, "The new Chrome process owns a visible test window");
+            Native.SetForegroundWindow(window);
+            Wait(() => Native.GetForegroundWindow() == window, "Only the isolated Chrome window receives browser test keys");
+            Tsf.ActivateJapanese(forTestDesktop: true);
+            Pump(500);
+            var baseline = new Dictionary<string, string>();
+            foreach (bool enabled in new[] { false, true })
+            {
+                guard.SetEnabled(enabled); Pump(400);
+                foreach (string field in new[] { "text", "area" })
+                {
+                    cdp.Value($"(()=>{{const e=document.getElementById('{field}');e.value='';window.imeEvents=[];e.focus();return e.id;}})()");
+                    Key(window, 0x16); // VK_IME_ON in this browser's input context
+                    foreach (char key in "NIHONN") { Key(window, key); Pump(100); }
+                    string pending = cdp.Value($"document.getElementById('{field}').value");
+                    Console.WriteLine($"Chrome {field}, enabled={enabled}: pending={pending}; events=" + cdp.Value("JSON.stringify(window.imeEvents)"));
+                    Check(pending == "にほん", "Chrome receives real Japanese preedit in " + field);
+                    Key(window, 0x20); Pump(200); Key(window, 0x20); Pump(200); Key(window, 0x26); Key(window, 0x0D); Pump(300);
+                    string result = cdp.Value($"document.getElementById('{field}').value");
+                    Check(cdp.Value("String(window.imeEvents.some(e=>e.type==='compositionend'))") == "true" && result.Any(c => c > 0x3000),
+                        "Chrome receives an actual IME composition-end and Japanese commit in " + field);
+                    if (!enabled) baseline[field] = result;
+                    else Check(result == baseline[field] && guard.CheckError() == null, "V3 preserves Chrome's baseline conversion in " + field);
+                    Console.WriteLine($"Chrome {field}, enabled={enabled}: committed={result}");
+                }
+            }
+            Check(true, "Ordinary Chrome text input and textarea work with V3 off/on");
+        }
+        finally
+        {
+            guard.SetEnabled(false);
+            // Only the process launched with this new, unique test profile.
+            if (!browser.HasExited) { browser.Kill(entireProcessTree: true); browser.WaitForExit(5000); }
+        }
+    }
+    private static void Key(nint window, int key)
+    {
+        if (Native.GetForegroundWindow() != window) throw new InvalidOperationException("Chrome lost focus; browser test input stopped");
+        var down = new Native.Input { Type = 1, Data = new Native.InputUnion { Keyboard = new Native.Keyboard { Key = (ushort)key } } };
+        var up = down; up.Data.Keyboard.Flags = 2;
+        Check(Native.SendInput(2, [down, up], Marshal.SizeOf<Native.Input>()) == 2, "Chrome fixture accepts its test key");
+        Pump(60);
+    }
+    private static void Pump(int milliseconds)
+    { long end = Environment.TickCount64 + milliseconds; do { Application.DoEvents(); Thread.Sleep(10); } while (Environment.TickCount64 < end); }
+    private static void Wait(Func<bool> predicate, string name)
+    { long end = Environment.TickCount64 + 15000; while (!predicate() && Environment.TickCount64 < end) Pump(50); Check(predicate(), name); }
+    private static void Check(bool value, string name)
+    { if (!value) throw new InvalidOperationException("FAIL " + name); Console.WriteLine("PASS " + name); }
+    private sealed class Cdp : IDisposable
+    {
+        private readonly ClientWebSocket socket = new();
+        private int id;
+        internal Cdp(string address)
+        {
+            var uri = new Uri(address);
+            if (!uri.IsLoopback) throw new InvalidOperationException("Fixture debugger must stay on loopback");
+            using var timeout = new CancellationTokenSource(5000);
+            socket.ConnectAsync(uri, timeout.Token).GetAwaiter().GetResult();
+        }
+        internal string Value(string expression)
+        {
+            int request = ++id;
+            byte[] data = JsonSerializer.SerializeToUtf8Bytes(new { id = request, method = "Runtime.evaluate", @params = new { expression, returnByValue = true } });
+            using var timeout = new CancellationTokenSource(5000);
+            socket.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Text, true, timeout.Token).GetAwaiter().GetResult();
+            var buffer = new byte[16384];
+            while (true)
+            {
+                using var message = new MemoryStream();
+                WebSocketReceiveResult part;
+                do
+                {
+                    part = socket.ReceiveAsync(new ArraySegment<byte>(buffer), timeout.Token).GetAwaiter().GetResult();
+                    if (part.MessageType == WebSocketMessageType.Close) throw new IOException("Fixture debugger disconnected");
+                    message.Write(buffer, 0, part.Count);
+                    if (message.Length > 1024 * 1024) throw new IOException("Unexpected fixture debugger message size");
+                } while (!part.EndOfMessage);
+                using var result = JsonDocument.Parse(message.ToArray());
+                if (!result.RootElement.TryGetProperty("id", out var response) || response.GetInt32() != request) continue;
+                if (result.RootElement.TryGetProperty("error", out _) || result.RootElement.GetProperty("result").TryGetProperty("exceptionDetails", out _))
+                    throw new InvalidOperationException("Fixture debugger expression failed");
+                return result.RootElement.GetProperty("result").GetProperty("result").GetProperty("value").GetString()!;
+            }
+        }
+        public void Dispose() => socket.Dispose();
+    }
+}

@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 internal static class Tsf
 {
-    internal static void ActivateJapanese()
+    internal static void ActivateJapanese(bool forTestDesktop = false)
     {
         object managerObject = Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("33C53A50-F456-4884-B049-85FD643ECFED"))!)!;
         IProfiles? profiles = null;
@@ -20,7 +20,9 @@ internal static class Tsf
                 // NULL HKL for text services (the enumerated substitute is not
                 // a valid hkl argument for TF_PROFILETYPE_INPUTPROCESSOR).
                 if (LoadKeyboardLayoutW("00000411", 1) == 0) throw new InvalidOperationException("Could not select Japanese input language for fixture thread.");
-                Marshal.ThrowExceptionForHR(manager.ActivateProfile(1, 0x411, ref profile.Clsid, ref profile.ProfileId, 0, 0));
+                // FORSESSION is used only by the disposable-VM browser fixture.
+                // It selects the active IME, not the persisted default layout.
+                Marshal.ThrowExceptionForHR(manager.ActivateProfile(1, 0x411, ref profile.Clsid, ref profile.ProfileId, 0, forTestDesktop ? 0x20000000u : 0));
                 Console.WriteLine("Japanese TSF profile activated for fixture thread.");
                 return;
             }
