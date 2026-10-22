@@ -254,6 +254,23 @@ internal static class Program
     private static void Focus()
     {
         Native.SetForegroundWindow(window); Native.SetFocus(window); Pump(200);
+        if (Native.GetForegroundWindow() != window)
+        {
+            // Windows client images can deny foreground activation after their
+            // shell starts. Click only an uncovered point belonging exactly to
+            // our own raw HWND, on this disposable VM. Never click setup UI or
+            // an unrelated window to obtain focus.
+            var point = new Native.Point { X = 40, Y = 80 };
+            Check(Native.ClientToScreen(window, ref point) && Native.WindowFromPoint(point) == window,
+                "Fixture focus click belongs only to its own uncovered client area");
+            Check(Native.SetCursorPos(point.X, point.Y) && Native.WindowFromPoint(point) == window,
+                "Disposable pointer is positioned on the fixture only");
+            var down = new Native.Input { Type = 0, Data = new Native.InputUnion { Mouse = new Native.Mouse { Flags = 2 } } };
+            var up = down; up.Data.Mouse.Flags = 4;
+            Check(Native.SendInput(2, [down, up], Marshal.SizeOf<Native.Input>()) == 2, "Own fixture focus click is accepted");
+            Pump(200);
+        }
+        Console.WriteLine($"Fixture focus: foreground=0x{Native.GetForegroundWindow():X}; focus=0x{Native.GetFocus():X}; own=0x{window:X}");
         Check(Native.GetForegroundWindow() == window && Native.GetFocus() == window, "Only the fixture owns input focus");
     }
     private static void Key(int key)

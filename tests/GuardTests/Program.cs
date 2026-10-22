@@ -45,6 +45,9 @@ static class Tests
             Check(GuardSettings.FromJson(invalid) == null, "Invalid settings do not enable suppression: " + invalid);
         foreach (bool enabled in new[] { false, true })
             Check(GuardSettings.FromJson(JsonSerializer.Serialize(new GuardSettings { Enabled = enabled }))?.Enabled == enabled, "Settings round-trip " + enabled);
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
         foreach (string culture in new[] { "ja-JP", "en-US" })
         {
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
@@ -57,10 +60,12 @@ static class Tests
             {
                 // Render only this test form, not the runner's screen. The
                 // images make the two languages and original icon reviewable.
-                form.CreateControl(); form.PerformLayout();
+                form.Show(); Application.DoEvents(); form.PerformLayout(); form.Update();
+                if (!form.Controls.Cast<Control>().Any(control => control.Visible)) throw new Exception("Settings render has no visible controls");
                 using var bitmap = new Bitmap(form.Width, form.Height);
                 form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
                 bitmap.Save(Path.Combine(evidence, "v3-settings-" + culture + ".png"), System.Drawing.Imaging.ImageFormat.Png);
+                form.Hide();
             }
         }
         string keyPath = @"Software\ImeLayoutRouter.Tests\" + Guid.NewGuid().ToString("N");
