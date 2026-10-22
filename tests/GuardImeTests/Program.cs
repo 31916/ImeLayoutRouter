@@ -26,7 +26,16 @@ internal static class Program
         using var output = new StreamWriter(Path.Combine(evidence, "v3-ime-checks.txt")) { AutoFlush = true };
         Console.SetOut(TextWriter.Synchronized(new TeeWriter(Console.Out, output)));
         try { Run(); Console.WriteLine("PASS Real Japanese IME checks completed."); return 0; }
-        catch (Exception ex) { Console.WriteLine(ex); DumpWindows("failure"); return 1; }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            if (context != 0)
+            {
+                Native.ImmGetConversionStatus(context, out uint mode, out uint sentence);
+                Console.WriteLine($"Fixture failure state: composition={Composition()}; committed={committed}; open={Native.ImmGetOpenStatus(context)}; conversion=0x{mode:X}; sentence=0x{sentence:X}");
+            }
+            DumpWindows("failure"); return 1;
+        }
         finally
         {
             if (context != 0) Native.ImmReleaseContext(window, context);
@@ -49,7 +58,9 @@ internal static class Program
         window = Native.CreateWindowExW(0, cls.Name!, "V3 Japanese IME compatibility fixture", 0x10CF0000, 350, 250, 800, 400, 0, 0, cls.Instance, 0);
         Check(window != 0, "Own input fixture created");
         Focus();
-        Tsf.ActivateJapanese();
+        bool microsoftIme = string.Equals(Environment.GetEnvironmentVariable("GUARD_TEST_IME_CLSID"),
+            "03B5835F-F03C-411B-9CE2-AA23E1171E36", StringComparison.OrdinalIgnoreCase);
+        Tsf.ActivateJapanese(forTestDesktop: microsoftIme);
         Pump(1000);
         context = Native.ImmGetContext(window);
         Check(context != 0, "Actual Windows input context exists");
@@ -57,8 +68,14 @@ internal static class Program
         Native.ImmSetOpenStatus(context, true);
         Native.ImmSetConversionStatus(context, 0x19, 0); // native, full-shape, Roman input on this test context
         Key(0x16); // VK_IME_ON, directed to this fixture
+        // The modern Microsoft IME may not honor IMM conversion-mode setters.
+        // Use its documented Hiragana shortcut on this fixture as a real user
+        // would. The shortcut and input configuration never run in production.
+        if (microsoftIme) HiraganaShortcut();
         Pump(500);
         Console.WriteLine($"IME open={Native.ImmGetOpenStatus(context)}");
+        Native.ImmGetConversionStatus(context, out uint conversionMode, out uint sentenceMode);
+        Console.WriteLine($"Fixture initial conversion=0x{conversionMode:X}; sentence=0x{sentenceMode:X}");
 
         // Deliberately simulate an application's wrong composition coordinates
         // through its own input context. No synthetic composition window/string.
@@ -231,6 +248,18 @@ internal static class Program
         if (Native.SendInput(2, [down, up], Marshal.SizeOf<Native.Input>()) != 2)
             throw new InvalidOperationException("Fixture keystroke was not accepted");
         Pump(50);
+    }
+    private static void HiraganaShortcut()
+    {
+        if (Native.GetForegroundWindow() != window || Native.GetFocus() != window)
+            throw new InvalidOperationException("Focus left the fixture; IME shortcut stopped");
+        Native.Input Input(ushort key, uint flags) => new() { Type = 1, Data = new Native.InputUnion { Keyboard = new Native.Keyboard { Key = key, Flags = flags } } };
+        if (Native.SendInput(4, [Input(0x11, 0), Input(0x14, 0), Input(0x14, 2), Input(0x11, 2)], Marshal.SizeOf<Native.Input>()) != 4)
+        {
+            Native.SendInput(2, [Input(0x14, 2), Input(0x11, 2)], Marshal.SizeOf<Native.Input>());
+            throw new InvalidOperationException("Fixture Hiragana shortcut was not accepted");
+        }
+        Pump(300);
     }
     private static string Composition()
     {

@@ -31,7 +31,10 @@ try {
     if (!(Test-Path $taskDeliveryKey)) { New-Item -Path $taskDeliveryKey | Out-Null }
     New-ItemProperty -Path $taskDeliveryKey -Name DODownloadMode -Value 0 -PropertyType DWord -Force | Out-Null
     Write-Output 'Delivery Optimization: HTTP-only downloads; peer sharing disabled on this disposable VM.'
-    foreach ($taskFeature in @('Language.Basic~~~ja-JP~0.0.1.0', 'Language.Fonts.Jpan~~~und-JPAN~0.0.1.0')) {
+    # Basic typing installs the input processor. Supplemental Japanese fonts
+    # are not required by this fixture; the hosted image already renders its
+    # Japanese test strings (also verified in the independent Google IME run).
+    foreach ($taskFeature in @('Language.Basic~~~ja-JP~0.0.1.0')) {
         $taskCapability = Get-WindowsCapability -Online -Name $taskFeature
         if (!$taskCapability) { throw "Required input capability is unavailable: $taskFeature" }
         Write-Output "$taskFeature : $($taskCapability.State)"

@@ -52,6 +52,7 @@ internal static class Native
     [DllImport("imm32.dll")] internal static extern bool ImmGetOpenStatus(nint context);
     [DllImport("imm32.dll")] internal static extern bool ImmIsIME(nint hkl);
     [DllImport("imm32.dll")] internal static extern bool ImmSetConversionStatus(nint context, uint conversion, uint sentence);
+    [DllImport("imm32.dll")] internal static extern bool ImmGetConversionStatus(nint context, out uint conversion, out uint sentence);
     [DllImport("imm32.dll")] internal static extern bool ImmSetCompositionWindow(nint context, ref CompositionForm form);
     [DllImport("imm32.dll")] internal static extern int ImmGetCompositionStringW(nint context, uint index, [Out] byte[]? data, uint size);
     [DllImport("imm32.dll")] internal static extern uint ImmGetCandidateListW(nint context, uint index, [Out] byte[]? data, uint size);
