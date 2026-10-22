@@ -24,6 +24,11 @@ internal static class Native
     [DllImport("user32.dll")] internal static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] internal static extern nint SetFocus(nint h);
     [DllImport("user32.dll")] internal static extern nint GetFocus();
+    [DllImport("user32.dll")] internal static extern bool SetWindowPos(nint h, nint after, int x, int y, int width, int height, uint flags);
+    [DllImport("user32.dll")] internal static extern bool CreateCaret(nint h, nint bitmap, int width, int height);
+    [DllImport("user32.dll")] internal static extern bool SetCaretPos(int x, int y);
+    [DllImport("user32.dll")] internal static extern bool ShowCaret(nint h);
+    [DllImport("user32.dll")] internal static extern bool DestroyCaret();
     [DllImport("user32.dll")] internal static extern uint SendInput(uint count, Input[] input, int size);
     [DllImport("user32.dll")] internal static extern bool ScreenToClient(nint h, ref Point point);
     [DllImport("user32.dll")] internal static extern nint GetKeyboardLayout(uint thread);

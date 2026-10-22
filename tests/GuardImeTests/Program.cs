@@ -120,6 +120,23 @@ internal static class Program
         var normal = FindComposition();
         Check(normal != 0 && !EmptyRegion(normal), "Normally positioned real composition remains drawable");
         Key(0x1B); Pump(300); Key(0x1B);
+        Native.SetWindowPos(window, 0, 0, 0, 0, 0, 0x15);
+        Check(Native.CreateCaret(window, 0, 1, 20) && Native.SetCaretPos(0, 0), "Fixture exposes a real Win32 caret near the screen corner");
+        Native.ShowCaret(window);
+        try
+        {
+            PositionComposition(new Point(0, 0));
+            TypeNihon();
+            Pump(400);
+            Check(FindComposition() is var atCaret && atCaret != 0 && !EmptyRegion(atCaret),
+                "Legitimate composition beside a corner caret remains drawable");
+            Key(0x1B); Pump(100); Key(0x1B);
+        }
+        finally
+        {
+            Native.DestroyCaret();
+            Native.SetWindowPos(window, 0, 350, 250, 0, 0, 0x15);
+        }
         // Exercise window reuse and repeated start/end composition with one
         // continuously running production helper, using only this test input.
         for (int cycle = 0; cycle < 10; cycle++)
