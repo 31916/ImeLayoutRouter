@@ -1,5 +1,9 @@
 # IMELayoutRouter (IME Layout Router)
 
+> **V3開発ブランチ / V3 development branch:** 左上の未確定文字の小窓を隠す単体版を開発中です。
+> V1・V2への追加は保留しています。V3は未リリースで、実際のIMEとの互換性確認が残っています。
+> [V3の仕様・検証状況 / V3 scope and validation](Editions/Guard/README.md)
+
 [Official downloads / 公式ダウンロード](https://31916.ch/IMELayoutRouter/)
 — IMEの直接入力を、指定したWindows入力レイアウトで。日本語簡易版V1と多機能版V2を配布しています。
 
