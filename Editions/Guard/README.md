@@ -30,22 +30,39 @@ V3を終了すると、変更した描画領域を戻します。補助プロセ
 設定は `settings-v3.json`、自動起動は `ImeLayoutRouterV3` という専用の項目です。
 V1・V2とは設定・起動登録を分けているため、既存版と同時に利用できる構成です。
 従来のアプリアイコンを使用し、設定画面は日本語と英語を用意しています。
+上書きインストール・アンインストールは表示の復元を先に行い、復元できない場合は
+処理を中止します。上書き時は保存済みの設定と自動起動の選択を保持します。
+
+2026年10月23日（日本時間）、使い捨てのWindows Server 2025環境で
+Google日本語入力3.34.6260.0の実入力・変換・確定・取消し・表示復元を確認しました。
+通常位置の表示、左上に実際のカーソルがある場合の表示、前面切り替え、10回連続の入力も
+確認済みです。Chromeの通常の入力欄・複数行入力欄でも、日本語入力と変換結果が
+V3のオン・オフで変わらないことを確認しました。Microsoft IME、他のブラウザーやゲーム、複数モニター、復帰動作は
+まだ検証完了していないため、完成版としては公開していません。
 
 ## Validation gates
 
 - Policy/settings checks and synthetic native-window tests are automated.
+- [Run 39868972814](https://github.com/31916/ImeLayoutRouter/actions/runs/39868972814)
+  rechecked all 53 policy/native checks and installer lifecycle tests at commit
+  `2635dbe`. Upgrade and uninstall while running passed, saved choices survived
+  an upgrade, and both operations refused to continue with an invalid recovery
+  record. Japanese/English settings renders from the disposable VM were visually
+  reviewed; controls, text and the existing icon are visible without clipping.
 - Native tests create a separate Win32 desktop without switching the user's display.
   They do not send keys, move the mouse, install an IME, or alter the default layout.
 - Synthetic windows test classification, cross-process masking, exact restoration,
   candidate exclusion, owner-hide behavior and recovery after helper termination.
   **They do not demonstrate real IME composition compatibility.**
-- On 2026-10-23 (JST), [CI run 39862889243](https://github.com/31916/ImeLayoutRouter/actions/runs/39862889243)
-  passed 25 policy/settings checks, 25 native fixture checks and the development
+- On 2026-10-23 (JST), [CI run 39864840010](https://github.com/31916/ImeLayoutRouter/actions/runs/39864840010)
+  passed 25 policy/settings checks, 28 native fixture checks and the development
   installer lifecycle checks. This includes helper DPI initialization, moving a
   popup away from/back to the corner, recovery after helper termination, and
   uninstalling while the app is running. The synthetic move-to-mask observations
-  were 46–67 ms across six trials; these are not real IME first-frame measurements.
-- [Google IME run 39862889246](https://github.com/31916/ImeLayoutRouter/actions/runs/39862889246)
+  were 53–82 ms across six trials; these are not real IME first-frame measurements.
+  Recovery also checks interrupted unpublished records and prevents a bounded
+  batch from reporting success while additional restoration records remain.
+- [Google IME run 39864840012](https://github.com/31916/ImeLayoutRouter/actions/runs/39864840012)
   passed actual Japanese input on Windows Server 2025 with Google Japanese Input
   3.34.6260.0. Real keystrokes produced `にほん`; both baseline and suppression-on
   conversion committed `日本`. Escape cancellation, preserving the pending text,
@@ -53,6 +70,23 @@ V1・V2とは設定・起動登録を分けているため、既存版と同時�
   passed. The captured baseline/masked/candidate images were visually reviewed:
   only the fallback composition frame disappeared and conversion candidates
   remained visible. This verifies that specific fixture and IME/OS combination.
+  Candidate visibility, switching to another fixture thread, a real Win32 caret
+  near the corner and ten consecutive composition/cancellation cycles also passed.
+  Show-event to empty-region observations were 15–94 ms in that run, and 31–125 ms
+  in [run 39864035466](https://github.com/31916/ImeLayoutRouter/actions/runs/39864035466).
+  These include event delivery, masking and observation delay; they are not
+  first-rendered-frame/video measurements and do not prove zero-frame prevention.
+- [Chrome compatibility run 39865503247](https://github.com/31916/ImeLayoutRouter/actions/runs/39865503247)
+  passed real Google IME typing in Chrome's ordinary text input and textarea.
+  With V3 off and on, both fields received `にほん`, emitted real composition
+  events and committed the same `日本` result. Chrome used a new, isolated profile
+  and a local HTML fixture. CDP prepared/read that page; OS keystrokes produced
+  the text. This checks ordinary browser input compatibility, not every website
+  or a reproduction of a specific browser's positioning bug.
+- [Run 39868972851](https://github.com/31916/ImeLayoutRouter/actions/runs/39868972851)
+  rechecked the full Google IME/native/Chrome suite at `2635dbe`. The fixture
+  verifies that the requested TSF profile is active and uses a native message
+  pump throughout composition. Its ten show-to-mask observations were 47–94 ms.
 - Before release: validate actual composition, conversion candidates, confirmation,
   cancellation, application switching, multiple monitors/DPI, sleep/resume and exit
   with the supported IMEs. No release installer or download-page update is authorized
@@ -61,13 +95,12 @@ V1・V2とは設定・起動登録を分けているため、既存版と同時�
   with a 100 ms fallback scan and 10 ms event-burst coalescing. Notifications run
   outside the target process and do not inspect text. The helper uses per-monitor
   V2 DPI awareness. A brief initial appearance is still possible; zero-frame
-  suppression has not been demonstrated. The compatibility gate must measure it
-  before this is described as a finished prevention feature.
+  suppression has not been demonstrated and is not a feature claim.
 
 ### Real IME integration fixture
 
-The `V3 real IME compatibility` workflow provisions Japanese basic typing and
-fonts on disposable GitHub-hosted Windows VMs only. It preserves the VM's display
+The `V3 real IME compatibility` workflow provisions Japanese basic typing on
+disposable GitHub-hosted Windows VMs only. It preserves the VM's display
 language. Provisioning is not a passing input test. The separate fixture sends a
 fixed test word to its own Win32 window, uses that window's input context to
 simulate misplaced composition coordinates, and compares IME conversion results
@@ -94,11 +127,18 @@ Microsoft IME capability provisioning runs only when manually dispatched.
 Windows Update downloads and cumulative-update servicing can take many minutes
 on hosted images. A provisioning timeout is an environment failure, not a passed
 IME compatibility test; its CBS/DISM evidence is retained separately.
+Before downloading input packages, the workflow checks whether its own fixture
+can receive focus. Windows 11 hosted images can show a first-logon privacy page;
+the preparation script applies Microsoft's managed-device policy and identifies
+that page's host by package identity. Any focus click must land on the fixture's
+own uncovered client area. These steps are restricted to the disposable VM.
+Ordinary browser typing and fallback-popup reproduction run separately; passing
+one never substitutes for the other.
 
 ## Build / check
 
 ```powershell
-dotnet build -c Release -p:Edition=Guard --warnaserror
+dotnet build -c Release --warnaserror # V3 branch defaults to Edition=Guard
 dotnet build tests/GuardTests/GuardTests.csproj -c Release -p:Edition=Guard --warnaserror
 dotnet tests/GuardTests/bin/Guard/Release/net8.0-windows/GuardTests.dll
 ./tools/Test-GuardDesktop.ps1 -Assembly "$PWD/tests/GuardTests/bin/Guard/Release/net8.0-windows/GuardTests.dll" -OutputPath "$PWD/v3-native-checks.txt"
