@@ -229,6 +229,7 @@ static class NativeChecks
             if (!child.HasExited) { child.StandardInput.Close(); Wait(() => child.HasExited); }
         }
         Check(RegionType(candidate.Handle) == 0 && IsWindowVisible(candidate.Handle), "Candidate fixture stays visible through worker shutdown");
+        SetWindowPos(corner.Handle, 0, 0, 0, 0, 0, 0x15);
         SetWindowRgn(corner.Handle, CreateRectRgn(4, 5, 80, 25), true);
         using (var crashing = Process.Start(start) ?? throw new Exception("Could not start crash fixture helper"))
         {
