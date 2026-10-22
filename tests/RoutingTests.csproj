@@ -12,6 +12,7 @@
     <Compile Remove="WindowsSmoke/**/*.cs" />
     <Compile Remove="UiSmoke/**/*.cs" />
     <Compile Remove="GuardTests/**/*.cs" />
+    <Compile Remove="GuardImeTests/**/*.cs" />
     <Compile Include="../RoutingPolicy.cs" Link="RoutingPolicy.cs" />
     <Compile Include="../RoutingConfiguration.cs" Link="RoutingConfiguration.cs" />
     <Compile Include="../InputProfile.cs" Link="InputProfile.cs" />

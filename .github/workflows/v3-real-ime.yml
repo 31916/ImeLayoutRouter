@@ -21,6 +21,14 @@ jobs:
       - name: Provision Japanese input on this disposable VM only
         shell: powershell
         run: ./tools/Install-GuardTestIme.ps1
+      - name: Validate real composition using only the disposable VM's fixture
+        shell: pwsh
+        timeout-minutes: 3
+        run: |
+          dotnet build tests/GuardImeTests/GuardImeTests.csproj -c Release -p:Edition=Guard --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet tests/GuardImeTests/bin/Guard/Release/net8.0-windows/GuardImeTests.dll
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Save provisioning evidence
         if: always()
         uses: actions/upload-artifact@v4
