@@ -7,10 +7,12 @@ using System.Text;
 internal static class CompositionGuardPolicy
 {
     internal const string WindowClass = "MSCTFIME Composition";
+    internal const string FrameClass = "CiceroUIWndFrame";
+    internal static bool IsSurfaceClass(string name) => name is WindowClass or FrameClass;
     internal static bool ShouldMask(string windowClass, Rectangle bounds, Rectangle monitor,
         Rectangle? caret, bool visible, bool sameThread, bool popup, uint dpi)
     {
-        if (windowClass != WindowClass || !visible || !sameThread || !popup
+        if (!IsSurfaceClass(windowClass) || !visible || !sameThread || !popup
             || bounds.Width <= 0 || bounds.Height <= 0 || monitor.Width <= 0 || monitor.Height <= 0) return false;
         int margin = (int)(16 * Math.Clamp(dpi, 96u, 480u) / 96);
         if (Math.Abs((long)bounds.Left - monitor.Left) > margin
@@ -173,7 +175,7 @@ internal sealed class CompositionGuard : IDisposable
         uint candidateThread = Native.GetWindowThreadProcessId(window, out uint candidatePid);
         var name = new StringBuilder(128);
         Native.GetClassNameW(window, name, name.Capacity);
-        if (name.ToString() != CompositionGuardPolicy.WindowClass || (Native.GetClassLongW(window, -26) & 0x10000) == 0
+        if (!IsCompositionSurface(window) || (Native.GetClassLongW(window, -26) & 0x10000) == 0
             || !Native.GetWindowRect(window, out var rect)) return false;
         var monitor = new Native.MonitorInfo { Size = (uint)Marshal.SizeOf<Native.MonitorInfo>() };
         if (!Native.GetMonitorInfoW(Native.MonitorFromWindow(window, 0), ref monitor)) return false;
@@ -181,6 +183,37 @@ internal sealed class CompositionGuard : IDisposable
         return CompositionGuardPolicy.ShouldMask(name.ToString(), rect.Rectangle, monitor.Bounds.Rectangle, caret,
             Native.IsWindowVisible(window), candidateThread == thread && candidatePid == pid,
             (style & 0x80000000) != 0 && (style & 0x40000000) == 0, Native.GetDpiForWindow(window));
+    }
+    internal static bool IsCompositionSurface(nint window)
+    {
+        string name = ClassName(window);
+        if (name == CompositionGuardPolicy.WindowClass) return true;
+        if (name != CompositionGuardPolicy.FrameClass) return false;
+        // Cicero also hosts other TSF UI. Only accept the observed Windows
+        // fallback frame: same-thread IME owner and visible composition children.
+        // An unfamiliar visible child (including candidates) fails closed.
+        uint thread = Native.GetWindowThreadProcessId(window, out uint pid);
+        nint owner = Native.GetWindow(window, 4);
+        if (ClassName(owner) != "MSCTFIME UI" || (Native.GetClassLongW(owner, -26) & 0x10000) == 0
+            || Native.GetWindowThreadProcessId(owner, out uint ownerPid) != thread || ownerPid != pid) return false;
+        bool found = false, safe = true;
+        Native.EnumChildWindows(window, (child, _) =>
+        {
+            if (!Native.IsWindowVisible(child)) return true;
+            if (ClassName(child) != CompositionGuardPolicy.WindowClass
+                || (Native.GetClassLongW(child, -26) & 0x10000) == 0
+                || Native.GetWindowThreadProcessId(child, out uint childPid) != thread || childPid != pid)
+            { safe = false; return false; }
+            found = true;
+            return true;
+        }, 0);
+        return found && safe;
+    }
+    private static string ClassName(nint window)
+    {
+        var name = new StringBuilder(128);
+        Native.GetClassNameW(window, name, name.Capacity);
+        return name.ToString();
     }
     public void Dispose()
     {
@@ -202,6 +235,8 @@ internal sealed class CompositionGuard : IDisposable
         [DllImport("user32.dll")] internal static extern bool GetGUIThreadInfo(uint thread, ref GuiInfo info);
         [DllImport("user32.dll")] internal static extern bool ClientToScreen(nint window, ref Point point);
         [DllImport("user32.dll")] internal static extern bool EnumThreadWindows(uint thread, EnumProc callback, nint parameter);
+        [DllImport("user32.dll")] internal static extern bool EnumChildWindows(nint parent, EnumProc callback, nint parameter);
+        [DllImport("user32.dll")] internal static extern nint GetWindow(nint window, uint command);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern int GetClassNameW(nint window, StringBuilder name, int count);
         [DllImport("user32.dll")] internal static extern bool GetWindowRect(nint window, out Rect rect);
         [DllImport("user32.dll")] internal static extern nint MonitorFromWindow(nint window, uint flags);

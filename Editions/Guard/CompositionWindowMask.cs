@@ -58,7 +58,9 @@ internal sealed class CompositionWindowMask : IDisposable
         { File.Delete(journal); return true; }
         var name = new System.Text.StringBuilder(128);
         CompositionGuard.Native.GetClassNameW(window, name, name.Capacity);
-        if (name.ToString() != CompositionGuardPolicy.WindowClass) return false;
+        // The exact PID, TID and random property token above bind this record
+        // to our original window. Its children may already have disappeared.
+        if (!CompositionGuardPolicy.IsSurfaceClass(name.ToString())) return false;
         nint original = record.Region == null ? 0 : ExtCreateRegion(0, (uint)record.Region.Length, record.Region);
         if (record.Region != null && original == 0) return false;
         var mask = new CompositionWindowMask(window, (nint)record.Token, original, journal);

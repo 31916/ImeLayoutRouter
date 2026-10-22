@@ -135,6 +135,7 @@ internal static class Program
             Check(FindComposition() is var popup && popup != 0 && EmptyRegion(popup), "Real composition remains masked during candidate selection");
         }
         Key(0x0D);
+        Console.WriteLine(label + ": after Enter composition=" + Composition() + "; committed=" + committed);
         Wait(() => committed.Length > 0 && Composition().Length == 0, label + ": Enter commits composition");
         Console.WriteLine(label + ": committed fixture text=" + committed);
         return committed.ToString();
@@ -184,7 +185,7 @@ internal static class Program
     {
         nint result = 0;
         Native.EnumThreadWindows(Native.GetCurrentThreadId(), (h, _) => {
-            if ((Class(h) == CompositionGuardPolicy.WindowClass || Class(h) == "CiceroUIWndFrame") && Native.IsWindowVisible(h)) result = h;
+            if (CompositionGuard.IsCompositionSurface(h) && Native.IsWindowVisible(h)) result = h;
             return true;
         }, 0);
         return result;
@@ -232,7 +233,9 @@ internal static class Program
     }
     private static nint WndProc(nint h, uint msg, nint wp, nint lp)
     {
-        if (msg == 0x102)
+        // Unicode windows receive WM_IME_CHAR for default-IME conversion.
+        // Like WM_CHAR, consume it here instead of expecting an ANSI split.
+        if (h == window && msg is 0x102 or 0x286)
         {
             // Like a single-line edit field, do not insert Escape/Enter controls.
             if ((long)wp >= 0x20 && wp != 0x7F) committed.Append((char)wp);

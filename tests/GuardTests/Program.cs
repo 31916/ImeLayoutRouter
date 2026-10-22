@@ -33,6 +33,7 @@ static class Tests
             Rectangle? caret = null, bool visible = true, bool sameThread = true, bool popup = true, uint dpi = 96)
             => CompositionGuardPolicy.ShouldMask(name, bounds ?? corner, monitor ?? screen, caret, visible, sameThread, popup, dpi);
         Check(Eligible(), "Corner fallback composition is eligible");
+        Check(Eligible(CompositionGuardPolicy.FrameClass), "Verified TSF composition frames use the same corner policy");
         Check(!Eligible("IME") && !Eligible("MSCTFIME UI") && !Eligible("CandidateWindow") && !Eligible("Notepad"), "Candidates, IME manager and ordinary windows are excluded");
         Check(!Eligible(visible: false) && !Eligible(sameThread: false) && !Eligible(popup: false), "Hidden, background and child/non-popup windows are excluded");
         Check(!Eligible(bounds: new Rectangle(200, 200, 100, 30)), "Normal caret-positioned popup is excluded");

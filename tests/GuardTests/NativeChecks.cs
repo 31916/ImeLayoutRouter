@@ -20,6 +20,8 @@ static class NativeChecks
         EnsureIsolated();
         var recovery = new CompositionRecovery(Path.Combine(AppContext.BaseDirectory, "native-recovery-" + Guid.NewGuid().ToString("N")));
         Register(CompositionGuardPolicy.WindowClass, 0x10000);
+        Register(CompositionGuardPolicy.FrameClass, 0x10000);
+        Register("MSCTFIME UI", 0x10000);
         Register("ImeGuardTestCandidate", 0);
         Register("ImeGuardTestOrdinary", 0);
         using var fixture = new Window("ImeGuardTestOrdinary", 400, 300);
@@ -27,14 +29,38 @@ static class NativeChecks
         using var candidate = new Window("ImeGuardTestCandidate", 0, 0);
         using var ordinary = new Window("ImeGuardTestOrdinary", 0, 0);
         using var normal = new Window(CompositionGuardPolicy.WindowClass, 700, 400);
+        using var imeOwner = new Window("MSCTFIME UI", 0, 0);
+        using var frame = new Window(CompositionGuardPolicy.FrameClass, 0, 0, imeOwner.Handle);
+        using var frameComposition = new Window(CompositionGuardPolicy.WindowClass, 11, 7, frame.Handle, child: true);
+        using var unrelatedFrame = new Window(CompositionGuardPolicy.FrameClass, 0, 0);
+        using var candidateFrame = new Window(CompositionGuardPolicy.FrameClass, 0, 0, imeOwner.Handle);
+        using var nestedCandidate = new Window("ImeGuardTestCandidate", 0, 0, candidateFrame.Handle, child: true);
         using var guard = new CompositionGuard(() => fixture.Handle, recovery);
         guard.Tick();
         Check(RegionType(corner.Handle) == 1, "Native guard masks the eligible corner fixture");
+        Check(RegionType(frame.Handle) == 1 && RegionType(frameComposition.Handle) == 0,
+            "TSF frame with a composition child is masked without modifying the child");
+        Check(RegionType(unrelatedFrame.Handle) == 0 && RegionType(candidateFrame.Handle) == 0,
+            "Unrelated TSF frames and candidate frames remain unchanged");
         Check(RegionType(candidate.Handle) == 0 && RegionType(ordinary.Handle) == 0 && RegionType(normal.Handle) == 0,
             "Native candidate, ordinary and normally positioned windows remain unchanged");
         Check(IsWindowVisible(corner.Handle), "Mask preserves the owner's WS_VISIBLE state");
         guard.Dispose();
         Check(RegionType(corner.Handle) == 0, "Stopping restores the original no-region state");
+        Check(RegionType(frame.Handle) == 0, "Stopping restores the TSF composition frame");
+        using (var framed = CompositionWindowMask.TryCreate(frame.Handle, recovery) ?? throw new Exception("Could not mask frame"))
+        {
+            ShowWindow(frameComposition.Handle, 0);
+            Check(recovery.Recover() && RegionType(frame.Handle) == 0,
+                "Journal recovery restores a frame even after its composition child is hidden");
+        }
+        ShowWindow(frameComposition.Handle, 8);
+        using (var unknownChild = new Window("ImeGuardTestOrdinary", 0, 0, frame.Handle, child: true))
+        {
+            guard.Tick();
+            Check(RegionType(frame.Handle) == 0, "A frame containing any unknown visible child is excluded");
+        }
+        guard.Dispose();
 
         var initialRegion = CreateRectRgn(2, 3, 90, 22);
         Check(SetWindowRgn(corner.Handle, initialRegion, true) != 0, "Fixture starts with a custom region");
@@ -155,9 +181,9 @@ static class NativeChecks
     private sealed class Window : IDisposable
     {
         internal nint Handle;
-        internal Window(string name, int x, int y)
+        internal Window(string name, int x, int y, nint parent = 0, bool child = false)
         {
-            Handle = CreateWindowExW(0x08000080, name, "synthetic fixture", 0x90000000, x, y, 130, 30, 0, 0, GetModuleHandleW(null), 0);
+            Handle = CreateWindowExW(0x08000080, name, "synthetic fixture", child ? 0x50000000u : 0x90000000u, x, y, 130, 30, parent, 0, GetModuleHandleW(null), 0);
             if (Handle == 0) throw new System.ComponentModel.Win32Exception();
         }
         public void Dispose() { if (Handle != 0) DestroyWindow(Handle); Handle = 0; }
