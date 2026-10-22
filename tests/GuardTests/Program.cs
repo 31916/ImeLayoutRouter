@@ -51,6 +51,17 @@ static class Tests
             using var form = new GuardSettingsForm(new GuardSettings { Enabled = false }, false);
             Check(!form.Selection.Enabled && !form.StartWithWindows && form.Icon != null, "V3 settings preserve choices and original icon: " + culture);
             Check(form.Text.Contains("V3"), "V3 form edition identity: " + culture);
+            if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true"
+                && Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") == "github-hosted"
+                && Environment.GetEnvironmentVariable("RUNNER_TEMP") is { Length: > 0 } evidence)
+            {
+                // Render only this test form, not the runner's screen. The
+                // images make the two languages and original icon reviewable.
+                form.CreateControl(); form.PerformLayout();
+                using var bitmap = new Bitmap(form.Width, form.Height);
+                form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
+                bitmap.Save(Path.Combine(evidence, "v3-settings-" + culture + ".png"), System.Drawing.Imaging.ImageFormat.Png);
+            }
         }
         string keyPath = @"Software\ImeLayoutRouter.Tests\" + Guid.NewGuid().ToString("N");
         try

@@ -32,7 +32,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: v3-development-validation
-          path: ${{ runner.temp }}/v3-native-checks.txt
+          path: |
+            ${{ runner.temp }}/v3-native-checks.txt
+            ${{ runner.temp }}/v3-settings-*.png
           if-no-files-found: warn
       - name: Build and validate the development installer (not published)
         shell: pwsh
