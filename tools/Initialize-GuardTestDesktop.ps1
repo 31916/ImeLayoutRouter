@@ -29,6 +29,19 @@ try {
             Where-Object SessionId -eq $taskSession | Stop-Process
         Start-Process -FilePath "$env:WINDIR/explorer.exe" -WindowStyle Hidden
         Start-Sleep -Seconds 3
+        # The observed privacy page is hosted by WWAHost, sometimes on another
+        # desktop in this same session. Match its explicit CloudExperienceHost
+        # command line; never stop a generic app host or a different session.
+        Get-CimInstance Win32_Process | Where-Object {
+            $_.SessionId -eq $taskSession -and $_.Name -eq 'WWAHost.exe' -and
+            $_.CommandLine -match 'Microsoft\.Windows\.CloudExperienceHost'
+        } | ForEach-Object {
+            Write-Output 'Closing the disposable CloudExperienceHost privacy page.'
+            Stop-Process -Id $_.ProcessId -ErrorAction Stop
+        }
+        Get-Process -Name UserOOBEBroker -ErrorAction SilentlyContinue |
+            Where-Object SessionId -eq $taskSession | Stop-Process
+        Start-Sleep -Seconds 2
     }
     # Record framework readiness separately from IME compatibility. Microsoft
     # documents this service as required for IME mode/input-method switching.

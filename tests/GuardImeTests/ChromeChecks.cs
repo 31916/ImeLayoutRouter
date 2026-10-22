@@ -62,6 +62,8 @@ internal static class ChromeChecks
                 {
                     cdp.Value($"(()=>{{const e=document.getElementById('{field}');e.value='';window.imeEvents=[];e.focus();return e.id;}})()");
                     Key(window, 0x16); // VK_IME_ON in this browser's input context
+                    if (string.Equals(Environment.GetEnvironmentVariable("GUARD_TEST_IME_CLSID"),
+                        "03B5835F-F03C-411B-9CE2-AA23E1171E36", StringComparison.OrdinalIgnoreCase)) HiraganaShortcut(window);
                     foreach (char key in "NIHONN") { Key(window, key); Pump(100); }
                     string pending = cdp.Value($"document.getElementById('{field}').value");
                     Console.WriteLine($"Chrome {field}, enabled={enabled}: pending={pending}; events=" + cdp.Value("JSON.stringify(window.imeEvents)"));
@@ -91,6 +93,17 @@ internal static class ChromeChecks
         var up = down; up.Data.Keyboard.Flags = 2;
         Check(Native.SendInput(2, [down, up], Marshal.SizeOf<Native.Input>()) == 2, "Chrome fixture accepts its test key");
         Pump(60);
+    }
+    private static void HiraganaShortcut(nint window)
+    {
+        if (Native.GetForegroundWindow() != window) throw new InvalidOperationException("Chrome lost focus; IME shortcut stopped");
+        Native.Input Input(ushort key, uint flags) => new() { Type = 1, Data = new Native.InputUnion { Keyboard = new Native.Keyboard { Key = key, Flags = flags } } };
+        if (Native.SendInput(4, [Input(0x11, 0), Input(0x14, 0), Input(0x14, 2), Input(0x11, 2)], Marshal.SizeOf<Native.Input>()) != 4)
+        {
+            Native.SendInput(2, [Input(0x14, 2), Input(0x11, 2)], Marshal.SizeOf<Native.Input>());
+            throw new InvalidOperationException("Chrome fixture Hiragana shortcut was not accepted");
+        }
+        Pump(300);
     }
     private static void Pump(int milliseconds)
     { long end = Environment.TickCount64 + milliseconds; do { Application.DoEvents(); Thread.Sleep(10); } while (Environment.TickCount64 < end); }

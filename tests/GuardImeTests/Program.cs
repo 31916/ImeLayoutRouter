@@ -14,6 +14,7 @@ internal static class Program
     private static nint context;
     private static string evidence = "";
     private static readonly HashSet<string> baselineCandidateClasses = [];
+    private static readonly List<string> inputMessages = [];
     private static MaskObservation? observation;
     [STAThread] private static int Main(string[] args)
     {
@@ -23,13 +24,15 @@ internal static class Program
         { Console.Error.WriteLine("This input fixture is restricted to disposable GitHub-hosted runners."); return 2; }
         if (CompositionGuardClient.TryRunWorker(args)) return Environment.ExitCode;
         evidence = Environment.GetEnvironmentVariable("RUNNER_TEMP")!;
-        using var output = new StreamWriter(Path.Combine(evidence, "v3-ime-checks.txt")) { AutoFlush = true };
+        bool browserOnly = args.Length == 1 && args[0] == "--browser-only";
+        using var output = new StreamWriter(Path.Combine(evidence, browserOnly ? "v3-ime-browser-checks.txt" : "v3-ime-checks.txt")) { AutoFlush = true };
         Console.SetOut(TextWriter.Synchronized(new TeeWriter(Console.Out, output)));
         bool desktopOnly = args.Length == 1 && args[0] == "--check-desktop";
         try
         {
-            Run(desktopOnly);
-            Console.WriteLine(desktopOnly ? "PASS Disposable desktop accepts fixture focus. No IME input tested." : "PASS Real Japanese IME checks completed.");
+            Run(desktopOnly, browserOnly);
+            Console.WriteLine(desktopOnly ? "PASS Disposable desktop accepts fixture focus. No IME input tested." :
+                browserOnly ? "PASS Ordinary browser IME compatibility checks completed; fallback suppression was not tested." : "PASS Real Japanese IME checks completed.");
             return 0;
         }
         catch (Exception ex)
@@ -39,6 +42,7 @@ internal static class Program
             {
                 Native.ImmGetConversionStatus(context, out uint mode, out uint sentence);
                 Console.WriteLine($"Fixture failure state: composition={Composition()}; committed={committed}; open={Native.ImmGetOpenStatus(context)}; conversion=0x{mode:X}; sentence=0x{sentence:X}");
+                Console.WriteLine("Own fixture input-message trace: " + string.Join("; ", inputMessages));
             }
             DumpWindows("failure"); return 1;
         }
@@ -50,7 +54,7 @@ internal static class Program
         }
     }
 
-    private static void Run(bool desktopOnly)
+    private static void Run(bool desktopOnly, bool browserOnly)
     {
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Console.WriteLine($"OS={Environment.OSVersion}; process={RuntimeInformation.ProcessArchitecture}; session={Process.GetCurrentProcess().SessionId}");
@@ -65,6 +69,12 @@ internal static class Program
         Check(window != 0, "Own input fixture created");
         Focus();
         if (desktopOnly) return;
+        if (browserOnly)
+        {
+            using var browserGuard = new CompositionGuardClient();
+            ChromeChecks.Run(browserGuard);
+            return;
+        }
         bool microsoftIme = string.Equals(Environment.GetEnvironmentVariable("GUARD_TEST_IME_CLSID"),
             "03B5835F-F03C-411B-9CE2-AA23E1171E36", StringComparison.OrdinalIgnoreCase);
         Tsf.ActivateJapanese(forTestDesktop: microsoftIme);
@@ -341,6 +351,8 @@ internal static class Program
     }
     private static nint WndProc(nint h, uint msg, nint wp, nint lp)
     {
+        if (h == window && inputMessages.Count < 80 && msg is 0x102 or 0x10D or 0x10E or 0x10F or 0x286)
+            inputMessages.Add($"{msg:X}:wp={wp:X},lp={lp:X}");
         // Unicode windows receive WM_IME_CHAR for default-IME conversion.
         // Like WM_CHAR, consume it here instead of expecting an ANSI split.
         if (h == window && msg is 0x102 or 0x286)

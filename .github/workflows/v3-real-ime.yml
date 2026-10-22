@@ -24,7 +24,7 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Check disposable desktop readiness before downloading input packages
         shell: pwsh
-        timeout-minutes: 3
+        timeout-minutes: 5
         run: |
           ./tools/Initialize-GuardTestDesktop.ps1 -RefreshShell
           dotnet build tests/GuardImeTests/GuardImeTests.csproj -c Release -p:Edition=Guard --warnaserror
@@ -32,9 +32,18 @@ jobs:
           dotnet tests/GuardImeTests/bin/Guard/Release/net8.0-windows/GuardImeTests.dll --check-desktop
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Provision Japanese input on this disposable VM only
+        id: provision
         shell: powershell
         run: ./tools/Install-GuardTestIme.ps1
+      - name: Validate ordinary browser input independently of the fallback fixture
+        shell: pwsh
+        timeout-minutes: 3
+        run: |
+          ./tools/Initialize-GuardTestDesktop.ps1
+          dotnet tests/GuardImeTests/bin/Guard/Release/net8.0-windows/GuardImeTests.dll --browser-only
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Validate real composition using only the disposable VM's fixture
+        if: always() && steps.provision.conclusion == 'success'
         shell: pwsh
         timeout-minutes: 3
         run: |
