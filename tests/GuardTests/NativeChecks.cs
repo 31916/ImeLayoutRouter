@@ -153,6 +153,9 @@ static class NativeChecks
             finally { if (!crashing.HasExited) { crashing.StandardInput.Close(); Wait(() => crashing.HasExited); } }
         }
         Check(!recovery.HasRecords, "Successful restoration removes recovery records");
+        for (int i = 0; i < 65; i++) recovery.Save(new(1, 1, 1, uint.MaxValue, uint.MaxValue, null));
+        Check(!recovery.Recover() && recovery.HasRecords, "Recovery batch limit never reports success with outstanding records");
+        Check(recovery.Recover() && !recovery.HasRecords, "A subsequent recovery completes the remaining bounded batch");
         Directory.Delete(recovery.DirectoryPath);
         Console.WriteLine("All isolated native fixture checks passed. Real IME composition remains a separate validation gate.");
     }

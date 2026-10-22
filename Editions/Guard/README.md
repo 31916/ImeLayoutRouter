@@ -18,6 +18,8 @@ Windowsの未確定文字ウィンドウと、その部品を内包すること�
 描画領域を一時的に空にします。入力位置が小窓の近くにある場合は対象外です。
 候補ウィンドウ、通常のアプリウィンドウ、独自の描画方式のIMEは対象外です。
 WindowsやIMEの全バージョンに対応することは確認できていません。
+V3より高い権限で動くアプリの小窓は、Windowsのアクセス制限により変更できません。
+現在の試験版は、その制限を回避したり自動で管理者権限を要求したりしません。
 
 設定をオフにする、入力位置が正常な場所へ移る、アプリを切り替える、または
 V3を終了すると、変更した描画領域を戻します。補助プロセスは親アプリの終了を検出して
@@ -109,6 +111,8 @@ dotnet tests/GuardTests/bin/Guard/Release/net8.0-windows/GuardTests.dll
   describes in-application UI control; it is not a universal external suppression switch.
 - [Microsoft: SetWindowRgn](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowrgn)
   defines region ownership and drawing behavior used here.
+- [Microsoft: SetProp and UIPI](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setpropw)
+  limits window-property changes to processes at the same or a lower integrity level.
 - [Korean IME top-left composition report in WebView2](https://github.com/MicrosoftEdge/WebView2Feedback/issues/5675)
   confirms that the symptom is not limited to Japanese. Chinese IMEs also use
   composition, but Chinese behavior has not been validated in this project.

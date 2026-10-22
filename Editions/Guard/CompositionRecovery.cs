@@ -12,10 +12,17 @@ internal sealed class CompositionRecovery
     {
         Directory.CreateDirectory(DirectoryPath);
         string path = Path.Combine(DirectoryPath, Guid.NewGuid().ToString("N") + ".json");
+        string pending = path + ".pending";
         // Flush before touching the window: recovery must survive helper failure.
-        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-        JsonSerializer.Serialize(stream, record);
-        stream.Flush(true);
+        // Publish only a complete record. Failure during writing cannot leave
+        // half a JSON record blocking the next launch before any mask existed.
+        try
+        {
+            using (var stream = new FileStream(pending, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            { JsonSerializer.Serialize(stream, record); stream.Flush(true); }
+            File.Move(pending, path);
+        }
+        finally { if (File.Exists(pending)) File.Delete(pending); }
         return path;
     }
     internal bool Recover()
@@ -34,7 +41,9 @@ internal sealed class CompositionRecovery
             }
             catch (JsonException) { recovered = false; }
         }
-        return recovered;
+        // The bounded batch must not report success while additional masks
+        // remain. In particular, uninstall may proceed only after all records.
+        return recovered && !HasRecords;
     }
     internal static bool ValidRegion(byte[]? data)
     {
