@@ -19,6 +19,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 SetupIconFile=..\Assets\app.ico
 UninstallDisplayIcon={app}\ImeLayoutRouter.exe
 RestartApplications=no
+CloseApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -28,9 +29,11 @@ Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 english.DesktopShortcut=Create a desktop shortcut
 english.Shortcuts=Additional shortcuts:
 english.Launch=Launch IME Layout Router V3 Preview
+english.RestoreFailed=V3 could not restore the composition windows. Close the affected input application and try again.
 japanese.DesktopShortcut=デスクトップにショートカットを作成する
 japanese.Shortcuts=追加のショートカット:
 japanese.Launch=IME Layout Router V3 試験版を起動する
+japanese.RestoreFailed=V3が未確定文字の表示を復元できませんでした。入力先のアプリを終了してから、もう一度実行してください。
 
 [Files]
 Source: "..\bin\Guard\Release\net8.0-windows\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -46,7 +49,7 @@ Name: "desktopicon"; Description: "{cm:DesktopShortcut}"; GroupDescription: "{cm
 Filename: "{app}\ImeLayoutRouter.exe"; Parameters: "--first-run"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-function InitializeUninstall(): Boolean;
+function StopAndRestore(): Boolean;
 var
   Code: Integer;
   Executable: String;
@@ -57,9 +60,22 @@ begin
   begin
     Result := Exec(Executable, '--shutdown', '', SW_HIDE, ewWaitUntilTerminated, Code);
     if Result then Result := Code = 0;
-    if not Result then
-      SuppressibleMsgBox('V3 could not restore the composition windows. Close the affected input application and retry uninstalling.', mbError, MB_OK, IDOK);
   end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+  { Restore before replacing an installed V3. Do not let Restart Manager
+    terminate a helper that may still own a display restoration record. }
+  if not StopAndRestore() then Result := CustomMessage('RestoreFailed');
+end;
+
+function InitializeUninstall(): Boolean;
+begin
+  Result := StopAndRestore();
+  if not Result then
+    SuppressibleMsgBox(CustomMessage('RestoreFailed'), mbError, MB_OK, IDOK);
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

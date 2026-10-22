@@ -1,7 +1,7 @@
 # CI only: never install test packages or change startup on a developer's PC.
 param([Parameter(Mandatory)][string]$Installer)
 $ErrorActionPreference = 'Stop'
-if ($env:GITHUB_ACTIONS -ne 'true' -or !$env:RUNNER_TEMP) { throw 'This installer test is restricted to the disposable GitHub runner.' }
+if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or !$env:RUNNER_TEMP) { throw 'This installer test is restricted to the disposable GitHub-hosted runner.' }
 $testRoot = Join-Path $env:RUNNER_TEMP ('v3-install-' + [Guid]::NewGuid().ToString('N'))
 $runKey = 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Run'
 function Get-StartupValue([string]$Name) {
@@ -47,6 +47,14 @@ try {
     try {
         Start-Sleep -Milliseconds 1000
         if ($app.HasExited) { throw 'Installed V3 did not remain running.' }
+        Invoke-Setup $Installer @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=""', "/DIR=`"$testRoot`"")
+        if (!$app.WaitForExit(5000)) { throw 'Upgrade did not stop V3 through its restoration path.' }
+        if ((Get-StartupValue 'ImeLayoutRouterV3') -ne ('"' + $executable + '"') -or
+            (Get-Content -Raw -LiteralPath $settingsFile) -ne '{"Version":1,"Enabled":true}') { throw 'Upgrade changed the saved V3 choices.' }
+        $app.Dispose()
+        $app = Start-Process -FilePath $executable -WindowStyle Hidden -PassThru
+        Start-Sleep -Milliseconds 1000
+        if ($app.HasExited) { throw 'Upgraded V3 did not remain running.' }
         Invoke-Setup (Join-Path $testRoot 'unins000.exe') @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
         if (!$app.WaitForExit(5000)) { throw 'Uninstall left V3 running.' }
     } finally {
@@ -56,7 +64,7 @@ try {
     if (Test-Path -LiteralPath $executable) { throw 'Application was not uninstalled.' }
     if (Get-StartupValue 'ImeLayoutRouterV3') { throw 'V3 owned startup was not removed.' }
     if ((Get-StartupValue 'ImeLayoutRouter') -ne 'preserved V2 startup') { throw 'Uninstall touched V2 startup.' }
-    Write-Output 'PASS V3 installer, original icon, V3 documentation, packaged helper, uninstall while running and V2 startup isolation.'
+    Write-Output 'PASS V3 installer, original icon, V3 documentation, packaged helper, upgrade/uninstall while running, retained choices and V2 startup isolation.'
 } finally {
     foreach ($item in @(@('ImeLayoutRouter', $v2Backup), @('ImeLayoutRouterV3', $v3Backup))) {
         if ($null -eq $item[1]) { Remove-ItemProperty -Path $runKey -Name $item[0] -ErrorAction SilentlyContinue }
