@@ -1,11 +1,15 @@
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or !$env:RUNNER_TEMP) {
     throw 'Google Japanese IME provisioning is restricted to disposable GitHub-hosted Windows runners.'
 }
 # Pinned official Google distribution, verified against Microsoft's WinGet manifest:
 # https://github.com/microsoft/winget-pkgs/blob/master/manifests/g/Google/JapaneseIME/3.34.6260.0/Google.JapaneseIME.installer.yaml
 $taskInstaller = Join-Path $env:RUNNER_TEMP 'GoogleJapaneseInput64.msi'
-Invoke-WebRequest 'https://dl.google.com/release2/misc/adpwg6fqrqckyq2txworca5desoq_3.34.6260.0/GoogleJapaneseInput64-3.34.6260.0.msi' -OutFile $taskInstaller
+Write-Output 'Downloading the pinned installer from the official Google distribution.'
+& curl.exe --fail --location --connect-timeout 30 --max-time 180 --output $taskInstaller 'https://dl.google.com/release2/misc/adpwg6fqrqckyq2txworca5desoq_3.34.6260.0/GoogleJapaneseInput64-3.34.6260.0.msi'
+if ($LASTEXITCODE -ne 0) { throw "Official installer download failed: $LASTEXITCODE" }
+Write-Output 'Download complete. Verifying SHA-256 and Authenticode signature.'
 if ((Get-FileHash $taskInstaller -Algorithm SHA256).Hash -ne '41F66033E34E10DC5420B68A78D8C1F25E86AC4077AF34264ED3E3C25647F0A1') { throw 'IME installer hash mismatch.' }
 $taskSignature = Get-AuthenticodeSignature $taskInstaller
 if ($taskSignature.Status -ne 'Valid' -or $taskSignature.SignerCertificate.Subject -notmatch 'O=Google (LLC|Inc\.)') { throw 'Valid Google signature is required.' }
