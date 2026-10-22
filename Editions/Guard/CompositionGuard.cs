@@ -115,7 +115,8 @@ internal sealed class CompositionGuardClient : IDisposable
             if (!store.Recover()) { Environment.ExitCode = 2; return true; }
             if (restoreOnly) return true;
             using var guard = guardFactory?.Invoke() ?? new CompositionGuard(recovery: store);
-            while (!end!.IsCompleted) { guard.Tick(); Thread.Sleep(100); }
+            using var events = new CompositionGuardEvents();
+            events.Run(guard, end!);
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException)
         { Environment.ExitCode = 1; }

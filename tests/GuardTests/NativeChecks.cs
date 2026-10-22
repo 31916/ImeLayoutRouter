@@ -88,6 +88,19 @@ static class NativeChecks
         {
             Wait(() => RegionType(corner.Handle) == 1 || child.HasExited);
             Check(!child.HasExited && RegionType(corner.Handle) == 1, "Real helper monitors while its parent pipe remains open (cross-process mask)");
+            var observations = new List<long>();
+            for (int i = 0; i < 6; i++)
+            {
+                SetWindowPos(corner.Handle, 0, 200, 200, 0, 0, 0x15);
+                Wait(() => RegionType(corner.Handle) != 1 || child.HasExited);
+                if (i == 0) Check(!child.HasExited && RegionType(corner.Handle) == 0, "Running helper restores a popup moved away from the corner");
+                var watch = Stopwatch.StartNew();
+                SetWindowPos(corner.Handle, 0, 0, 0, 0, 0, 0x15);
+                Wait(() => RegionType(corner.Handle) == 1 || child.HasExited);
+                if (i == 0) Check(!child.HasExited && RegionType(corner.Handle) == 1, "Running helper remasks a popup returned to the corner");
+                observations.Add(watch.ElapsedMilliseconds);
+            }
+            Console.WriteLine("Synthetic move-to-mask observations (ms, not real IME first-frame latency): " + string.Join(", ", observations));
             child.StandardInput.Close();
             Wait(() => child.HasExited);
             Check(child.ExitCode == 0 && RegionType(corner.Handle) == 0, "Parent-pipe EOF restores cross-process mask and exits helper");

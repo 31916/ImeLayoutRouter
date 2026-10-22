@@ -42,9 +42,12 @@ V1・V2とは設定・起動登録を分けているため、既存版と同時�
   cancellation, application switching, multiple monitors/DPI, sleep/resume and exit
   with the supported IMEs. No release installer or download-page update is authorized
   by a passing synthetic test alone.
-- The current detection loop polls at 100 ms. A brief initial appearance is possible;
-  zero-frame suppression has not been demonstrated. The compatibility gate must
-  measure that behavior before this is described as a finished prevention feature.
+- The helper reacts to foreground/window show, hide, destroy and position events,
+  with a 100 ms fallback scan and 10 ms event-burst coalescing. Notifications run
+  outside the target process and do not inspect text. The helper uses per-monitor
+  V2 DPI awareness. A brief initial appearance is still possible; zero-frame
+  suppression has not been demonstrated. The compatibility gate must measure it
+  before this is described as a finished prevention feature.
 
 ### Real IME integration fixture
 
