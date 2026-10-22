@@ -11,7 +11,11 @@ permissions:
   contents: read
 jobs:
   japanese-ime:
-    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +37,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v3-real-ime-validation
+          name: v3-real-ime-validation-${{ matrix.os }}
           path: ${{ runner.temp }}/v3-ime-*.txt
           if-no-files-found: error

@@ -192,7 +192,12 @@ internal static class Program
     }
     private static nint WndProc(nint h, uint msg, nint wp, nint lp)
     {
-        if (msg == 0x102) { committed.Append((char)wp); return 0; }
+        if (msg == 0x102)
+        {
+            // Like a single-line edit field, do not insert Escape/Enter controls.
+            if ((long)wp >= 0x20 && wp != 0x7F) committed.Append((char)wp);
+            return 0;
+        }
         return Native.DefWindowProcW(h, msg, wp, lp);
     }
     private static void Pump(int ms) { long end = Environment.TickCount64 + ms; do { Application.DoEvents(); Thread.Sleep(10); } while (Environment.TickCount64 < end); }

@@ -46,6 +46,23 @@ V1・V2とは設定・起動登録を分けているため、既存版と同時�
   zero-frame suppression has not been demonstrated. The compatibility gate must
   measure that behavior before this is described as a finished prevention feature.
 
+### Real IME integration fixture
+
+The `V3 real IME compatibility` workflow provisions Japanese basic typing and
+fonts on disposable GitHub-hosted Windows VMs only. It preserves the VM's display
+language. Provisioning is not a passing input test. The separate fixture sends a
+fixed test word to its own Win32 window, uses that window's input context to
+simulate misplaced composition coordinates, and compares IME conversion results
+with suppression off/on. It also checks cancellation, disabling suppression and
+normal composition positioning. It stops sending keys if its window loses focus.
+
+Both the provisioning script and fixture refuse to execute outside GitHub-hosted
+runners. They must never be run on the user's PC. The fixture can read its own
+test composition strings; that code is excluded from the production application.
+The workflow retains test evidence, not a release installer. Passing this fixture
+alone does not establish compatibility with browsers, games, other IMEs, multiple
+monitors or all Windows versions.
+
 ## Build / check
 
 ```powershell
