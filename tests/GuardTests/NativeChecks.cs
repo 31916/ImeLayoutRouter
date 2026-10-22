@@ -122,12 +122,20 @@ static class NativeChecks
         }
 
         var start = new ProcessStartInfo(Environment.ProcessPath!)
-        { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden, RedirectStandardInput = true };
+        { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden, RedirectStandardInput = true, RedirectStandardOutput = true };
         if (Path.GetFileNameWithoutExtension(start.FileName).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
             start.ArgumentList.Add(typeof(Tests).Assembly.Location);
         start.ArgumentList.Add("--test-guard-worker"); start.ArgumentList.Add(fixture.Handle.ToInt64().ToString(System.Globalization.CultureInfo.InvariantCulture));
         start.ArgumentList.Add(recovery.DirectoryPath);
         using var child = Process.Start(start) ?? throw new Exception("Could not start fixture helper");
+        var trace = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        child.OutputDataReceived += (sender, entry) =>
+        {
+            if (entry.Data == null) return;
+            trace.Enqueue(entry.Data);
+            while (trace.Count > 128) trace.TryDequeue(out _);
+        };
+        child.BeginOutputReadLine();
         try
         {
             Wait(() => RegionType(corner.Handle) == 1 || child.HasExited);
@@ -150,6 +158,7 @@ static class NativeChecks
                 {
                     GetWindowRect(corner.Handle, out var bounds);
                     Console.WriteLine($"Move-cycle failure {i}: bounds={bounds.Left},{bounds.Top},{bounds.Right},{bounds.Bottom}; region={RegionType(corner.Handle)}; token={GetPropW(corner.Handle, "ImeLayoutRouter.CompositionMask.Preview")}; helperExited={child.HasExited}; helperCpu={child.TotalProcessorTime.TotalMilliseconds}ms; journals={Directory.EnumerateFiles(recovery.DirectoryPath, "*.json").Count()}");
+                    Console.WriteLine("Bounded native helper trace:\n" + string.Join("\n", trace));
                     throw;
                 }
             }

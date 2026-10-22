@@ -21,6 +21,7 @@ internal sealed class CompositionWindowMask : IDisposable
         nint original = CreateRectRgn(0, 0, 0, 0);
         if (original == 0) return null;
         int kind = GetWindowRgn(window, original);
+        Trace($"create hwnd={window:X} kind={kind}");
         if (kind == 1) { DeleteObject(original); return null; } // already invisible
         if (kind == 0) { DeleteObject(original); original = 0; } // no explicit region
         byte[]? regionData = null;
@@ -40,6 +41,7 @@ internal sealed class CompositionWindowMask : IDisposable
         if (!SetPropW(window, Property, token))
         { if (original != 0) DeleteObject(original); File.Delete(journal); return null; }
         nint empty = CreateRectRgn(0, 0, 0, 0);
+        Trace($"mask hwnd={window:X} token={token} original={original:X}");
         if (empty == 0 || SetWindowRgn(window, empty, true) == 0)
         {
             if (empty != 0) DeleteObject(empty);
@@ -48,6 +50,7 @@ internal sealed class CompositionWindowMask : IDisposable
             File.Delete(journal);
             return null;
         }
+        Trace($"masked hwnd={window:X} token={GetPropW(window, Property)} empty={IsEmpty(window)}");
         return new CompositionWindowMask(window, token, original, journal);
     }
     internal static bool Recover(CompositionMaskRecord record, string journal)
@@ -72,6 +75,7 @@ internal sealed class CompositionWindowMask : IDisposable
     internal bool TryRestore()
     {
         if (restored) return true;
+        Trace($"restore hwnd={window:X} token={GetPropW(window, Property)} expected={token} original={original:X}");
         if (GetPropW(window, Property) != token) { ReleaseOriginal(); File.Delete(journal); restored = true; return true; }
         // If the owner replaced the region, preserve its more recent decision.
         if (IsEmpty(window))
@@ -82,21 +86,27 @@ internal sealed class CompositionWindowMask : IDisposable
                 if (IsWindow(window)) return false;
             }
             else original = 0; // ownership transferred to Windows
+            Trace($"restored-region hwnd={window:X} empty={IsEmpty(window)}");
         }
         RemovePropW(window, Property);
         ReleaseOriginal();
         File.Delete(journal);
         restored = true;
+        Trace($"restored hwnd={window:X} empty={IsEmpty(window)}");
         return true;
     }
     private static bool IsEmpty(nint window)
     {
         nint region = CreateRectRgn(0, 0, 0, 0);
         if (region == 0) return false;
-        try { return GetWindowRgn(window, region) == 1; }
+        try { int kind = GetWindowRgn(window, region); Trace($"region hwnd={window:X} kind={kind}"); return kind == 1; }
         finally { DeleteObject(region); }
     }
     private void ReleaseOriginal() { if (original != 0) DeleteObject(original); original = 0; }
+    // Compiled out of the shipped application and real-IME fixture. Only the
+    // synthetic native fixture retains bounded, geometry-only failure traces.
+    [System.Diagnostics.Conditional("GUARD_NATIVE_TRACE")]
+    private static void Trace(string message) => Console.WriteLine($"{Environment.TickCount64} {message}");
     public void Dispose()
     {
         // A failed restoration keeps its disk record for the next helper start.

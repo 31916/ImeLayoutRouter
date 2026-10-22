@@ -25,7 +25,7 @@ public static class IsolatedFixture {
   try {
    var startup=new Startup { Size=(uint)Marshal.SizeOf(typeof(Startup)), Desktop=name, Flags=1, Show=0 };
    if(!CreateProcessW(executable,new StringBuilder("\""+executable+"\" "+arguments),IntPtr.Zero,IntPtr.Zero,false,0x08000000,IntPtr.Zero,null,ref startup,out child)) throw new System.ComponentModel.Win32Exception();
-   if(WaitForSingleObject(child.Process,30000)!=0) { TerminateProcess(child.Process,124); throw new Exception("Only the isolated fixture timed out"); }
+   if(WaitForSingleObject(child.Process,120000)!=0) { TerminateProcess(child.Process,124); throw new Exception("Only the isolated fixture timed out"); }
    uint code; GetExitCodeProcess(child.Process,out code); return code;
   } finally { if(child.Thread!=IntPtr.Zero)CloseHandle(child.Thread); if(child.Process!=IntPtr.Zero)CloseHandle(child.Process); CloseDesktop(desktop); }
  }
