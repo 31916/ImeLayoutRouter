@@ -14,6 +14,7 @@ internal static class Program
     private static nint context;
     private static string evidence = "";
     private static readonly HashSet<string> baselineCandidateClasses = [];
+    private static MaskObservation? observation;
     [STAThread] private static int Main(string[] args)
     {
         if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true"
@@ -139,14 +140,27 @@ internal static class Program
         }
         // Exercise window reuse and repeated start/end composition with one
         // continuously running production helper, using only this test input.
+        var timings = new List<uint>();
         for (int cycle = 0; cycle < 10; cycle++)
         {
             PositionComposition(new Point(0, 0));
-            TypeNihon();
-            Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "Repeated composition is masked: " + cycle);
+            using (var timing = new MaskObservation())
+            {
+                observation = timing;
+                try
+                {
+                    TypeNihon();
+                    Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "Repeated composition is masked: " + cycle);
+                    timing.Sample();
+                    Check(timing.Milliseconds.HasValue, "Real popup show-to-mask observation exists: " + cycle);
+                    timings.Add(timing.Milliseconds!.Value);
+                }
+                finally { observation = null; }
+            }
             Key(0x1B); Pump(100); Key(0x1B); Pump(100);
             Check(Composition().Length == 0 && guard.CheckError() == null, "Helper survives repeated input/cancellation: " + cycle);
         }
+        Console.WriteLine("Real popup show-event to empty-region observations (ms; not video/first-frame latency): " + string.Join(", ", timings));
         guard.SetEnabled(false);
         Pump(600);
     }
@@ -300,7 +314,7 @@ internal static class Program
         }
         return Native.DefWindowProcW(h, msg, wp, lp);
     }
-    private static void Pump(int ms) { long end = Environment.TickCount64 + ms; do { Application.DoEvents(); Thread.Sleep(10); } while (Environment.TickCount64 < end); }
+    private static void Pump(int ms) { long end = Environment.TickCount64 + ms; do { Application.DoEvents(); observation?.Sample(); Thread.Sleep(10); } while (Environment.TickCount64 < end); }
     private static void Wait(Func<bool> predicate, string name)
     {
         long end = Environment.TickCount64 + 5000;
