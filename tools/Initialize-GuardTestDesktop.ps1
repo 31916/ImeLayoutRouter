@@ -29,15 +29,31 @@ try {
             Where-Object SessionId -eq $taskSession | Stop-Process
         Start-Process -FilePath "$env:WINDIR/explorer.exe" -WindowStyle Hidden
         Start-Sleep -Seconds 3
-        # The observed privacy page is hosted by WWAHost, sometimes on another
-        # desktop in this same session. Match its explicit CloudExperienceHost
-        # command line; never stop a generic app host or a different session.
-        Get-CimInstance Win32_Process | Where-Object {
-            $_.SessionId -eq $taskSession -and $_.Name -eq 'WWAHost.exe' -and
-            $_.CommandLine -match 'Microsoft\.Windows\.CloudExperienceHost'
-        } | ForEach-Object {
-            Write-Output 'Closing the disposable CloudExperienceHost privacy page.'
-            Stop-Process -Id $_.ProcessId -ErrorAction Stop
+        # WWAHost's command line need not identify its packaged application.
+        # Query the package identity and close only the observed first-logon
+        # package in this disposable session, never a generic app host.
+        Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class GuardTestPackage {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetPackageFullName(IntPtr process, ref uint length, StringBuilder name);
+}
+'@
+        Get-Process -Name WWAHost -ErrorAction SilentlyContinue |
+            Where-Object SessionId -eq $taskSession | ForEach-Object {
+            [uint32]$taskLength = 0
+            $taskStatus = [GuardTestPackage]::GetPackageFullName($_.Handle, [ref]$taskLength, $null)
+            if ($taskStatus -eq 122 -and $taskLength -le 1024) {
+                $taskPackage = [Text.StringBuilder]::new([int]$taskLength)
+                $taskStatus = [GuardTestPackage]::GetPackageFullName($_.Handle, [ref]$taskLength, $taskPackage)
+                Write-Output "Disposable app-host package: $taskPackage; status: $taskStatus"
+                if ($taskStatus -eq 0 -and $taskPackage.ToString() -like 'Microsoft.Windows.CloudExperienceHost_*') {
+                    Write-Output 'Closing the disposable CloudExperienceHost privacy page.'
+                    Stop-Process -Id $_.Id -ErrorAction Stop
+                }
+            } else { Write-Output "Disposable app-host package query: $taskStatus" }
         }
         Get-Process -Name UserOOBEBroker -ErrorAction SilentlyContinue |
             Where-Object SessionId -eq $taskSession | Stop-Process
