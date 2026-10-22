@@ -117,6 +117,11 @@ static class NativeChecks
         Directory.Delete(recovery.DirectoryPath);
         Console.WriteLine("All isolated native fixture checks passed. Real IME composition remains a separate validation gate.");
     }
+    internal static void EnsureWorkerDpi()
+    {
+        if (!AreDpiAwarenessContextsEqual(GetThreadDpiAwarenessContext(), (nint)(-4)))
+            throw new InvalidOperationException("Helper must use per-monitor V2 DPI awareness before reading window coordinates.");
+    }
     private static void Wait(Func<bool> done)
     {
         var until = Environment.TickCount64 + 5000;
@@ -155,6 +160,8 @@ static class NativeChecks
     [StructLayout(LayoutKind.Sequential)] private struct Rect { internal int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] private struct Message { internal nint Window; internal uint Id; internal nuint WParam; internal nint LParam; internal uint Time; internal int X, Y; internal uint Private; }
     [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] private static extern nint GetThreadDpiAwarenessContext();
+    [DllImport("user32.dll")] private static extern bool AreDpiAwarenessContextsEqual(nint first, nint second);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern nint GetModuleHandleW(string? name);
     [DllImport("user32.dll")] private static extern nint GetThreadDesktop(uint thread);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool GetUserObjectInformationW(nint value, int index, StringBuilder name, uint size, out uint needed);

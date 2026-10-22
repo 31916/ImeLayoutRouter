@@ -92,6 +92,9 @@ internal sealed class CompositionGuardClient : IDisposable
         bool restoreOnly = args[0] == "--composition-guard-recover";
         // A manually launched helper must never run unattended on the desktop.
         if (!restoreOnly && !Console.IsInputRedirected) return true;
+        // Worker entry precedes the GUI's DPI setup. Read all window/monitor
+        // coordinates in physical pixels, including on mixed-DPI monitors.
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         // Console.In's synchronized TextReader can perform ReadLineAsync
         // synchronously. Keep pipe waiting off the monitoring thread.
         var end = restoreOnly ? null : Task.Run(() => Console.In.Read());

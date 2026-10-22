@@ -13,7 +13,11 @@ static class Tests
             NativeChecks.EnsureIsolated();
             nint fixture = (nint)long.Parse(args[1], CultureInfo.InvariantCulture);
             var recovery = new CompositionRecovery(args[2]);
-            CompositionGuardClient.TryRunWorker(["--composition-guard-worker"], () => new CompositionGuard(() => fixture, recovery), recovery);
+            CompositionGuardClient.TryRunWorker(["--composition-guard-worker"], () =>
+            {
+                NativeChecks.EnsureWorkerDpi();
+                return new CompositionGuard(() => fixture, recovery);
+            }, recovery);
             return Environment.ExitCode;
         }
         if (CompositionGuardClient.TryRunWorker(args)) return Environment.ExitCode;
