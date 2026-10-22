@@ -206,23 +206,40 @@ internal static class Program
         Key(0x20); Pump(300); Key(0x20); Pump(600);
         uint bytes = Native.ImmGetCandidateListW(context, 0, null, 0);
         Console.WriteLine($"{label}: candidate-list bytes={bytes}");
-        Check(bytes >= 24 && bytes < 1024 * 1024, label + ": actual IME conversion candidates exist");
+        var tsf = bytes == 0 ? TsfCandidates.Read() : null;
+        Check((bytes >= 24 && bytes < 1024 * 1024) || tsf is { Count: > 0, Shown: true },
+            label + ": actual IME conversion candidates exist via IMM or TSF");
         var buffer = new byte[bytes];
-        Check(Native.ImmGetCandidateListW(context, 0, buffer, bytes) == bytes && BitConverter.ToUInt32(buffer, 8) > 0,
+        Check(tsf != null || (Native.ImmGetCandidateListW(context, 0, buffer, bytes) == bytes && BitConverter.ToUInt32(buffer, 8) > 0),
             label + ": conversion candidate list is nonempty");
         DumpWindows(label + "-candidates");
         var candidates = CandidateSurfaces();
+        if (tsf is { Shown: true })
+        {
+            Check(tsf.Sample.Contains("日本"), label + ": TSF candidates contain the fixed test word's conversion");
+            candidates.Add("TSF:" + tsf.Identity);
+        }
         Check(candidates.Count > 0, label + ": conversion candidate UI is visible and drawable");
         if (guard == null) baselineCandidateClasses.UnionWith(candidates);
         else Check(baselineCandidateClasses.IsSubsetOf(candidates), "V3 preserves the baseline candidate UI classes");
         // Always choose the first candidate so learning from the baseline does
         // not change a later 'second candidate' and create a false difference.
-        for (int i = 0; BitConverter.ToUInt32(buffer, 12) != 0 && i < 20; i++)
+        uint selection = tsf?.Selection ?? BitConverter.ToUInt32(buffer, 12);
+        for (int i = 0; selection != 0 && i < 20; i++)
         {
             Key(0x26); Pump(100);
-            Check(Native.ImmGetCandidateListW(context, 0, buffer, bytes) == bytes, "Candidate list remains available during selection");
+            if (tsf != null)
+            {
+                tsf = TsfCandidates.Read() ?? throw new InvalidOperationException("TSF candidate UI disappeared during selection");
+                selection = tsf.Selection;
+            }
+            else
+            {
+                Check(Native.ImmGetCandidateListW(context, 0, buffer, bytes) == bytes, "Candidate list remains available during selection");
+                selection = BitConverter.ToUInt32(buffer, 12);
+            }
         }
-        Check(BitConverter.ToUInt32(buffer, 12) == 0, label + ": first conversion candidate can be selected");
+        Check(selection == 0, label + ": first conversion candidate can be selected");
         if (guard != null)
         {
             Check(guard.CheckError() == null, "Helper stays alive during conversion");
