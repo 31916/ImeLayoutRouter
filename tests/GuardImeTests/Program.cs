@@ -13,6 +13,7 @@ internal static class Program
     private static readonly Native.WindowProc procedure = WndProc;
     private static nint context;
     private static string evidence = "";
+    private static readonly HashSet<string> baselineCandidateClasses = [];
     [STAThread] private static int Main(string[] args)
     {
         if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true"
@@ -121,6 +122,10 @@ internal static class Program
         Check(Native.ImmGetCandidateListW(context, 0, buffer, bytes) == bytes && BitConverter.ToUInt32(buffer, 8) > 0,
             label + ": conversion candidate list is nonempty");
         DumpWindows(label + "-candidates");
+        var candidates = CandidateSurfaces();
+        Check(candidates.Count > 0, label + ": conversion candidate UI is visible and drawable");
+        if (guard == null) baselineCandidateClasses.UnionWith(candidates);
+        else Check(baselineCandidateClasses.IsSubsetOf(candidates), "V3 preserves the baseline candidate UI classes");
         // Always choose the first candidate so learning from the baseline does
         // not change a later 'second candidate' and create a false difference.
         for (int i = 0; BitConverter.ToUInt32(buffer, 12) != 0 && i < 20; i++)
@@ -191,6 +196,18 @@ internal static class Program
         return result;
     }
     private static string Class(nint h) { var s = new StringBuilder(128); Native.GetClassNameW(h, s, s.Capacity); return s.ToString(); }
+    private static HashSet<string> CandidateSurfaces()
+    {
+        var result = new HashSet<string>();
+        Native.EnumWindows((h, _) => {
+            string name = Class(h);
+            if (name.Contains("Candidate", StringComparison.OrdinalIgnoreCase) && Native.IsWindowVisible(h)
+                && Native.GetWindowRect(h, out var bounds) && bounds.Right > bounds.Left && bounds.Bottom > bounds.Top
+                && !EmptyRegion(h)) result.Add(name);
+            return true;
+        }, 0);
+        return result;
+    }
     private static bool EmptyRegion(nint h)
     {
         nint region = Native.CreateRectRgn(0, 0, 0, 0);

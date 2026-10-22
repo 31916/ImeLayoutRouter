@@ -12,7 +12,9 @@ IMEやキーボード配列の切り替え、入力内容の削除・確定は�
 小窓にだけ表示される未確定文字は、この機能をオンにすると見えなくなります。
 
 対象は、前面アプリと同じスレッドが持つ `MSCTFIME Composition` という
-Windowsの未確定文字ウィンドウに限定します。モニター左上付近の小窓を識別し、
+Windowsの未確定文字ウィンドウと、その部品を内包することを確認できた
+`CiceroUIWndFrame` の外枠に限定します。外枠はIMEの所有関係も確認し、
+別の種類の表示部品が含まれていれば対象外にします。モニター左上付近の小窓を識別し、
 描画領域を一時的に空にします。入力位置が小窓の近くにある場合は対象外です。
 候補ウィンドウ、通常のアプリウィンドウ、独自の描画方式のIMEは対象外です。
 WindowsやIMEの全バージョンに対応することは確認できていません。
@@ -35,12 +37,20 @@ V1・V2とは設定・起動登録を分けているため、既存版と同時�
 - Synthetic windows test classification, cross-process masking, exact restoration,
   candidate exclusion, owner-hide behavior and recovery after helper termination.
   **They do not demonstrate real IME composition compatibility.**
-- On 2026-10-23 (JST), [CI run 39858977969](https://github.com/31916/ImeLayoutRouter/actions/runs/39858977969)
-  passed 24 policy/settings checks, 20 native fixture checks and the development
+- On 2026-10-23 (JST), [CI run 39862889243](https://github.com/31916/ImeLayoutRouter/actions/runs/39862889243)
+  passed 25 policy/settings checks, 25 native fixture checks and the development
   installer lifecycle checks. This includes helper DPI initialization, moving a
   popup away from/back to the corner, recovery after helper termination, and
   uninstalling while the app is running. The synthetic move-to-mask observations
-  were 35–71 ms across six trials; these are not real IME first-frame measurements.
+  were 46–67 ms across six trials; these are not real IME first-frame measurements.
+- [Google IME run 39862889246](https://github.com/31916/ImeLayoutRouter/actions/runs/39862889246)
+  passed actual Japanese input on Windows Server 2025 with Google Japanese Input
+  3.34.6260.0. Real keystrokes produced `にほん`; both baseline and suppression-on
+  conversion committed `日本`. Escape cancellation, preserving the pending text,
+  restoring the real popup when disabled and leaving normal positioning drawable
+  passed. The captured baseline/masked/candidate images were visually reviewed:
+  only the fallback composition frame disappeared and conversion candidates
+  remained visible. This verifies that specific fixture and IME/OS combination.
 - Before release: validate actual composition, conversion candidates, confirmation,
   cancellation, application switching, multiple monitors/DPI, sleep/resume and exit
   with the supported IMEs. No release installer or download-page update is authorized
@@ -68,6 +78,20 @@ test composition strings; that code is excluded from the production application.
 The workflow retains test evidence, not a release installer. Passing this fixture
 alone does not establish compatibility with browsers, games, other IMEs, multiple
 monitors or all Windows versions.
+
+The separate `V3 Google IME compatibility` workflow installs a pinned Google
+Japanese Input MSI from Google's download service. It checks both SHA-256 and
+the Google Authenticode signature before installation. All installation and
+input testing stays on the disposable VM. Google Japanese Input reproduced the
+corner popup as a `CiceroUIWndFrame` containing a visible `MSCTFIME Composition`
+child; checking top-level composition windows alone missed this real case.
+The classifier now verifies that frame's IME owner and composition children.
+Candidate windows and unrelated Cicero frames are excluded.
+
+Microsoft IME capability provisioning runs only when manually dispatched.
+Windows Update downloads and cumulative-update servicing can take many minutes
+on hosted images. A provisioning timeout is an environment failure, not a passed
+IME compatibility test; its CBS/DISM evidence is retained separately.
 
 ## Build / check
 
