@@ -93,6 +93,19 @@ internal static class Program
 
         PositionComposition(new Point(0, 0));
         TypeNihon();
+        Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "Composition is masked before focus changes");
+        var beforeSwitch = FindComposition();
+        using (var other = new ForegroundFixture())
+        {
+            Native.SetForegroundWindow(other.Handle);
+            Wait(() => Native.GetForegroundWindow() == other.Handle, "Separate fixture thread owns the foreground");
+            Wait(() => !Native.IsWindow(beforeSwitch) || !EmptyRegion(beforeSwitch), "Leaving the input thread restores its real composition surface");
+            Focus();
+        }
+        Key(0x1B); Pump(100); Key(0x1B); Pump(100);
+
+        PositionComposition(new Point(0, 0));
+        TypeNihon();
         Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "Next real composition is masked");
         var masked = FindComposition();
         guard.SetEnabled(false);
@@ -107,6 +120,16 @@ internal static class Program
         var normal = FindComposition();
         Check(normal != 0 && !EmptyRegion(normal), "Normally positioned real composition remains drawable");
         Key(0x1B); Pump(300); Key(0x1B);
+        // Exercise window reuse and repeated start/end composition with one
+        // continuously running production helper, using only this test input.
+        for (int cycle = 0; cycle < 10; cycle++)
+        {
+            PositionComposition(new Point(0, 0));
+            TypeNihon();
+            Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "Repeated composition is masked: " + cycle);
+            Key(0x1B); Pump(100); Key(0x1B); Pump(100);
+            Check(Composition().Length == 0 && guard.CheckError() == null, "Helper survives repeated input/cancellation: " + cycle);
+        }
         guard.SetEnabled(false);
         Pump(600);
     }
@@ -274,5 +297,30 @@ internal static class Program
         public override void Write(char value) { console.Write(value); file.Write(value); }
         public override void Write(string? value) { console.Write(value); file.Write(value); }
         public override void WriteLine(string? value) { console.WriteLine(value); file.WriteLine(value); }
+    }
+    private sealed class ForegroundFixture : IDisposable
+    {
+        private readonly Thread thread;
+        private Form? form;
+        internal nint Handle { get; private set; }
+        internal ForegroundFixture()
+        {
+            using var ready = new ManualResetEventSlim();
+            thread = new Thread(() => {
+                using var view = new Form { Text = "V3 alternate foreground fixture", StartPosition = FormStartPosition.Manual,
+                    Location = new Point(400, 300), Size = new Size(400, 200) };
+                form = view;
+                view.Shown += (_, _) => { Handle = view.Handle; ready.Set(); };
+                Application.Run(view);
+            }) { IsBackground = true };
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+            if (!ready.Wait(5000)) throw new TimeoutException("Alternate fixture could not start");
+        }
+        public void Dispose()
+        {
+            if (form is { IsDisposed: false }) form.BeginInvoke(() => form.Close());
+            if (!thread.Join(5000)) throw new TimeoutException("Alternate fixture could not stop");
+        }
     }
 }
