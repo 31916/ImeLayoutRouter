@@ -26,8 +26,8 @@ internal sealed class GuardSettingsForm : Form
         enabled.Checked = current?.Enabled ?? true;
         panel.Controls.Add(enabled);
         panel.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(520, 0), Margin = new Padding(3, 12, 3, 12),
-            Text = T("小窓内の入力途中の文字は見えなくなります。入力先や表示位置の不具合を直す機能ではありません。独自の描画方式を使うIMEには適用されません。オフにすると元の表示に戻ります。",
-                "Uncommitted text in that popup becomes invisible. This does not repair focus or positioning bugs. IMEs with custom rendering are not supported. Turn this off to restore normal display.") });
+            Text = T("小窓内の入力途中の文字は見えなくなります。入力先や表示位置の不具合を直す機能ではありません。左上が正しい入力位置でも隠れる場合があります。独自の描画方式を使うIMEには適用されません。オフにすると元の表示に戻ります。",
+                "Uncommitted text in that popup becomes invisible. This does not repair focus or positioning bugs. A legitimate corner popup may also be hidden when Windows exposes no caret position. IMEs with custom rendering are not supported. Turn this off to restore normal display.") });
         startup.Text = T("Windowsと同時に起動する", "Start with Windows");
         startup.Checked = startWithWindows;
         panel.Controls.Add(startup);
