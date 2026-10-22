@@ -31,7 +31,25 @@ try {
         Write-Output "$taskFeature : $($taskCapability.State)"
         if ($taskCapability.State -ne 'Installed') {
             Write-Output "Installing $taskFeature from Windows Update at $([DateTime]::UtcNow.ToString('O'))"
-            $taskInstall = Add-WindowsCapability -Online -Name $taskFeature
+            $taskInstallJob = Start-Job -ArgumentList $taskFeature -ScriptBlock {
+                param($feature)
+                $ErrorActionPreference = 'Stop'
+                Add-WindowsCapability -Online -Name $feature
+            }
+            try {
+                $taskTimer = [Diagnostics.Stopwatch]::StartNew()
+                while ($taskInstallJob.State -in @('NotStarted', 'Running')) {
+                    Wait-Job -Job $taskInstallJob -Timeout 30 | Out-Null
+                    if ($taskInstallJob.State -notin @('NotStarted', 'Running')) { break }
+                    Write-Output "Capability install still pending after $([int]$taskTimer.Elapsed.TotalSeconds) seconds."
+                    if ($taskTimer.Elapsed.TotalMinutes -ge 12) { throw "Capability installation timed out: $taskFeature" }
+                }
+                $taskInstall = Receive-Job -Job $taskInstallJob -ErrorAction Stop
+                if ($taskInstallJob.State -ne 'Completed') { throw 'Capability installation job failed.' }
+            } finally {
+                if ($taskInstallJob.State -in @('NotStarted', 'Running')) { Stop-Job $taskInstallJob }
+                Remove-Job $taskInstallJob
+            }
             Write-Output "Installation returned; restart required: $($taskInstall.RestartNeeded)"
             if ($taskInstall.RestartNeeded) { throw 'IME installation requires a restart; this run cannot validate actual input.' }
         }

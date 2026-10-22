@@ -7,6 +7,7 @@ on:
       - '.github/workflows/v3-real-ime.yml'
       - 'tools/Install-GuardTestIme.ps1'
       - 'tests/GuardImeTests/**'
+      - 'Editions/Guard/*.cs'
 permissions:
   contents: read
 jobs:
@@ -33,6 +34,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet tests/GuardImeTests/bin/Guard/Release/net8.0-windows/GuardImeTests.dll
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve capability installation diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($entry in @(@('DISM/dism.log', 'dism'), @('CBS/CBS.log', 'cbs'))) {
+            $log = Join-Path "$env:WINDIR/Logs" $entry[0]
+            if (Test-Path -LiteralPath $log) {
+              Get-Content -LiteralPath $log -Tail 160 | Set-Content -LiteralPath "$env:RUNNER_TEMP/v3-ime-$($entry[1]).txt"
+            }
+          }
       - name: Save provisioning evidence
         if: always()
         uses: actions/upload-artifact@v4
