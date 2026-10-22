@@ -153,6 +153,9 @@ static class NativeChecks
             finally { if (!crashing.HasExited) { crashing.StandardInput.Close(); Wait(() => crashing.HasExited); } }
         }
         Check(!recovery.HasRecords, "Successful restoration removes recovery records");
+        string interrupted = Path.Combine(recovery.DirectoryPath, Guid.NewGuid().ToString("N") + ".json.pending");
+        File.WriteAllText(interrupted, "{");
+        Check(recovery.Recover() && !File.Exists(interrupted), "Interrupted unpublished records are cleaned without blocking display recovery");
         for (int i = 0; i < 65; i++) recovery.Save(new(1, 1, 1, uint.MaxValue, uint.MaxValue, null));
         Check(!recovery.Recover() && recovery.HasRecords, "Recovery batch limit never reports success with outstanding records");
         Check(recovery.Recover() && !recovery.HasRecords, "A subsequent recovery completes the remaining bounded batch");

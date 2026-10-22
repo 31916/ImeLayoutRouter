@@ -28,6 +28,11 @@ internal sealed class CompositionRecovery
     internal bool Recover()
     {
         if (!Directory.Exists(DirectoryPath)) return true;
+        // The worker mutex excludes a live writer. A pending file was never
+        // published and therefore never authorized a window mutation. Clean
+        // only our generated names; unrelated files in this folder are kept.
+        foreach (string path in Directory.EnumerateFiles(DirectoryPath, "*.json.pending").Take(64))
+            if (Guid.TryParseExact(Path.GetFileName(path)[..^13], "N", out _)) File.Delete(path);
         bool recovered = true;
         foreach (string path in Directory.EnumerateFiles(DirectoryPath, "*.json").Take(64))
         {
