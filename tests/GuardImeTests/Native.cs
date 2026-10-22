@@ -58,6 +58,7 @@ internal static class Native
     [DllImport("user32.dll")] internal static extern bool IsWindowVisible(nint h);
     [DllImport("user32.dll")] internal static extern bool IsWindow(nint h);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern int GetClassNameW(nint h, StringBuilder name, int count);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern int GetWindowTextW(nint h, StringBuilder name, int count);
     [DllImport("user32.dll")] internal static extern bool GetWindowRect(nint h, out Rect rect);
     [DllImport("user32.dll")] internal static extern nint GetWindow(nint h, uint command);
     [DllImport("user32.dll")] internal static extern int GetWindowLongW(nint h, int index);

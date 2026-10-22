@@ -55,7 +55,13 @@ internal static class ChromeChecks
             Wait(() => {
                 Native.EnumWindows((h, _) => {
                     Native.GetWindowThreadProcessId(h, out uint pid);
-                    if (pid == browser.Id && Native.IsWindowVisible(h)) window = h;
+                    if (pid != browser.Id || !Native.IsWindowVisible(h)) return true;
+                    var name = new StringBuilder(128); var title = new StringBuilder(256);
+                    Native.GetClassNameW(h, name, name.Capacity); Native.GetWindowTextW(h, title, title.Capacity);
+                    // Chrome also owns visible utility/compositor windows.
+                    // Select the actual main window for our local document.
+                    if (name.ToString() == "Chrome_WidgetWin_1"
+                        && title.ToString().Contains("V3 local browser input fixture", StringComparison.Ordinal)) window = h;
                     return true;
                 }, 0);
                 return window != 0;

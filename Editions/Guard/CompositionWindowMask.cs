@@ -71,14 +71,31 @@ internal sealed class CompositionWindowMask : IDisposable
         mask.ReleaseOriginal(); // journal remains available if this attempt failed
         return result;
     }
-    internal bool IsIntact => !restored && GetPropW(window, Property) == token && IsEmpty(window);
+    // GetWindowRgn can transiently return ERROR (also used for "no explicit
+    // region") while the owner moves its window. It is not proof that the
+    // owner replaced our empty region. Yield only to a positively read region.
+    internal bool IsIntact => !restored && GetPropW(window, Property) == token && RegionKind(window) is <= 1;
     internal bool TryRestore()
     {
         if (restored) return true;
         Trace($"restore hwnd={window:X} token={GetPropW(window, Property)} expected={token} original={original:X}");
         if (GetPropW(window, Property) != token) { ReleaseOriginal(); File.Delete(journal); restored = true; return true; }
-        // If the owner replaced the region, preserve its more recent decision.
-        if (IsEmpty(window))
+        int kind = RegionKind(window);
+        if (kind < 0) return false;
+        // With an originally unbounded window, clearing the region is safe
+        // even when the query is ambiguous: both possible originals are 0.
+        // For a saved custom region, allow an in-flight owner move to finish
+        // before interpreting "no region" as an intentional replacement.
+        // This bounded wait is on the helper, never on the main UI thread.
+        if (kind == 0 && original != 0)
+        {
+            if (SendMessageTimeoutW(window, 0, 0, 0, 2, 40, out _) == 0) return false;
+            Thread.Sleep(100);
+            kind = RegionKind(window);
+            if (kind < 0) return false;
+        }
+        // A positively read non-empty owner region takes precedence.
+        if (kind == 1 || (kind == 0 && original == 0))
         {
             if (SendMessageTimeoutW(window, 0, 0, 0, 2, 40, out _) == 0 && IsWindow(window)) return false;
             if (SetWindowRgn(window, original, true) == 0)
@@ -95,11 +112,18 @@ internal sealed class CompositionWindowMask : IDisposable
         Trace($"restored hwnd={window:X} empty={IsEmpty(window)}");
         return true;
     }
-    private static bool IsEmpty(nint window)
+    private static bool IsEmpty(nint window) => RegionKind(window) == 1;
+#if GUARD_NATIVE_TRACE
+    internal static Func<nint, int>? RegionQueryOverride;
+#endif
+    private static int RegionKind(nint window)
     {
+#if GUARD_NATIVE_TRACE
+        if (RegionQueryOverride != null) return RegionQueryOverride(window);
+#endif
         nint region = CreateRectRgn(0, 0, 0, 0);
-        if (region == 0) return false;
-        try { int kind = GetWindowRgn(window, region); Trace($"region hwnd={window:X} kind={kind}"); return kind == 1; }
+        if (region == 0) return -1;
+        try { int kind = GetWindowRgn(window, region); Trace($"region hwnd={window:X} kind={kind}"); return kind; }
         finally { DeleteObject(region); }
     }
     private void ReleaseOriginal() { if (original != 0) DeleteObject(original); original = 0; }

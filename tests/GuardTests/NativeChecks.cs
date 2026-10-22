@@ -88,6 +88,36 @@ static class NativeChecks
             Check(bounds.Left == 9 && bounds.Top == 8, "Owner region changes take precedence over old saved state");
         }
         SetWindowRgn(corner.Handle, 0, true);
+        using (var ambiguous = CompositionWindowMask.TryCreate(corner.Handle, recovery) ?? throw new Exception("Could not mask query fixture"))
+        {
+            try
+            {
+                CompositionWindowMask.RegionQueryOverride = _ => 0;
+                Check(ambiguous.IsIntact, "An ambiguous region query cannot relinquish mask ownership");
+                Check(ambiguous.TryRestore(), "An originally unbounded window is restored despite an ambiguous region query");
+            }
+            finally { CompositionWindowMask.RegionQueryOverride = null; }
+            Check(RegionType(corner.Handle) == 0, "Ambiguous query restoration leaves no orphaned empty region");
+        }
+        SetWindowRgn(corner.Handle, CreateRectRgn(4, 5, 80, 25), true);
+        using (var ambiguousCustom = CompositionWindowMask.TryCreate(corner.Handle, recovery) ?? throw new Exception("Could not mask custom query fixture"))
+        {
+            int queries = 0;
+            try
+            {
+                CompositionWindowMask.RegionQueryOverride = h => queries++ == 0 ? 0 : RegionType(h);
+                Check(ambiguousCustom.TryRestore(), "A transient unavailable query does not discard a saved custom region");
+            }
+            finally { CompositionWindowMask.RegionQueryOverride = null; }
+            using var region = new Region(); GetWindowRgn(corner.Handle, region.Handle); GetRgnBox(region.Handle, out var bounds);
+            Check(bounds.Left == 4 && bounds.Top == 5, "Custom region survives a transient unavailable query");
+        }
+        using (var removedByOwner = CompositionWindowMask.TryCreate(corner.Handle, recovery) ?? throw new Exception("Could not mask owner removal fixture"))
+        {
+            SetWindowRgn(corner.Handle, 0, true);
+            Check(removedByOwner.TryRestore() && RegionType(corner.Handle) == 0,
+                "A stable owner-removed region is preserved instead of restoring the old custom region");
+        }
         using (var ownerChanges = new CompositionGuard(() => fixture.Handle, recovery))
         {
             ownerChanges.Tick();
