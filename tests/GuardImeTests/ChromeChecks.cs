@@ -34,7 +34,10 @@ internal static class ChromeChecks
         try
         {
             string portFile = Path.Combine(profile, "DevToolsActivePort");
-            Wait(() => File.Exists(portFile), "Chrome exposes only its isolated profile debugger");
+            Wait(() => {
+                if (browser.HasExited) throw new InvalidOperationException($"Fixture Chrome exited during startup: {browser.ExitCode}");
+                return File.Exists(portFile);
+            }, "Chrome exposes only its isolated profile debugger", 30000);
             int port = int.Parse(File.ReadAllLines(portFile)[0], System.Globalization.CultureInfo.InvariantCulture);
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             using var targets = JsonDocument.Parse(http.GetStringAsync($"http://127.0.0.1:{port}/json/list").GetAwaiter().GetResult());
@@ -107,8 +110,8 @@ internal static class ChromeChecks
     }
     private static void Pump(int milliseconds)
     { long end = Environment.TickCount64 + milliseconds; do { Native.PumpMessages(); Thread.Sleep(10); } while (Environment.TickCount64 < end); }
-    private static void Wait(Func<bool> predicate, string name)
-    { long end = Environment.TickCount64 + 15000; while (!predicate() && Environment.TickCount64 < end) Pump(50); Check(predicate(), name); }
+    private static void Wait(Func<bool> predicate, string name, int timeoutMs = 15000)
+    { long end = Environment.TickCount64 + timeoutMs; while (!predicate() && Environment.TickCount64 < end) Pump(50); Check(predicate(), name); }
     private static void Check(bool value, string name)
     { if (!value) throw new InvalidOperationException("FAIL " + name); Console.WriteLine("PASS " + name); }
     private sealed class Cdp : IDisposable

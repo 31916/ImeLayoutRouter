@@ -2,6 +2,8 @@
 
 > **V3開発ブランチ / V3 development branch:** 左上の未確定文字の小窓を隠す単体版を開発中です。
 > V1・V2への追加は保留しています。V3は未リリースで、実際のIMEとの互換性確認が残っています。
+> このブランチの既定ビルドはV3です。既存版はV1・V2ブランチを参照してください。
+> Builds on this branch default to V3. Use the V1/V2 branches for existing editions.
 > [V3の仕様・検証状況 / V3 scope and validation](Editions/Guard/README.md)
 
 [Official downloads / 公式ダウンロード](https://31916.ch/IMELayoutRouter/)
