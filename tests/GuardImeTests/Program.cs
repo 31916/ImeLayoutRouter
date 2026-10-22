@@ -25,7 +25,13 @@ internal static class Program
         evidence = Environment.GetEnvironmentVariable("RUNNER_TEMP")!;
         using var output = new StreamWriter(Path.Combine(evidence, "v3-ime-checks.txt")) { AutoFlush = true };
         Console.SetOut(TextWriter.Synchronized(new TeeWriter(Console.Out, output)));
-        try { Run(); Console.WriteLine("PASS Real Japanese IME checks completed."); return 0; }
+        bool desktopOnly = args.Length == 1 && args[0] == "--check-desktop";
+        try
+        {
+            Run(desktopOnly);
+            Console.WriteLine(desktopOnly ? "PASS Disposable desktop accepts fixture focus. No IME input tested." : "PASS Real Japanese IME checks completed.");
+            return 0;
+        }
         catch (Exception ex)
         {
             Console.WriteLine(ex);
@@ -44,7 +50,7 @@ internal static class Program
         }
     }
 
-    private static void Run()
+    private static void Run(bool desktopOnly)
     {
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Console.WriteLine($"OS={Environment.OSVersion}; process={RuntimeInformation.ProcessArchitecture}; session={Process.GetCurrentProcess().SessionId}");
@@ -58,6 +64,7 @@ internal static class Program
         window = Native.CreateWindowExW(0, cls.Name!, "V3 Japanese IME compatibility fixture", 0x10CF0000, 350, 250, 800, 400, 0, 0, cls.Instance, 0);
         Check(window != 0, "Own input fixture created");
         Focus();
+        if (desktopOnly) return;
         bool microsoftIme = string.Equals(Environment.GetEnvironmentVariable("GUARD_TEST_IME_CLSID"),
             "03B5835F-F03C-411B-9CE2-AA23E1171E36", StringComparison.OrdinalIgnoreCase);
         Tsf.ActivateJapanese(forTestDesktop: microsoftIme);
