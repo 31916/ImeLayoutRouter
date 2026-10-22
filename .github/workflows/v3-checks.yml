@@ -34,3 +34,11 @@ jobs:
           name: v3-development-validation
           path: ${{ runner.temp }}/v3-native-checks.txt
           if-no-files-found: warn
+      - name: Build and validate the development installer (not published)
+        shell: pwsh
+        run: |
+          dotnet publish -c Release -p:Edition=Guard -r win-x64 --self-contained true --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer/V3.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./tools/Test-GuardInstaller.ps1 -Installer (Get-ChildItem installer/output-v3/*-Setup.exe).FullName

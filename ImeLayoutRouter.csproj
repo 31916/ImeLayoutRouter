@@ -37,6 +37,8 @@
   <ItemGroup Condition="'$(Edition)' == 'Guard'">
     <Compile Remove="*.cs" />
     <Compile Include="Editions\Guard\*.cs" />
+    <Content Remove="README.md;CHANGELOG.md;docs\releases\*.md" />
+    <Content Include="Editions\Guard\README.md" TargetPath="README.md" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

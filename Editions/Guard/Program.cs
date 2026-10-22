@@ -5,6 +5,7 @@ static class Program
     [STAThread] static void Main(string[] args)
     {
         if (CompositionGuardClient.TryRunWorker(args)) return;
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         // V3 can run alongside the existing V1/V2 routing application.
