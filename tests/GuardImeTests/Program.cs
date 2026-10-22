@@ -184,7 +184,7 @@ internal static class Program
     {
         nint result = 0;
         Native.EnumThreadWindows(Native.GetCurrentThreadId(), (h, _) => {
-            if (Class(h) == CompositionGuardPolicy.WindowClass && Native.IsWindowVisible(h)) result = h;
+            if ((Class(h) == CompositionGuardPolicy.WindowClass || Class(h) == "CiceroUIWndFrame") && Native.IsWindowVisible(h)) result = h;
             return true;
         }, 0);
         return result;
@@ -210,6 +210,11 @@ internal static class Program
                 nint owner = Native.GetWindow(h, 4);
                 uint ownerThread = Native.GetWindowThreadProcessId(owner, out uint ownerPid);
                 Console.WriteLine($"class={name}; visible={Native.IsWindowVisible(h)}; pid={pid}; tid={thread}; rect={rect.Left},{rect.Top},{rect.Right},{rect.Bottom}; empty={EmptyRegion(h)}; style=0x{Native.GetWindowLongW(h, -16):X}; classStyle=0x{Native.GetClassLongW(h, -26):X}; ownerClass={Class(owner)}; ownerPid={ownerPid}; ownerTid={ownerThread}");
+                if (name == "CiceroUIWndFrame") Native.EnumChildWindows(h, (child, _) => {
+                    Native.GetWindowRect(child, out var childRect);
+                    Console.WriteLine($"  child class={Class(child)}; visible={Native.IsWindowVisible(child)}; rect={childRect.Left},{childRect.Top},{childRect.Right},{childRect.Bottom}; style=0x{Native.GetWindowLongW(child, -16):X}; classStyle=0x{Native.GetClassLongW(child, -26):X}");
+                    return true;
+                }, 0);
             }
             return true;
         }, 0);

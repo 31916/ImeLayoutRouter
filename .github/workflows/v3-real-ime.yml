@@ -1,13 +1,8 @@
 name: V3 real IME compatibility
 on:
   workflow_dispatch:
-  push:
-    branches: [V3]
-    paths:
-      - '.github/workflows/v3-real-ime.yml'
-      - 'tools/Install-GuardTestIme.ps1'
-      - 'tests/GuardImeTests/**'
-      - 'Editions/Guard/*.cs'
+# Windows capability retrieval is environment-dependent. Run this explicitly
+# so ordinary fixture edits do not repeat a stalled OS package download.
 permissions:
   contents: read
 jobs:
