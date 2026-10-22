@@ -13,6 +13,13 @@ internal static class ChromeChecks
         if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true"
             || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted")
             throw new InvalidOperationException("Browser input tests require a disposable GitHub-hosted VM");
+        Native.GetWindowThreadProcessId(Native.GetForegroundWindow(), out uint preparationPid);
+        Check(preparationPid == Environment.ProcessId, "Own fixture holds focus while preparing the browser input language");
+        // On Windows 8+, LoadKeyboardLayout has no effect when the caller
+        // does not own keyboard focus. Prepare Japanese before Chrome takes
+        // focus, and verify Chrome's own input language after it launches.
+        Tsf.ActivateJapanese(forTestDesktop: true);
+        Pump(500);
         string chrome = new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 }
             .Select(folder => Path.Combine(Environment.GetFolderPath(folder), "Google", "Chrome", "Application", "chrome.exe"))
             .FirstOrDefault(File.Exists) ?? throw new FileNotFoundException("The hosted image must provide Chrome");
@@ -23,7 +30,7 @@ internal static class ChromeChecks
             <!doctype html><meta charset="utf-8"><title>V3 local browser input fixture</title>
             <style>body{font:24px sans-serif;margin:80px}input,textarea{font:28px sans-serif;display:block;margin:20px 0;width:600px}</style>
             <h1>Disposable V3 input validation</h1><label>Text<input id="text"></label><label>Multiline<textarea id="area"></textarea></label>
-            <script>window.imeEvents=[];for(const type of ['compositionstart','compositionupdate','compositionend'])document.addEventListener(type,e=>imeEvents.push({type,data:e.data}));</script>
+            <script>window.imeEvents=[];window.keyEvents=[];for(const type of ['compositionstart','compositionupdate','compositionend'])document.addEventListener(type,e=>imeEvents.push({type,data:e.data}));document.addEventListener('keydown',e=>keyEvents.push({key:e.key,target:e.target.id,composing:e.isComposing}));</script>
             """, Encoding.UTF8);
         string profile = Path.Combine(root, "profile");
         var start = new ProcessStartInfo(chrome) { UseShellExecute = false };
@@ -55,21 +62,26 @@ internal static class ChromeChecks
             }, "The new Chrome process owns a visible test window");
             Native.SetForegroundWindow(window);
             Wait(() => Native.GetForegroundWindow() == window, "Only the isolated Chrome window receives browser test keys");
-            Tsf.ActivateJapanese(forTestDesktop: true);
-            Pump(500);
+            uint browserThread = Native.GetWindowThreadProcessId(window, out _);
+            nint browserLayout = Native.GetKeyboardLayout(browserThread);
+            Console.WriteLine($"Chrome input thread HKL=0x{browserLayout:X}");
+            Check((browserLayout.ToInt64() & 0xFFFF) == 0x411, "Chrome's input thread selected Japanese before typing");
             var baseline = new Dictionary<string, string>();
             foreach (bool enabled in new[] { false, true })
             {
                 guard.SetEnabled(enabled); Pump(400);
                 foreach (string field in new[] { "text", "area" })
                 {
-                    cdp.Value($"(()=>{{const e=document.getElementById('{field}');e.value='';window.imeEvents=[];e.focus();return e.id;}})()");
+                    cdp.Value($"(()=>{{const e=document.getElementById('{field}');e.value='';window.imeEvents=[];window.keyEvents=[];e.focus();return e.id;}})()");
+                    Check(cdp.Value("document.activeElement.id") == field && cdp.Value("String(document.hasFocus())") == "true",
+                        "Local Chrome field owns document focus: " + field);
                     Key(window, 0x16); // VK_IME_ON in this browser's input context
                     if (string.Equals(Environment.GetEnvironmentVariable("GUARD_TEST_IME_CLSID"),
                         "03B5835F-F03C-411B-9CE2-AA23E1171E36", StringComparison.OrdinalIgnoreCase)) HiraganaShortcut(window);
                     foreach (char key in "NIHONN") { Key(window, key); Pump(100); }
                     string pending = cdp.Value($"document.getElementById('{field}').value");
                     Console.WriteLine($"Chrome {field}, enabled={enabled}: pending={pending}; events=" + cdp.Value("JSON.stringify(window.imeEvents)"));
+                    if (pending != "にほん") Console.WriteLine("Own browser key trace: " + cdp.Value("JSON.stringify(window.keyEvents)"));
                     Check(pending == "にほん", "Chrome receives real Japanese preedit in " + field);
                     Key(window, 0x20); Pump(200); Key(window, 0x20); Pump(200); Key(window, 0x26); Key(window, 0x0D); Pump(300);
                     string result = cdp.Value($"document.getElementById('{field}').value");
@@ -81,6 +93,16 @@ internal static class ChromeChecks
                 }
             }
             Check(true, "Ordinary Chrome text input and textarea work with V3 off/on");
+        }
+        catch
+        {
+            // Entry is restricted to the disposable VM. Preserve the failing
+            // browser state before closing this unique test profile.
+            var bounds = Screen.PrimaryScreen!.Bounds;
+            using var bitmap = new Bitmap(bounds.Width, bounds.Height);
+            using (var graphics = Graphics.FromImage(bitmap)) graphics.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
+            bitmap.Save(Path.Combine(Environment.GetEnvironmentVariable("RUNNER_TEMP")!, "v3-ime-browser-failure.png"));
+            throw;
         }
         finally
         {
