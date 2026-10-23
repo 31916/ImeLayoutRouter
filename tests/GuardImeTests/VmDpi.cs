@@ -29,9 +29,10 @@ internal sealed class VmDpi : IDisposable
         {
             var mode = new VmDisplays.Mode { Size = (ushort)Marshal.SizeOf<VmDisplays.Mode>() };
             if (!VmDisplays.EnumDisplaySettingsExW(device, index, ref mode, 0)) break;
-            if (mode.Bits == 32 && mode.Width is >= 2560 and <= 3840 && mode.Height is >= 1440 and <= 2160) modes.Add(mode);
+            if (mode.Bits == 32) Console.WriteLine($"Available VM display mode: {mode.Width}x{mode.Height}, {mode.Frequency} Hz");
+            if (mode.Bits == 32 && mode.Width is >= 1920 and <= 3840 && mode.Height is >= 1080 and <= 2160) modes.Add(mode);
         }
-        if (modes.Count == 0) throw new InvalidOperationException("This VM has no display mode large enough for actual 200% DPI testing");
+        if (modes.Count == 0) throw new InvalidOperationException("This VM has no display mode large enough for actual 150% DPI testing");
         var chosen = modes.OrderBy(mode => mode.Width * mode.Height).ThenBy(mode => Math.Abs((int)mode.Frequency - 60)).First();
         Console.WriteLine($"Preparing actual VM resolution: {chosen.Width}x{chosen.Height}");
         chosen.Fields = 0x40000 | 0x80000 | 0x100000 | 0x400000;

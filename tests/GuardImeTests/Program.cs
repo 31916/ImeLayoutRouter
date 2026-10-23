@@ -238,7 +238,7 @@ internal static class Program
         var desktop = Screen.PrimaryScreen!.Bounds;
         Native.SetWindowPos(backdrop, 0, desktop.Left, desktop.Top, desktop.Width, desktop.Height, 0x14);
         string? baseline = null;
-        foreach (int percent in new[] { 100, 150, 200 })
+        foreach (int percent in new[] { 100, 150 })
         {
             guard.SetEnabled(false);
             scaling.Set(Screen.PrimaryScreen!.DeviceName, percent);
