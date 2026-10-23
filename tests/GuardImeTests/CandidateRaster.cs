@@ -21,13 +21,19 @@ internal static class CandidateRaster
     internal static bool Verify(Bitmap before, string label)
     {
         using var panel = Capture();
-        int previousInk = 0, ink = 0, referenceInk = 0, matched = 0;
+        string evidence = Environment.GetEnvironmentVariable("RUNNER_TEMP")!;
+        before.Save(Path.Combine(evidence, "v3-ime-" + label + "-before-candidates.png"));
+        panel.Save(Path.Combine(evidence, "v3-ime-" + label + "-candidate-panel.png"));
+        int previousInk = 0, ink = 0, changedInk = 0, referenceInk = 0, matched = 0;
         for (int y = 0; y < panel.Height; y++)
         for (int x = 0; x < panel.Width; x++)
         {
             var pixel = panel.GetPixel(x, y);
-            if (IsInk(before.GetPixel(x, y))) previousInk++;
+            var previous = before.GetPixel(x, y);
+            if (IsInk(previous)) previousInk++;
             if (IsInk(pixel)) ink++;
+            if ((IsInk(previous) || IsInk(pixel)) && (Math.Abs(pixel.R - previous.R) > 30
+                || Math.Abs(pixel.G - previous.G) > 30 || Math.Abs(pixel.B - previous.B) > 30)) changedInk++;
             if (baseline != null && IsInk(baseline.GetPixel(x, y)))
             {
                 referenceInk++;
@@ -36,8 +42,10 @@ internal static class CandidateRaster
                     && Math.Abs(pixel.B - expected.B) <= 30) matched++;
             }
         }
-        Console.WriteLine($"{label}: rendered candidate panel beforeInk={previousInk}; ink={ink}; referenceInk={referenceInk}; matched={matched}");
-        if (previousInk > 100 || ink < 500) return false;
+        Console.WriteLine($"{label}: rendered candidate panel beforeInk={previousInk}; ink={ink}; changedInk={changedInk}; referenceInk={referenceInk}; matched={matched}");
+        // Learned predictive suggestions can already be visible before Space.
+        // Require actual glyph changes into the conversion panel, not blankness.
+        if (changedInk < 200 || ink < 500) return false;
         if (baseline == null) { baseline = (Bitmap)panel.Clone(); return true; }
         return referenceInk > 500 && matched >= referenceInk * .95
             && ink >= referenceInk * .95 && ink <= referenceInk * 1.05;
