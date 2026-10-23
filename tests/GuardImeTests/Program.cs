@@ -207,7 +207,7 @@ internal static class Program
         uint bytes = Native.ImmGetCandidateListW(context, 0, null, 0);
         Console.WriteLine($"{label}: candidate-list bytes={bytes}");
         var tsf = bytes == 0 ? TsfCandidates.Read() : null;
-        bool accessible = bytes == 0 && tsf == null && AccessibleCandidates.AreVisible();
+        bool accessible = bytes == 0 && tsf == null && AccessibleCandidates.AreVisible(() => Pump(10));
         Check((bytes >= 24 && bytes < 1024 * 1024) || tsf is { Count: > 0, Shown: true } || accessible,
             label + ": actual IME conversion candidates exist via IMM, TSF or visible accessibility elements");
         var buffer = new byte[bytes];
