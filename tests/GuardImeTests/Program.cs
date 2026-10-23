@@ -194,7 +194,9 @@ internal static class Program
         // Exercise window reuse and repeated start/end composition with one
         // continuously running production helper, using only this test input.
         var timings = new List<uint>();
-        for (int cycle = 0; cycle < 10; cycle++)
+        int cycles = int.TryParse(Environment.GetEnvironmentVariable("GUARD_IME_CYCLES"), out int requestedCycles) ? requestedCycles : 10;
+        if (cycles is < 1 or > 500) throw new InvalidOperationException("Real composition cycle count must be 1..500");
+        for (int cycle = 0; cycle < cycles; cycle++)
         {
             PositionComposition(new Point(0, 0));
             using (var timing = new MaskObservation())

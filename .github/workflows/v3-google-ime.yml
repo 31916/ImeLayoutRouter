@@ -1,6 +1,11 @@
 name: V3 Google IME compatibility
 on:
   workflow_dispatch:
+    inputs:
+      extended:
+        description: 'Validate 200 consecutive real compositions with one helper'
+        type: boolean
+        default: false
   push:
     branches: [V3]
     paths:
@@ -13,10 +18,11 @@ permissions:
 jobs:
   google-ime:
     runs-on: windows-2025
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       GUARD_TEST_IME_CLSID: D5A86FD5-5308-47EA-AD16-9C4EB160EC3C
       GUARD_TEST_BROWSER: chrome
+      GUARD_IME_CYCLES: ${{ inputs.extended && '200' || '10' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -26,7 +32,7 @@ jobs:
         shell: powershell
         run: ./tools/Install-GuardGoogleIme.ps1
       - name: Validate actual Japanese input and composition suppression
-        timeout-minutes: 5
+        timeout-minutes: 15
         shell: pwsh
         run: |
           dotnet build tests/GuardImeTests/GuardImeTests.csproj -c Release -p:Edition=Guard --warnaserror
