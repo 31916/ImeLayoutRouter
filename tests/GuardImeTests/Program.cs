@@ -203,19 +203,26 @@ internal static class Program
     private static string ConvertAndCommit(string label, CompositionGuardClient? guard)
     {
         committed.Clear();
+        bool microsoft = string.Equals(Environment.GetEnvironmentVariable("GUARD_TEST_IME_CLSID"),
+            "03B5835F-F03C-411B-9CE2-AA23E1171E36", StringComparison.OrdinalIgnoreCase);
+        using var beforeCandidates = microsoft ? CandidateRaster.Capture() : null;
         Key(0x20); Pump(300); Key(0x20); Pump(600);
         uint bytes = Native.ImmGetCandidateListW(context, 0, null, 0);
         Console.WriteLine($"{label}: candidate-list bytes={bytes}");
         var tsf = bytes == 0 ? TsfCandidates.Read() : null;
         bool accessible = bytes == 0 && tsf == null && AccessibleCandidates.AreVisible(() => Pump(10));
-        Check((bytes >= 24 && bytes < 1024 * 1024) || tsf is { Count: > 0, Shown: true } || accessible,
-            label + ": actual IME conversion candidates exist via IMM, TSF or visible accessibility elements");
+        bool raster = bytes == 0 && tsf == null && !accessible && beforeCandidates != null
+            && CandidateRaster.Verify(beforeCandidates, label);
+        bool observed = accessible || raster;
+        Check((bytes >= 24 && bytes < 1024 * 1024) || tsf is { Count: > 0, Shown: true } || observed,
+            label + ": actual IME conversion candidates exist via IMM, TSF, accessibility or compared panel pixels");
         var buffer = new byte[bytes];
-        Check(accessible || tsf != null || (Native.ImmGetCandidateListW(context, 0, buffer, bytes) == bytes && BitConverter.ToUInt32(buffer, 8) > 0),
+        Check(observed || tsf != null || (Native.ImmGetCandidateListW(context, 0, buffer, bytes) == bytes && BitConverter.ToUInt32(buffer, 8) > 0),
             label + ": conversion candidate list is nonempty");
         DumpWindows(label + "-candidates");
         var candidates = CandidateSurfaces();
         if (accessible) candidates.Add("UIA:Microsoft candidate panel with visible 日本 and 二本");
+        if (raster) candidates.Add("Raster:Microsoft candidate panel, baseline glyph pixels preserved");
         if (tsf is { Shown: true })
         {
             Check(tsf.Sample.Contains("日本"), label + ": TSF candidates contain the fixed test word's conversion");
@@ -229,12 +236,12 @@ internal static class Program
         else Check(baselineCandidateClasses.IsSubsetOf(candidates), "V3 preserves the baseline candidate UI classes");
         // Always choose the first candidate so learning from the baseline does
         // not change a later 'second candidate' and create a false difference.
-        if (accessible) Check(Composition() == "二本", label + ": second candidate is the expected fixed-word conversion");
-        uint selection = accessible ? 1 : tsf?.Selection ?? BitConverter.ToUInt32(buffer, 12);
+        if (observed) Check(Composition() == "二本", label + ": second candidate is the expected fixed-word conversion");
+        uint selection = observed ? 1 : tsf?.Selection ?? BitConverter.ToUInt32(buffer, 12);
         for (int i = 0; selection != 0 && i < 20; i++)
         {
             Key(0x26); Pump(100);
-            if (accessible)
+            if (observed)
             {
                 Check(Composition() == "日本", label + ": Up selects the expected first candidate");
                 selection = 0;
