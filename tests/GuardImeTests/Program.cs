@@ -16,6 +16,7 @@ internal static class Program
     private static readonly HashSet<string> baselineCandidateClasses = [];
     private static readonly List<string> inputMessages = [];
     private static MaskObservation? observation;
+    private static CompositionGuardClient? activeGuard;
     [STAThread] private static int Main(string[] args)
     {
         if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true"
@@ -116,6 +117,7 @@ internal static class Program
         Check(baseline.Length > 0 && baseline.Any(c => c > 0x3000), "Baseline conversion commits Japanese text");
 
         using var guard = new CompositionGuardClient();
+        activeGuard = guard;
         guard.SetEnabled(true);
         Check(guard.Error == null, "Production V3 helper starts");
         PositionComposition(new Point(0, 0));
@@ -505,6 +507,12 @@ internal static class Program
     {
         long end = Environment.TickCount64 + 5000;
         while (!predicate() && Environment.TickCount64 < end) Pump(20);
+        if (!predicate())
+        {
+            var gui = new CompositionGuard.Native.GuiInfo { Size = (uint)Marshal.SizeOf<CompositionGuard.Native.GuiInfo>() };
+            bool queried = CompositionGuard.Native.GetGUIThreadInfo(Native.GetCurrentThreadId(), ref gui);
+            Console.WriteLine($"Wait failure state: helper={activeGuard?.CheckError() ?? "no reported error"}; queried={queried}; foreground=0x{Native.GetForegroundWindow():X}; own=0x{window:X}; caret=0x{gui.Caret:X}; caretClass={Class(gui.Caret)}; caretRect={gui.CaretRect.Left},{gui.CaretRect.Top},{gui.CaretRect.Right},{gui.CaretRect.Bottom}");
+        }
         Check(predicate(), name);
     }
     private static void Check(bool value, string name) { if (!value) throw new InvalidOperationException("FAIL " + name); Console.WriteLine("PASS " + name); }

@@ -62,6 +62,18 @@ static class NativeChecks
         }
         guard.Dispose();
 
+        Check(CreateCaret(corner.Handle, 0, 1, 20) && SetCaretPos(0, 0), "Synthetic composition owns its internal caret");
+        var caretInfo = new CompositionGuard.Native.GuiInfo { Size = (uint)Marshal.SizeOf<CompositionGuard.Native.GuiInfo>() };
+        Check(CompositionGuard.Native.GetGUIThreadInfo(GetCurrentThreadId(), ref caretInfo) && caretInfo.Caret == corner.Handle,
+            "Windows exposes the composition surface's internal caret");
+        guard.Tick();
+        Check(RegionType(corner.Handle) == 1, "An IME surface's internal caret is not mistaken for the application's insertion point");
+        guard.Dispose(); DestroyCaret();
+        Check(CreateCaret(ordinary.Handle, 0, 1, 20) && SetCaretPos(0, 0), "Ordinary corner input owns an application caret");
+        guard.Tick();
+        Check(RegionType(corner.Handle) == 0, "A genuine application corner caret keeps composition visible");
+        guard.Dispose(); DestroyCaret();
+
         var initialRegion = CreateRectRgn(2, 3, 90, 22);
         Check(SetWindowRgn(corner.Handle, initialRegion, true) != 0, "Fixture starts with a custom region");
         using (var mask = CompositionWindowMask.TryCreate(corner.Handle, recovery) ?? throw new Exception("Could not create mask"))
@@ -310,6 +322,9 @@ static class NativeChecks
     [DllImport("user32.dll")] private static extern nint DefWindowProcW(nint window, uint message, nint wp, nint lp);
     [DllImport("user32.dll")] private static extern bool DestroyWindow(nint window);
     [DllImport("user32.dll")] private static extern bool ShowWindow(nint window, int command);
+    [DllImport("user32.dll")] private static extern bool CreateCaret(nint window, nint bitmap, int width, int height);
+    [DllImport("user32.dll")] private static extern bool SetCaretPos(int x, int y);
+    [DllImport("user32.dll")] private static extern bool DestroyCaret();
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint window);
     [DllImport("user32.dll")] private static extern bool SetWindowPos(nint window, nint after, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] private static extern int SetWindowRgn(nint window, nint region, bool redraw);
