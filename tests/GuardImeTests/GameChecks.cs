@@ -37,7 +37,9 @@ internal static class GameChecks
                         if (pid == game.Id && cls.ToString() == "OTTD" && Native.IsWindowVisible(h)) window = h;
                         return true;
                     }, 0);
-                    return window != 0 && File.Exists(log) && Read(log).Contains("V3_READY", StringComparison.Ordinal);
+                    // OpenTTD buffers its console log until `script` closes it.
+                    // Existence here confirms the startup script opened the log.
+                    return window != 0 && File.Exists(log);
                 }, "Official OpenTTD 15.3 launched its own local game", 60000);
                 Native.SetForegroundWindow(window);
                 Wait(() => Native.GetForegroundWindow() == window, "Only the test game receives keys");
@@ -55,6 +57,7 @@ internal static class GameChecks
                 {
                     guard.SetEnabled(enabled); Pump(400);
                     Key(window, 0x1A);
+                    if (enabled) { Ascii(window, $"script v3-{label}.log"); Key(window, 0x0D); }
                     foreach (char key in "ECHO ") Key(window, key);
                     Key(window, 0x16); Pump(500);
                     foreach (char key in "NIHONN") { Key(window, key); Pump(100); }
@@ -62,6 +65,7 @@ internal static class GameChecks
                     Key(window, 0x20); Pump(200); Key(window, 0x20); Pump(200);
                     Capture(evidence, $"v3-ime-game-{label}-{enabled}-candidates.png");
                     Key(window, 0x26); Key(window, 0x0D); Pump(200); Key(window, 0x0D);
+                    Key(window, 0x1A); Ascii(window, "script"); Key(window, 0x0D); // close/flush the game's own log
                     int expected = enabled ? 2 : 1;
                     Wait(() => Read(log).Split('\n').Count(line => line.Trim() == "日本") == expected,
                         $"OpenTTD commits the actual Japanese conversion with V3 enabled={enabled}, fullscreen={fullscreen}");
@@ -96,6 +100,14 @@ internal static class GameChecks
         image.Save(Path.Combine(directory, name));
     }
     private static void Key(nint window, int key) => Send(window, new Native.Keyboard { Key = (ushort)key });
+    private static void Ascii(nint window, string command)
+    {
+        foreach (char character in command)
+        {
+            if (character > 127) throw new InvalidOperationException("Only ASCII setup commands may bypass IME translation");
+            Send(window, new Native.Keyboard { Scan = character, Flags = 4 });
+        }
+    }
     private static void Send(nint window, Native.Keyboard keyboard)
     {
         if (Native.GetForegroundWindow() != window) throw new InvalidOperationException("Test game lost focus; input stopped");
