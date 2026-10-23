@@ -111,6 +111,7 @@ try {
             Save-Attempt
             break
         } catch {
+            $taskExit = 1
             $_ | Out-String | Set-Content "$taskEvidence/failure.txt"
             'exit=1' | Set-Content "$taskEvidence/result.txt"
             Save-Attempt
@@ -130,6 +131,7 @@ try {
         }
     }
 } catch {
+    $taskExit = 1
     $_ | Out-String | Write-Output
 } finally {
     "exit=$taskExit" | Set-Content "$taskEvidence/result.txt"

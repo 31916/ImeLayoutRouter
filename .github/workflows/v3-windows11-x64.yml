@@ -1,9 +1,8 @@
 name: V3 isolated Windows 11 x64
 on:
   workflow_dispatch:
-  push:
-    branches: [V3]
-    paths: ['.github/workflows/v3-windows11-x64.yml', 'tools/guard-vm/**']
+# A full OS install is expensive. Dispatch explicitly; in-flight prepared VMs
+# can validate corrected V3 revisions without starting another OS installation.
 permissions:
   contents: read
 jobs:

@@ -34,6 +34,16 @@ V1・V2とは設定・起動登録を分けているため、既存版と同時�
 上書きインストール・アンインストールは表示の復元を先に行い、復元できない場合は
 処理を中止します。上書き時は保存済みの設定と自動起動の選択を保持します。
 
+### 使い方
+
+1. 起動後の設定画面で「左上の未確定文字の小窓を隠す」を選び、保存します。
+2. 必要なら「Windowsと同時に起動する」を選びます。インストールだけでは自動起動は有効になりません。
+3. 設定を変えるときは通知領域のアイコンをダブルクリックします。表示を戻して終了するときは、
+   アイコンのメニューから「終了して表示を戻す」を選びます。
+
+誤って必要な小窓まで隠れた場合は設定をオフにしてください。
+上書き・アンインストール時に復元できないという表示が出た場合は、入力先のアプリを終了してから再実行してください。
+
 2026年10月23日（日本時間）、使い捨てのWindows Server 2025環境で
 Google日本語入力3.34.6260.0の実入力・変換・確定・取消し・表示復元を確認しました。
 通常位置の表示、左上に実際のカーソルがある場合の表示、前面切り替え、200回連続の入力も
@@ -269,9 +279,9 @@ the tested environment, not a promise for every application.
 
 | IME | V3 off | V3 on |
 | --- | --- | --- |
-| Microsoft Japanese IME / Windows 11 ARM | [Composition and candidates](../../docs/v3-validation/microsoft-before.png) | [Candidates preserved, composition hidden](../../docs/v3-validation/microsoft-after.png) |
-| Google Japanese Input / Windows Server 2025 | [Composition and candidates](../../docs/v3-validation/google-before.png) | [Candidates preserved, composition hidden](../../docs/v3-validation/google-after.png) |
-| Google Japanese Input / borderless fullscreen fixture | [Composition and candidates](../../docs/v3-validation/google-fullscreen-before.png) | [Candidates preserved, composition hidden](../../docs/v3-validation/google-fullscreen-after.png) |
+| Microsoft Japanese IME / Windows 11 ARM | [Composition and candidates](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/microsoft-before.png) | [Candidates preserved, composition hidden](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/microsoft-after.png) |
+| Google Japanese Input / Windows Server 2025 | [Composition and candidates](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/google-before.png) | [Candidates preserved, composition hidden](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/google-after.png) |
+| Google Japanese Input / borderless fullscreen fixture | [Composition and candidates](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/google-fullscreen-before.png) | [Candidates preserved, composition hidden](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/google-fullscreen-after.png) |
 
 ## Build / check
 
