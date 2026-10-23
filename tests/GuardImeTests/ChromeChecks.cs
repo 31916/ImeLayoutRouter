@@ -63,9 +63,23 @@ internal static class ChromeChecks
                 catch (IOException) { return false; }
             }, "Chrome exposes only its isolated profile debugger", 60000);
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-            using var targets = JsonDocument.Parse(http.GetStringAsync($"http://127.0.0.1:{port}/json/list").GetAwaiter().GetResult());
-            var target = targets.RootElement.EnumerateArray().Single(t => t.GetProperty("type").GetString() == "page");
-            using var cdp = new Cdp(target.GetProperty("webSocketDebuggerUrl").GetString()!);
+            string? debugger = null;
+            // The port file can be complete before Chrome's HTTP target service
+            // answers. This bounded readiness probe precedes every test key.
+            Wait(() => {
+                if (browser.HasExited) throw new InvalidOperationException("Fixture browser exited before exposing its page");
+                try
+                {
+                    using var targets = JsonDocument.Parse(http.GetStringAsync($"http://127.0.0.1:{port}/json/list").GetAwaiter().GetResult());
+                    var pages = targets.RootElement.EnumerateArray().Where(t => t.GetProperty("type").GetString() == "page"
+                        && t.GetProperty("url").GetString() == new Uri(page).AbsoluteUri).ToArray();
+                    if (pages.Length != 1) return false;
+                    debugger = pages[0].GetProperty("webSocketDebuggerUrl").GetString();
+                    return debugger != null;
+                }
+                catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return false; }
+            }, "Browser debugger serves exactly the local fixture target", 60000);
+            using var cdp = new Cdp(debugger!);
             Wait(() => cdp.Value("document.title") == "V3 local browser input fixture", "Chrome loaded only the local test page");
             nint window = 0;
             Wait(() => {

@@ -216,12 +216,49 @@ internal static class Program
             Check(Composition().Length == 0 && guard.CheckError() == null, "Helper survives repeated input/cancellation: " + cycle);
         }
         Console.WriteLine("Real popup show-event to empty-region observations (ms; not video/first-frame latency): " + string.Join(", ", timings));
+        RunFullscreenChecks(guard);
         if (Environment.GetEnvironmentVariable("GUARD_TEST_VM_SLEEP") == "1") RunResumeChecks(guard);
         if (Environment.GetEnvironmentVariable("GUARD_TEST_VM_DISPLAYS") == "1") RunMonitorChecks(guard);
         guard.SetEnabled(false);
         Pump(600);
         if (Environment.GetEnvironmentVariable("GUARD_TEST_BROWSER") == "chrome") ChromeChecks.Run(guard);
     }
+
+    private static void RunFullscreenChecks(CompositionGuardClient guard)
+    {
+        // Real IME input in our own borderless full-screen Win32 window.
+        // This does not claim coverage of exclusive DirectX or anti-cheat games.
+        int style = Native.GetWindowLongW(window, -16);
+        Check(Native.GetWindowRect(window, out var previous), "Full-screen fixture saves its own bounds");
+        var screen = Screen.FromHandle(window).Bounds;
+        string? baseline = null;
+        try
+        {
+            SetWindowLongW(window, -16, unchecked((int)0x90000000));
+            Check(Native.SetWindowPos(window, 0, screen.Left, screen.Top, screen.Width, screen.Height, 0x34),
+                "Own fixture enters borderless full-screen mode");
+            Focus(); Pump(300);
+            foreach (bool enabled in new[] { false, true })
+            {
+                guard.SetEnabled(enabled); Pump(400);
+                PositionComposition(screen.Location); TypeNihon();
+                Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h) == enabled,
+                    "Full-screen real composition matches suppression selection: " + enabled);
+                Check(Composition() == "にほん", "Full-screen masking preserves real pending text");
+                string result = ConvertAndCommit(enabled ? "fullscreen-enabled" : "fullscreen-baseline", enabled ? guard : null);
+                if (!enabled) baseline = result;
+                else Check(result == baseline, "Full-screen conversion and candidates preserve the baseline result");
+            }
+        }
+        finally
+        {
+            guard.SetEnabled(false);
+            SetWindowLongW(window, -16, style);
+            Native.SetWindowPos(window, 0, previous.Left, previous.Top, previous.Right - previous.Left, previous.Bottom - previous.Top, 0x34);
+            Focus(); Pump(400);
+        }
+    }
+    [DllImport("user32.dll")] private static extern int SetWindowLongW(nint h, int index, int value);
 
     private static void RunMonitorChecks(CompositionGuardClient guard)
     {
