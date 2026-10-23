@@ -78,7 +78,7 @@ internal static class Program
             {
                 Focus();
                 Console.WriteLine($"Browser cold start {start + 1}/{starts}; mode={Environment.GetEnvironmentVariable("GUARD_BROWSER_READY_MODE") ?? "native-ready"}");
-                ChromeChecks.Run(browserGuard);
+                ChromeChecks.Run(browserGuard, enabledFirst: start % 2 == 1);
             }
             return;
         }

@@ -14,10 +14,12 @@ jobs:
       fail-fast: false
       matrix:
         mode: [legacy, native-ready]
+        browser: [chrome, edge]
     env:
       GUARD_TEST_IME_CLSID: D5A86FD5-5308-47EA-AD16-9C4EB160EC3C
       GUARD_BROWSER_STARTS: '12'
       GUARD_BROWSER_READY_MODE: ${{ matrix.mode }}
+      GUARD_TEST_BROWSER: ${{ matrix.browser }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -35,7 +37,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: v3-browser-startup-${{ matrix.mode }}
+          name: v3-browser-startup-${{ matrix.browser }}-${{ matrix.mode }}
           path: |
             ${{ runner.temp }}/v3-ime-*.txt
             ${{ runner.temp }}/v3-ime-*.png

@@ -8,7 +8,7 @@ using System.Text.Json;
 // CDP only prepares/reads our local fixture; it never supplies composition text.
 internal static class ChromeChecks
 {
-    internal static void Run(CompositionGuardClient guard)
+    internal static void Run(CompositionGuardClient guard, bool enabledFirst = false)
     {
         if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true"
             || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted")
@@ -20,9 +20,13 @@ internal static class ChromeChecks
         // focus, and verify Chrome's own input language after it launches.
         Tsf.ActivateJapanese(forTestDesktop: true);
         Pump(500);
+        bool edge = Environment.GetEnvironmentVariable("GUARD_TEST_BROWSER") == "edge";
         string chrome = new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 }
-            .Select(folder => Path.Combine(Environment.GetFolderPath(folder), "Google", "Chrome", "Application", "chrome.exe"))
+            .Select(folder => edge ? Path.Combine(Environment.GetFolderPath(folder), "Microsoft", "Edge", "Application", "msedge.exe")
+                : Path.Combine(Environment.GetFolderPath(folder), "Google", "Chrome", "Application", "chrome.exe"))
             .FirstOrDefault(File.Exists) ?? throw new FileNotFoundException("The hosted image must provide Chrome");
+        Console.WriteLine($"Browser executable: {chrome}; version={FileVersionInfo.GetVersionInfo(chrome).FileVersion}; V3 enabled at startup={enabledFirst}");
+        guard.SetEnabled(enabledFirst);
         string root = Path.Combine(Environment.GetEnvironmentVariable("RUNNER_TEMP")!, "guard-chrome-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         string page = Path.Combine(root, "input.html");
@@ -41,11 +45,19 @@ internal static class ChromeChecks
         try
         {
             string portFile = Path.Combine(profile, "DevToolsActivePort");
+            int port = 0;
             Wait(() => {
                 if (browser.HasExited) throw new InvalidOperationException($"Fixture Chrome exited during startup: {browser.ExitCode}");
-                return File.Exists(portFile);
+                // Existence precedes the browser closing/flushing this file.
+                // Wait for a complete endpoint, not a retry of failed typing.
+                try
+                {
+                    string[] lines = File.ReadAllLines(portFile);
+                    return lines.Length >= 2 && lines[1].StartsWith("/devtools/browser/", StringComparison.Ordinal)
+                        && int.TryParse(lines[0], out port) && port is > 0 and <= 65535;
+                }
+                catch (IOException) { return false; }
             }, "Chrome exposes only its isolated profile debugger", 30000);
-            int port = int.Parse(File.ReadAllLines(portFile)[0], System.Globalization.CultureInfo.InvariantCulture);
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             using var targets = JsonDocument.Parse(http.GetStringAsync($"http://127.0.0.1:{port}/json/list").GetAwaiter().GetResult());
             var target = targets.RootElement.EnumerateArray().Single(t => t.GetProperty("type").GetString() == "page");
@@ -73,7 +85,7 @@ internal static class ChromeChecks
             Console.WriteLine($"Chrome input thread HKL=0x{browserLayout:X}");
             Check((browserLayout.ToInt64() & 0xFFFF) == 0x411, "Chrome's input thread selected Japanese before typing");
             var baseline = new Dictionary<string, string>();
-            foreach (bool enabled in new[] { false, true })
+            foreach (bool enabled in new[] { enabledFirst, !enabledFirst })
             {
                 guard.SetEnabled(enabled); Pump(400);
                 foreach (string field in new[] { "text", "area" })
@@ -97,7 +109,7 @@ internal static class ChromeChecks
                     string result = cdp.Value($"document.getElementById('{field}').value");
                     Check(cdp.Value("String(window.imeEvents.some(e=>e.type==='compositionend'))") == "true" && result.Any(c => c > 0x3000),
                         "Chrome receives an actual IME composition-end and Japanese commit in " + field);
-                    if (!enabled) baseline[field] = result;
+                    if (enabled == enabledFirst) baseline[field] = result;
                     else Check(result == baseline[field] && guard.CheckError() == null, "V3 preserves Chrome's baseline conversion in " + field);
                     Console.WriteLine($"Chrome {field}, enabled={enabled}: committed={result}");
                 }
