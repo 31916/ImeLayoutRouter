@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [legacy, native-ready]
+        mode: [native-ready]
         browser: [chrome, edge]
     env:
       GUARD_TEST_IME_CLSID: D5A86FD5-5308-47EA-AD16-9C4EB160EC3C

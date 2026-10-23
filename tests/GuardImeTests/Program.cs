@@ -202,9 +202,39 @@ internal static class Program
             Check(Composition().Length == 0 && guard.CheckError() == null, "Helper survives repeated input/cancellation: " + cycle);
         }
         Console.WriteLine("Real popup show-event to empty-region observations (ms; not video/first-frame latency): " + string.Join(", ", timings));
+        if (Environment.GetEnvironmentVariable("GUARD_TEST_VM_SLEEP") == "1") RunResumeChecks(guard);
         guard.SetEnabled(false);
         Pump(600);
         if (Environment.GetEnvironmentVariable("GUARD_TEST_BROWSER") == "chrome") ChromeChecks.Run(guard);
+    }
+
+    private static void RunResumeChecks(CompositionGuardClient guard)
+    {
+        string? baselineResume = null;
+        foreach (bool enabled in new[] { false, true })
+        {
+            committed.Clear();
+            guard.SetEnabled(enabled); Pump(400);
+            PositionComposition(new Point(0, 0)); TypeNihon();
+            if (enabled) Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "Real composition masked before suspend");
+            VmLifecycle.Suspend(Pump, enabled ? 2 : 1);
+            Focus(); Pump(300);
+            string resumed = committed + "|" + Composition();
+            Console.WriteLine($"Suspend/resume enabled={enabled}: committed|pending={resumed}");
+            Check((committed.ToString() + Composition()) == "にほん", "Actual sleep/resume preserves the fixed test input");
+            if (!enabled) baselineResume = resumed;
+            else Check(resumed == baselineResume && guard.CheckError() == null, "V3 preserves baseline resume behavior and helper lifetime");
+            guard.SetEnabled(false); Pump(400);
+            nint popup = FindComposition();
+            Check(popup == 0 || !EmptyRegion(popup), "Disable after resume restores any surviving surface");
+            Key(0x1B); Pump(100); Key(0x1B); Pump(100);
+            committed.Clear();
+            guard.SetEnabled(true);
+            PositionComposition(new Point(0, 0)); TypeNihon();
+            Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "New composition is masked after resume");
+            Key(0x0D); Pump(300);
+            Check(committed.ToString() == "にほん" && Composition().Length == 0, "New input commits correctly after resume");
+        }
     }
 
     private static string ConvertAndCommit(string label, CompositionGuardClient? guard)
@@ -410,6 +440,7 @@ internal static class Program
     }
     private static nint WndProc(nint h, uint msg, nint wp, nint lp)
     {
+        if (h == window) VmLifecycle.Observe(msg, wp);
         if (h == window && inputMessages.Count < 80 && msg is 0x102 or 0x10D or 0x10E or 0x10F or 0x286)
             inputMessages.Add($"{msg:X}:wp={wp:X},lp={lp:X}");
         // Unicode windows receive WM_IME_CHAR for default-IME conversion.

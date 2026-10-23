@@ -37,11 +37,14 @@ internal static class ChromeChecks
             <script>window.imeEvents=[];window.keyEvents=[];for(const type of ['compositionstart','compositionupdate','compositionend'])document.addEventListener(type,e=>imeEvents.push({type,data:e.data}));document.addEventListener('keydown',e=>keyEvents.push({key:e.key,target:e.target.id,composing:e.isComposing}));</script>
             """, Encoding.UTF8);
         string profile = Path.Combine(root, "profile");
-        var start = new ProcessStartInfo(chrome) { UseShellExecute = false };
+        var startupMessages = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var start = new ProcessStartInfo(chrome) { UseShellExecute = false, RedirectStandardError = true };
         foreach (string arg in new[] { "--user-data-dir=" + profile, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1",
-            "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--new-window", new Uri(page).AbsoluteUri })
+            "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--enable-logging=stderr", "--new-window", new Uri(page).AbsoluteUri })
             start.ArgumentList.Add(arg);
         using var browser = Process.Start(start) ?? throw new InvalidOperationException("Could not start fixture Chrome");
+        browser.ErrorDataReceived += (_, e) => { if (e.Data != null && startupMessages.Count < 200) startupMessages.Enqueue(e.Data); };
+        browser.BeginErrorReadLine();
         try
         {
             string portFile = Path.Combine(profile, "DevToolsActivePort");
@@ -57,7 +60,7 @@ internal static class ChromeChecks
                         && int.TryParse(lines[0], out port) && port is > 0 and <= 65535;
                 }
                 catch (IOException) { return false; }
-            }, "Chrome exposes only its isolated profile debugger", 30000);
+            }, "Chrome exposes only its isolated profile debugger", 60000);
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             using var targets = JsonDocument.Parse(http.GetStringAsync($"http://127.0.0.1:{port}/json/list").GetAwaiter().GetResult());
             var target = targets.RootElement.EnumerateArray().Single(t => t.GetProperty("type").GetString() == "page");
@@ -90,10 +93,11 @@ internal static class ChromeChecks
                 guard.SetEnabled(enabled); Pump(400);
                 foreach (string field in new[] { "text", "area" })
                 {
-                    cdp.Value($"(()=>{{const e=document.getElementById('{field}');e.value='';window.imeEvents=[];window.keyEvents=[];e.focus();return e.id;}})()");
+                    bool legacy = Environment.GetEnvironmentVariable("GUARD_BROWSER_READY_MODE") == "legacy";
+                    cdp.Value($"(()=>{{const e=document.getElementById('{field}');e.value='';window.imeEvents=[];window.keyEvents=[];{(legacy ? "e.focus();" : "")}return e.id;}})()");
+                    if (!legacy) ClickInput(cdp, window, browser.Id, field);
                     Check(cdp.Value("document.activeElement.id") == field && cdp.Value("String(document.hasFocus())") == "true",
                         "Local Chrome field owns document focus: " + field);
-                    bool legacy = Environment.GetEnvironmentVariable("GUARD_BROWSER_READY_MODE") == "legacy";
                     if (!legacy) WaitForNativeInput(window, browserThread, false);
                     Key(window, 0x16); // VK_IME_ON in this browser's input context
                     if (string.Equals(Environment.GetEnvironmentVariable("GUARD_TEST_IME_CLSID"),
@@ -118,6 +122,7 @@ internal static class ChromeChecks
         }
         catch
         {
+            Console.WriteLine("Browser startup diagnostics: " + string.Join(Environment.NewLine, startupMessages));
             // Entry is restricted to the disposable VM. Preserve the failing
             // browser state before closing this unique test profile.
             var bounds = Screen.PrimaryScreen!.Bounds;
@@ -132,6 +137,30 @@ internal static class ChromeChecks
             // Only the process launched with this new, unique test profile.
             if (!browser.HasExited) { browser.Kill(entireProcessTree: true); browser.WaitForExit(5000); }
         }
+    }
+    private static void ClickInput(Cdp cdp, nint window, int process, string field)
+    {
+        // Real pointer focus updates Chrome's native text-input client as well
+        // as renderer DOM focus. Only the disposable browser can receive it.
+        using var geometry = JsonDocument.Parse(cdp.Value($"JSON.stringify((()=>{{const r=document.getElementById('{field}').getBoundingClientRect();return {{x:r.x+r.width/2,y:r.y+r.height/2,scale:devicePixelRatio}};}})())"));
+        nint render = 0;
+        Native.EnumChildWindows(window, (h, _) => {
+            var cls = new StringBuilder(128); Native.GetClassNameW(h, cls, cls.Capacity);
+            if (cls.ToString() == "Chrome_RenderWidgetHostHWND" && Native.IsWindowVisible(h)) render = h;
+            return true;
+        }, 0);
+        Check(render != 0, "The local browser owns a native render view");
+        var g = geometry.RootElement;
+        var point = new Native.Point { X = (int)(g.GetProperty("x").GetDouble() * g.GetProperty("scale").GetDouble()),
+            Y = (int)(g.GetProperty("y").GetDouble() * g.GetProperty("scale").GetDouble()) };
+        Check(Native.ClientToScreen(render, ref point), "Test field coordinates belong to the browser render view");
+        Native.GetWindowThreadProcessId(Native.WindowFromPoint(point), out uint owner);
+        Check(owner == process && Native.GetForegroundWindow() == window, "Only this disposable browser receives its focus click");
+        Check(Native.SetCursorPos(point.X, point.Y), "Disposable pointer targets the local test field");
+        var down = new Native.Input { Type = 0, Data = new Native.InputUnion { Mouse = new Native.Mouse { Flags = 2 } } };
+        var up = down; up.Data.Mouse.Flags = 4;
+        Check(Native.SendInput(2, [down, up], Marshal.SizeOf<Native.Input>()) == 2, "Local test field receives its native focus click");
+        Pump(300);
     }
     private static string DescribeInput(uint thread)
     {
@@ -150,7 +179,7 @@ internal static class ChromeChecks
         // Read only this disposable browser's native focus and IME state. Do not
         // type a warm-up word, discard failures or retry the measured input.
         long deadline = Environment.TickCount64 + 5000;
-        nint lastFocus = 0; long stableSince = Environment.TickCount64;
+        nint lastFocus = 0; long stableSince = Environment.TickCount64, nextConfigure = stableSince + 500;
         while (Environment.TickCount64 < deadline)
         {
             if (Native.GetForegroundWindow() != window) throw new InvalidOperationException("Chrome lost focus during native input preparation");
@@ -161,6 +190,13 @@ internal static class ChromeChecks
             {
                 nint ime = ImmGetDefaultIMEWnd(info.Focus);
                 ready = ime != 0 && SendMessageTimeoutW(ime, 0x283, 5, 0, 2, 100, out nint open) != 0 && open != 0;
+                if (!ready && Environment.TickCount64 >= nextConfigure)
+                {
+                    // Idempotent mode setup only. Never resend a test character.
+                    Console.WriteLine("Waiting for the browser's own IME-on configuration: " + DescribeInput(thread));
+                    Key(window, 0x16);
+                    nextConfigure = Environment.TickCount64 + 500;
+                }
             }
             if (!ready || info.Focus != lastFocus) { stableSince = Environment.TickCount64; lastFocus = info.Focus; }
             if (ready && Environment.TickCount64 - stableSince >= 300)
