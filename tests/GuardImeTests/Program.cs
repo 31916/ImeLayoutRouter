@@ -121,7 +121,15 @@ internal static class Program
         PositionComposition(new Point(0, 0));
         TypeNihon();
         var watch = Stopwatch.StartNew();
-        Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "V3 masks the real corner composition popup");
+        try { Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "V3 masks the real corner composition popup"); }
+        catch
+        {
+            Console.WriteLine("Helper state before cleanup: " + (guard.CheckError() ?? "running/no reported error"));
+            var gui = new CompositionGuard.Native.GuiInfo { Size = (uint)Marshal.SizeOf<CompositionGuard.Native.GuiInfo>() };
+            bool queried = CompositionGuard.Native.GetGUIThreadInfo(Native.GetCurrentThreadId(), ref gui);
+            Console.WriteLine($"Failure native input: queried={queried}; foreground=0x{Native.GetForegroundWindow():X}; own=0x{window:X}; focus=0x{gui.Focus:X}; caret=0x{gui.Caret:X}; caretClass={Class(gui.Caret)}; caretRect={gui.CaretRect.Left},{gui.CaretRect.Top},{gui.CaretRect.Right},{gui.CaretRect.Bottom}");
+            throw;
+        }
         Console.WriteLine($"Mask observation after completed typing: {watch.ElapsedMilliseconds} ms (not a first-frame latency measurement)");
         Check(Composition() == "にほん", "Masking preserves the uncommitted string");
         DumpWindows("masked");
