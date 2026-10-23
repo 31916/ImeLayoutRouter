@@ -36,16 +36,84 @@ V1・V2とは設定・起動登録を分けているため、既存版と同時�
 
 2026年10月23日（日本時間）、使い捨てのWindows Server 2025環境で
 Google日本語入力3.34.6260.0の実入力・変換・確定・取消し・表示復元を確認しました。
-通常位置の表示、左上に実際のカーソルがある場合の表示、前面切り替え、10回連続の入力も
+通常位置の表示、左上に実際のカーソルがある場合の表示、前面切り替え、200回連続の入力も
 確認済みです。Chromeの通常の入力欄・複数行入力欄でも、日本語入力と変換結果が
 V3のオン・オフで変わらないことを確認しました。同日、Windows 11 ARM（build 26200）の
 Microsoft日本語IMEでも、同じ入力・候補保持・表示抑制・復元の検証に成功しました。
 候補一覧は実際の描画とキー操作で照合し、画像も目視確認しています。
-他のブラウザーやゲーム、Windows 11 x64、複数モニター、復帰動作は
+Chrome・Edgeはそれぞれ新規プロファイル12回、入力・変換確定48回を確認しました。
+V3を最初からオンにして起動するケースも含みます。検証コードは、DOMの読み込みだけでなく、
+検証ページの実際の描画、入力欄のクリック、Windows側のフォーカスとIMEオンを確認してから
+最初の文字を送るように修正しました。失敗した文字の再送で成功扱いにする処理はありません。
+IME小窓自身の内部カーソルとアプリの入力カーソルを区別する修正も行いました。
+枠なし全画面の検証用ウィンドウでも、実際のGoogle日本語入力で候補保持と確定結果を確認しました。
+OpenTTD 15.3でも通常表示・全画面表示の双方で「日本」の確定と候補表示を確認しました。
+これはそのゲームのWin32描画モードでの結果であり、他のゲームやアンチチート環境の対応保証ではありません。
+100%・150%へWindowsの表示倍率を実際に変更した状態でも、未確定文字の抑制・候補表示・確定結果を確認しました。
+Windows 11 x64、複数モニター、復帰動作は
 まだ検証完了していないため、完成版としては公開していません。
 
 ## Validation gates
 
+- [Actual display-scaling run 39946177768](https://github.com/31916/ImeLayoutRouter/actions/runs/39946177768)
+  passed at `aa00156` with Google Japanese Input on Windows Server 2025.
+  The disposable display used 1920×1080 with actual Windows scaling set to
+  100% and 150%. `GetDpiForWindow` confirmed 96 and 144 DPI. At each scale,
+  real preedit, suppression off/on, candidate selection and committed `日本`
+  passed. Original scale and resolution were restored. This is actual DPI
+  coverage on one virtual display, not mixed-monitor or physical GPU coverage.
+- [Actual OpenTTD run 39944490548](https://github.com/31916/ImeLayoutRouter/actions/runs/39944490548)
+  passed at `58d5444` with Google Japanese Input. Official OpenTTD 15.3 and
+  OpenGFX 8.0 portable archives were checked against published SHA-256 hashes.
+  Real OS keystrokes entered and converted the word; both windowed and actual
+  Win32 fullscreen modes logged exactly `日本` with V3 off/on. Candidate
+  screenshots were reviewed. The game's default console font lacks Japanese
+  glyphs on this image in both states; its own UTF-8 log confirms the committed
+  characters, and the IME candidate text is visible. This is compatibility
+  evidence for this game, not a claim that it reproduced the corner-popup bug
+  or that every graphics driver, exclusive DirectX game or anti-cheat is covered.
+- [Final browser readiness run 39942734809](https://github.com/31916/ImeLayoutRouter/actions/runs/39942734809)
+  passed at `e7b2b1a`, including the bounded CDP target-service wait. Chrome and
+  Edge each passed 12 fresh starts, 48 preedit checks and 48 conversion commits.
+- [Extended actual-input run 39941173718](https://github.com/31916/ImeLayoutRouter/actions/runs/39941173718)
+  passed at `3b311b9`: 200 consecutive real compositions/cancellations with one
+  continuously running helper. Show-event-to-empty-region observations ranged
+  from 31 to 421 ms; these are not first-frame latency measurements.
+- [Borderless fullscreen run 39942310612](https://github.com/31916/ImeLayoutRouter/actions/runs/39942310612)
+  passed at `da89de2` with Google Japanese Input. An actual fullscreen Win32
+  fixture preserved `にほん`, visible conversion candidates and the same `日本`
+  commit with suppression off/on. Before/after screenshots were reviewed.
+  This does not establish compatibility with a named game, exclusive DirectX
+  fullscreen or anti-cheat software. The same run passed the browser fixture
+  after adding a bounded wait for its own CDP target service: a separate
+  [earlier run](https://github.com/31916/ImeLayoutRouter/actions/runs/39941171126)
+  exhausted the original five-second HTTP timeout before any browser test text.
+- [Caret regression and installer run 39940492216](https://github.com/31916/ImeLayoutRouter/actions/runs/39940492216)
+  passed at `539981d`: 25 policy/settings and 43 native checks, plus installer
+  lifecycle validation. Windows can expose the fallback composition surface's
+  own caret through `GetGUIThreadInfo`. Treating that as the application's
+  insertion point incorrectly exempted the corner popup. A native regression
+  [failed before the fix](https://github.com/31916/ImeLayoutRouter/actions/runs/39940216170)
+  at `86a51bc` and passed after excluding the verified IME surface's internal
+  caret. A separate check preserves legitimate application corner carets.
+- [Chrome/Edge cold-start run 39940492480](https://github.com/31916/ImeLayoutRouter/actions/runs/39940492480)
+  passed at `539981d` with Google Japanese Input on Windows Server 2025. Each
+  browser used 12 fresh profiles, alternating V3 off-first/on-first, and passed
+  48 real preedit/commit checks across text inputs and textareas. No failed
+  input was retried or discarded. Earlier failures exposed separate fixture
+  races: reading `DevToolsActivePort` before it was fully written, treating a
+  loaded DOM as a visible first frame, and using renderer focus before native
+  text input was ready. The fixture now waits for the complete endpoint, checks
+  an actually rendered local-page marker, clicks its own input, and verifies
+  stable native focus/IME-on before sending the first measured character.
+  Repeating an idempotent IME-on setup is bounded and precedes test text; it is
+  never a retry of the word. These preparation steps exist only in the fixture.
+- [Real Google IME run 39940496381](https://github.com/31916/ImeLayoutRouter/actions/runs/39940496381)
+  passed at `539981d` after the caret correction, including candidates,
+  cancellation, normal/corner-caret exclusions, focus changes, restoration,
+  ten repeated compositions and Chrome input. Reviewed candidate evidence
+  retains the conversion list while hiding the fallback frame. Show-event to
+  empty-region observations were 47–156 ms, not first-frame latency.
 - [Native and installer run 39877751275](https://github.com/31916/ImeLayoutRouter/actions/runs/39877751275)
   passed at `7f21609`: 25 policy/settings checks, 38 native checks, and development
   installer lifecycle checks. All 200 cross-process move/restore/remask cycles
@@ -110,10 +178,11 @@ Microsoft日本語IMEでも、同じ入力・候補保持・表示抑制・復�
 - One earlier Google browser baseline at `319fef3`
   ([run 39877451559](https://github.com/31916/ImeLayoutRouter/actions/runs/39877451559))
   failed before V3 was enabled: Chrome received only `honn` with no composition
-  events. Later independent runs passed, but the cold-start fixture/input-service
-  readiness issue is not considered resolved by those passes.
-- Other browsers/games, Windows 11 x64, multiple physical monitors/DPI and
-  sleep/resume remain separate release gates. A passing synthetic test alone
+  events. Independent passes alone did not resolve it. The readiness changes
+  and repeated off-first/on-first validation above supersede that fixture.
+- Windows 11 x64, real Windows multi-display topology on the disposable VM,
+  and actual ACPI sleep/resume remain separate release gates. Physical GPUs
+  and every monitor model are not covered by VM testing. A passing synthetic test alone
   does not authorize a release installer or download-page update.
 - The helper reacts to foreground/window show, hide, destroy and position events,
   with a 100 ms fallback scan and 10 ms event-burst coalescing. Notifications run
@@ -168,7 +237,9 @@ screen rectangle outside the preedit popup and test window. It requires actual
 glyph changes after conversion, at least 500 dark glyph pixels and preservation
 of at least 95% of baseline glyph pixels/count, plus the expected second-to-first
 candidate selection and committed result. This is a fixture-specific visual
-regression check, not OCR or a universal candidate detector. The full before/
+regression check, not OCR or a universal candidate detector. Each display mode
+establishes its own V3-off reference before comparing V3-on, because Windows
+can shift the candidate panel when a window enters fullscreen. The full before/
 after screenshots remain subject to human review. All this observation code is
 excluded from the application.
 
@@ -176,6 +247,20 @@ An optional, explicitly dispatched 10-minute repair window keeps the prepared
 VM available for new V3 revisions after a failure. Each exact revision and result
 is recorded separately. The workflow passes only if both input tests pass for
 the initial revision or one recorded repair revision; failed evidence is retained.
+
+The official Windows 11 x64 evaluation workflow runs inside a disposable KVM
+guest with no incoming network port. Only that guest receives input, display
+changes and sleep requests. Official ISO and display-driver downloads are
+hash-checked; the guest also checks the driver and browser publisher signatures.
+After an input failure, it keeps the prepared VM for up to ten minutes to test a
+changed public V3 revision. The failed revision's logs remain separate, and a
+passing revision must complete its own full input and two-cycle ACPI checks.
+No guest disk, credentials, installer or OS ISO is uploaded as evidence.
+
+The hosted ARM image has a separately reported
+[WSL updater focus-stealing defect](https://github.com/actions/runner-images/issues/14264).
+The preparation script's workaround is restricted to this repository's
+GitHub-hosted ARM VM. It is not compiled into V3 or applied to a developer PC.
 
 ### Reviewed screenshots (2026-10-23 JST)
 
@@ -186,6 +271,7 @@ the tested environment, not a promise for every application.
 | --- | --- | --- |
 | Microsoft Japanese IME / Windows 11 ARM | [Composition and candidates](../../docs/v3-validation/microsoft-before.png) | [Candidates preserved, composition hidden](../../docs/v3-validation/microsoft-after.png) |
 | Google Japanese Input / Windows Server 2025 | [Composition and candidates](../../docs/v3-validation/google-before.png) | [Candidates preserved, composition hidden](../../docs/v3-validation/google-after.png) |
+| Google Japanese Input / borderless fullscreen fixture | [Composition and candidates](../../docs/v3-validation/google-fullscreen-before.png) | [Candidates preserved, composition hidden](../../docs/v3-validation/google-fullscreen-after.png) |
 
 ## Build / check
 

@@ -1,262 +1,69 @@
-# IMELayoutRouter (IME Layout Router)
+# IMELayoutRouter V3 — Composition Guard
 
-> **V3開発ブランチ / V3 development branch:** 左上の未確定文字の小窓を隠す単体版を開発中です。
-> V1・V2への追加は保留しています。V3は未リリースです。Google日本語入力とMicrosoft日本語IMEの
-> 実入力・候補保持・表示抑制は検証済みですが、複数モニター・復帰動作などの確認が残っています。
-> このブランチの既定ビルドはV3です。既存版はV1・V2ブランチを参照してください。
-> Builds on this branch default to V3. Use the V1/V2 branches for existing editions.
-> [V3の仕様・検証状況 / V3 scope and validation](Editions/Guard/README.md)
+Windowsで、入力途中の文字が画面左上の小窓に出る現象を対象にした単体ツールです。
+対象の小窓を隠し、オフにしたときや終了時には元の表示へ戻します。
+**IMEやキーボード配列の切り替え、入力内容の削除・確定は行いません。**
 
-[Official downloads / 公式ダウンロード](https://31916.ch/IMELayoutRouter/)
-— IMEの直接入力を、指定したWindows入力レイアウトで。日本語簡易版V1と多機能版V2を配布しています。
+現在は完成前の検証中です。V3の公開インストーラーはまだ配布していません。
+[仕様・検証記録](Editions/Guard/README.md)で、実際に通ったテストと残っている確認を公開しています。
 
-A Windows tray utility that selects an existing Windows input layout for IME
-direct/Latin input. Choose a source IME and a target layout already enabled in
-Windows. V1 covers Japanese; V2 also offers Chinese and Korean source selection.
+## 使い方と範囲
 
-不具合の報告では、入力した文章・個人の文書・パスワードを添付しないでください。
-診断ファイルを共有する前に、[公開時の注意と脆弱性の非公開報告先](SECURITY.md)を確認してください。
-For safe diagnostic sharing and private vulnerability reports, see [SECURITY.md](SECURITY.md).
+- 設定で「左上の未確定文字の小窓を隠す」を選びます。Windowsと同時に起動する設定もあります。
+- 通常は通知領域に常駐します。設定をオフにするか「終了して表示を戻す」を選ぶと復元します。
+- 小窓にだけ出ている入力途中の文字は見えなくなります。元のアプリの入力位置・フォーカスの不具合そのものは直しません。
+- Windows標準の対象ウィンドウを識別します。独自描画のIMEや、より高い権限のアプリには適用できない場合があります。
+- 変換候補は対象外です。アプリの正しいカーソル位置を取得できる場合は、その付近の小窓も対象外にします。
+- 表示直後に短く見える可能性があります。「一瞬も表示されない」という機能ではありません。
 
-```text
-あ / 中文 / 한글  →  native IME input
-A / Latin input  →  your target layout, e.g. Deutsch (Schweiz)
-```
+日本語・英語の設定画面に対応し、既存のアプリアイコンを使用します。
+入力文字・キー・ウィンドウタイトルは取得・保存せず、外部へ送信する機能もありません。
+復元のため、ウィンドウ識別情報と描画領域だけをローカルに保存します。
 
-## 動作の範囲 / What the app changes
+## V1・V2との違い
 
-**使用中のWindows入力レイアウトを切り替える機能はあります。** 対象IMEが直接入力
-（A）になった場合や、メール欄などで直接入力が必要だと判定した場合に、入力中の
-アプリへ、設定済みの切替先レイアウトを使うよう要求します。たとえば日本語IMEの
-直接入力から、Windowsで有効にしたスイス・ドイツ語レイアウトへの切替です。
-切替が受理されると、同じ物理キーから入力される文字や記号が変わることがあります。
-
-**キーごとの割り当てや、配列そのものの定義を作成・編集する機能はありません。**
-「AキーをBキーにする」などの独自リマップ、キーボードドライバーの書換え、
-IMEやレイアウトの追加インストールは行いません。本書の「配列の切替」は既存の
-入力レイアウトの選択を指します。すべてのアプリが切替要求を受け入れるわけではなく、
-動作確認の範囲は後述の互換性情報と版別記事を参照してください。
-
-**The active Windows input layout does change when the application accepts the
-request.** When the selected IME uses direct input, or a supported field is
-identified as requiring it, the router requests the configured target layout
-for the application receiving input. For example, it can switch from a Japanese
-IME to an enabled Swiss German layout. The same physical keys can then produce
-different characters or punctuation.
-
-**The app does not create or edit key mappings or layout definitions.** It does
-not implement custom remaps such as A → B, rewrite keyboard drivers, or install
-additional IMEs/layouts. "Layout switching" means selecting an existing Windows
-input layout. An application can reject the request; see the compatibility
-limits and edition notes for the scope of testing.
-
-The implementation makes the decision in [RoutingPolicy.cs](https://github.com/31916/ImeLayoutRouter/blob/V2/RoutingPolicy.cs)
-and sends the request in [RoutingMonitor.cs](https://github.com/31916/ImeLayoutRouter/blob/V2/RoutingMonitor.cs), using Windows'
-[WM_INPUTLANGCHANGEREQUEST message](https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-inputlangchangerequest).
-
-## Branches / ブランチ
-
-| Branch | Role | Default build |
-| --- | --- | --- |
-| [V1](https://github.com/31916/ImeLayoutRouter/tree/V1) | 日本語簡易版 / Japanese essentials | `Simple` |
-| [V2](https://github.com/31916/ImeLayoutRouter/tree/V2) | メイン・多機能版 / Main development branch | `Full` |
-
-V1 includes the repaired routing engine, Japanese-only setup, source/target
-selection and startup. V2 adds CJK selection, Japanese/English UI, application
-rules, status, shortcuts and guided setup. Fixes are shared; V1 excludes the
-advanced UI and runtime modules at build time. `dotnet build -c Release` uses
-the branch's default. Override with `-p:Edition=Simple` or `-p:Edition=Full`.
-
-**Ver1.1.2 (Japanese essentials) and Ver2.0.2 (full edition)** include the
-accessibility-monitor crash correction dated 2026-10-20, in addition to the
-browser field metadata initialization correction.
-The download page lists the available installer versions and dates.
-Google Japanese Input with a Swiss German keyboard passed native Windows fixture
-checks; browser email-field routing and Microsoft Japanese/Chinese/Korean IMEs
-remain unverified. See the [current validation record](https://github.com/31916/ImeLayoutRouter/blob/V2/docs/browser-field-fix-2026-09-26.md)
-and [original acceptance record](https://github.com/31916/ImeLayoutRouter/blob/V2/docs/acceptance-2026-09-20.md).
-The old v1.0.0 prototype lacks the repaired engine. Internal 2.0/3.0 preview
-milestones are not separate public editions.
-
-## Download and upgrade
-
-[Download page](https://31916.ch/IMELayoutRouter/) — Japanese and English.
-
-Release notes: [Ver1.1.2](docs/releases/v1-1.1.2.md) / [English](docs/releases/v1-1.1.2.en.md),
-[Ver2.0.2](docs/releases/v2-2.0.2.md) / [English](docs/releases/v2-2.0.2.en.md).
-[Development history and date sources](docs/releases/history.md).
-
-Installers are distributed directly from this website, with tested environments and limitations.
-The old prototype release has been retired; GitHub Releases is no longer used.
-
-Choose `ImeLayoutRouter-1.1.2-Setup.exe` (Japanese essentials) or
-`ImeLayoutRouter-2.0.2-Setup.exe` (full edition). Check its SHA-256 against
-the checksum file on the download page.
-The self-contained Windows x64 package does not require a separate .NET install.
-
-1. Exit an older running copy using its tray menu before upgrading from v1.
-2. Start the new application and open **Settings**.
-3. Select a **Source IME** and **Target Keyboard Layout**.
-4. In V2, optionally enable **Route all enabled Japanese, Chinese and Korean IMEs**.
-5. Save. Legacy `settings.json` can be imported. New saves use `settings-v1.json`
-   or `settings-v2.json` and preserve the original file. Only one edition runs at a time.
-
-Enable **Start IME Layout Router with Windows** to start at sign-in.
-A portable application's folder must stay in place when startup is enabled.
-
-## Unexpected exit correction / 予期しない終了の修正
-
-このPCで記録されたV2の終了は、入力欄のフォーカス情報を読み取る際の例外を
-監視スレッドで処理できず、アプリ全体が終了したものでした。Ver1.1.2／Ver2.0.2では、
-その情報を取得できない場合を「不明」として扱い、監視を継続します。
-情報取得の失敗だけを根拠に、入力欄の種類や切替先を決めることはありません。
-この修正は、すべてのアプリ・IMEとの互換性や、あらゆる終了原因の解消を保証するものではありません。
-
-A Windows crash record from the affected V2 installation showed an unhandled
-exception while reading accessibility focus metadata. Ver1.1.2 / Ver2.0.2 treat
-that failed read as unknown and continue monitoring, without selecting a field
-type or routing target from the failure. This addresses the recorded crash path;
-it does not establish compatibility with every application/IME or resolve every
-possible cause of an unexpected exit.
-
-## Why email fields were missed
-
-Some IMEs temporarily force direct input for email, URL or password fields
-without changing the open/native state visible through Windows input APIs.
-Google's [Mozc InputScope design](https://github.com/google/mozc/blob/master/docs/design_doc/input_scope.md)
-describes exactly this behavior. Version 1 watched only open/closed transitions.
-
-The repaired monitor combines:
-
-- IME open state and conversion mode.
-- Focused field metadata for email, URL, telephone, number and password fields.
-- Persistent-state checks, throttled retries and observed layout confirmation.
-- Focus-aware native restoration, with a deadline if the field refuses it.
-
-In a normal field, returning from the target layout to an IME requests native
-input. Japanese restores hiragana; Chinese/Korean retain their width preferences.
-Full-width Latin is preserved in ordinary fields.
-
-## V2 tray controls
-
-- **Settings** — select the input language(s) and target layout.
-- **Pause routing** — suspend/resume automatic changes.
-- The tray tooltip and menu show the observed layout/mode and routing reason.
-  A sent request is shown as pending until its result is observed.
-- **Save diagnostic log (30 seconds)** — record input state while reproducing
-  a problem. No text values, keystrokes, document contents, titles or URLs are
-  intentionally read or logged.
-- **Exit** — stop the application.
-
-A second launch opens the existing instance's settings, including across editions.
-A monitor failure is reported through the tray rather than silently stopping.
-
-## V2 guided setup and application rules
-
-Settings now has four guided pages, displayed in Japanese or English according
-to the Windows UI language: IME/layout, applications, shortcuts and a typing check.
-Select the source and target explicitly on first use. **Try these settings** runs
-only in the settings window, without saving or enabling global shortcuts. Test
-text stays in those controls; it is not read, saved or sent by the router.
-Application rules are not applied to this local exercise.
-
-Application rules match the full executable path of the process owning the
-focused control. Choose automatic routing or disable it, with a default for
-unlisted applications. A disabled default plus automatic exceptions creates an
-allowlist. If a process cannot be identified while rules exist, automatic routing
-is suppressed. Hosted applications may need a rule for their actual input host.
-Rules do not use window titles, URLs or typed content.
-
-Global shortcuts are **off by default**, including after migrating old settings.
-When enabled, the defaults are Ctrl+Alt+F8 (pause/resume), Ctrl+Alt+F9 (target
-layout), and Ctrl+Alt+F10 (previous layout in the same window). Each key can be
-changed to F6–F11. A registration conflict disables the whole set and is reported
-in the tray; choose different keys in Settings. Manual switches work while
-automatic routing is paused or excluded. They are held until leaving that window
-or pausing and resuming. Restore requires a layout observed before a successful
-request in the same window; it does not force the IME into a conversion mode.
-
-Settings schema 3 preserves schema 1/2 selections and adds these preferences.
-Back up settings before downgrading: older binaries cannot read schema 3.
-See [priority feature validation](https://github.com/31916/ImeLayoutRouter/blob/V2/docs/priority-features.md) for the remaining
-interactive checks. The full acceptance coverage is still incomplete.
-
-## Version progression
-
-| Version | Changes |
+| ブランチ | 役割 |
 | --- | --- |
-| 1.0.1 repair | Persistent A detection, InputScope field fallback, conversion-state checks, timeout/retry/confirmation and regression tests |
-| 2.0.0-preview.1 | Japanese, Chinese (including regional variants) and Korean source selection; language-specific native restoration |
-| 3.0.0-preview.1 | Route all enabled CJK IMEs, explicit language-level routing, v1 settings migration and atomic saves, pause, diagnostics, single-instance control and build automation |
+| [V1](https://github.com/31916/ImeLayoutRouter/tree/V1) | 日本語IMEの直接入力時に、設定済みのWindows入力レイアウトを選ぶ簡易版 |
+| [V2](https://github.com/31916/ImeLayoutRouter/tree/V2) | 入力レイアウト選択にアプリ別ルールなどを加えた多機能版 |
+| V3 | 左上の未確定文字の小窓を隠す単体版。入力レイアウトは変更しません |
 
-This is a progression of implementation milestones, not a
-claim that every version has been published as a stable release.
+V1・V2への機能追加は保留中です。V3は設定・自動起動登録が独立しています。
+既存版のインストーラーは[公式ダウンロードページ](https://31916.ch/IMELayoutRouter/)を参照してください。
 
-## Compatibility and limits
+## Build
 
-- Windows x64; build target .NET 8.
-- Only IMEs already **enabled in Windows** appear as sources.
-- Existing standard non-CJK keyboard layouts enabled in Windows are offered as
-  targets. The app selects them; it does not create or modify their key mappings.
-- Routing is **language-level**. Selecting an IME also covers other enabled
-  IMEs with the same Windows language ID. Cross-process HKL/IMM observation
-  cannot reliably distinguish individual TSF profiles with a shared language.
-  The all-IME option covers all enabled Japanese/Chinese/Korean source languages.
-- The semantic field fallback uses MSAA/IAccessible2 `text-input-type` metadata
-  and protected-field state. Applications that expose neither this information
-  nor their effective IMM mode cannot be classified reliably. Unknown state
-  alone never triggers a switch.
-- InputScope-only custom controls, elevated applications, remote desktops,
-  secure desktops and some TSF-only IMEs can require additional support.
-- Browser email/URL/telephone/number/password routing and Microsoft Japanese,
-  Chinese and Korean IME composition remain unverified. The release includes
-  their implementation without claiming verified compatibility. Synthetic tests
-  are not a substitute for these checks.
-- Foreground/focus events and new field metadata wake the monitor; a 50 ms
-  fallback detects changes that do not emit events. The accessibility worker
-  retains its 100 ms fallback. Slow providers and asynchronous application
-  handling still add latency. No keystrokes are intercepted or buffered, so
-  an immediate first keystroke can still precede routing.
-
-## Build and test
-
-Requirements: Windows and the .NET 8 SDK.
+Windowsと.NET 8 SDKが必要です。このブランチの既定ビルドはV3です。
 
 ```powershell
-dotnet build -c Release
-dotnet build tests/RoutingTests.csproj -c Release -p:Edition=Full
-dotnet tests/bin/Full/Release/net8.0-windows/RoutingTests.dll
-dotnet build tests/UiSmoke/UiSmoke.csproj -c Release -p:Edition=Full
-dotnet tests/UiSmoke/bin/Full/Release/net8.0-windows/UiSmoke.dll
-dotnet publish -c Release -r win-x64 --self-contained true
+dotnet build -c Release --warnaserror
+dotnet publish -c Release -p:Edition=Guard -r win-x64 --self-contained true --warnaserror
 ```
 
-An optional desktop test opens its own empty controls and checks native mode,
-direct-input routing, password metadata, exclusion, pause and manual restoration.
-Exit other router instances first. It requires foreground focus, cancels on
-deactivation, changes only its own window's layout, and restores that layout
-on exit. See the validation record for which live checks have actually passed.
+ビルド後、Inno Setup 6で `installer/V3.iss` をコンパイルできます。
+実入力・インストーラー・表示倍率・スリープの検証は、専用のGitHub-hosted使い捨てVMで行います。
+`tests/GuardImeTests` や検証用の環境準備スクリプトを普段使うPCで実行しないでください。
 
-```powershell
-dotnet build tests/WindowsSmoke/WindowsSmoke.csproj -c Release -p:Edition=Full
-dotnet tests/WindowsSmoke/bin/Full/Release/net8.0-windows/WindowsSmoke.dll
-```
+## English
 
-Build the installer with [Inno Setup 6](https://jrsoftware.org/isinfo.php):
+V3 is a standalone Windows tray utility that hides the fallback composition
+popup when it appears at the top-left of a monitor. Turning suppression off or
+exiting restores the display. It does not switch keyboard layouts or IMEs,
+read typed text, press keys, or commit/delete input.
 
-```powershell
-iscc installer/ImeLayoutRouter.iss
-```
+Uncommitted text visible only in that popup becomes invisible. V3 does not fix
+the application's focus or positioning defect. Candidate windows are excluded;
+custom IME rendering and higher-privilege applications may be unsupported.
+A brief initial appearance remains possible. Settings are available in Japanese
+and English, using the existing application icon.
 
-The CI workflows run Windows tests and package separate installer/portable
-artifacts. Publication to the website is a separate reviewed step.
+V3 is still undergoing final validation; no public V3 installer is available.
+See [scope and recorded validation](Editions/Guard/README.md). The V1 and V2
+branches contain the existing layout-routing editions and remain separate.
 
-Read-only diagnostic CLI (works alongside an existing router):
+## 不具合・脆弱性の報告 / Reporting
 
-```powershell
-.\ImeLayoutRouter.exe --diagnose 30 .\diagnostic.log
-```
-
-Configuration is stored in `%LOCALAPPDATA%\ImeLayoutRouter\settings-v1.json`
-or `settings-v2.json`; legacy `settings.json` is imported without replacing it.
-See [the investigation](https://github.com/31916/ImeLayoutRouter/blob/V2/docs/diagnosis.md) and [change log](CHANGELOG.md).
+入力した文章、個人文書、パスワードを報告に添付しないでください。
+利用したOS・IME・アプリと、個人情報を含まない再現手順を添えてください。
+[不具合報告](https://github.com/31916/ImeLayoutRouter/issues) /
+[公開時の注意・脆弱性の非公開報告](SECURITY.md)
