@@ -33,7 +33,7 @@ internal static class Program
         {
             if (args.Length == 1 && args[0] == "--configure-vm-display")
             { Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); VmDisplays.Configure(false); return 0; }
-            Run(desktopOnly, browserOnly);
+            Run(desktopOnly, browserOnly, args.Length == 1 && args[0] == "--game-only");
             Console.WriteLine(desktopOnly ? "PASS Disposable desktop accepts fixture focus. No IME input tested." :
                 browserOnly ? "PASS Ordinary browser IME compatibility checks completed; fallback suppression was not tested." : "PASS Real Japanese IME checks completed.");
             return 0;
@@ -57,7 +57,7 @@ internal static class Program
         }
     }
 
-    private static void Run(bool desktopOnly, bool browserOnly)
+    private static void Run(bool desktopOnly, bool browserOnly, bool gameOnly)
     {
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Console.WriteLine($"OS={Environment.OSVersion}; process={RuntimeInformation.ProcessArchitecture}; session={Process.GetCurrentProcess().SessionId}");
@@ -72,6 +72,12 @@ internal static class Program
         Check(window != 0, "Own input fixture created");
         Focus();
         if (desktopOnly) return;
+        if (gameOnly)
+        {
+            using var gameGuard = new CompositionGuardClient();
+            GameChecks.Run(gameGuard, Focus);
+            return;
+        }
         if (browserOnly)
         {
             using var browserGuard = new CompositionGuardClient();

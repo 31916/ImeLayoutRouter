@@ -1,0 +1,39 @@
+name: V3 actual game input
+on:
+  workflow_dispatch:
+  push:
+    branches: [V3]
+    paths: ['.github/workflows/v3-game-input.yml', 'tools/Install-GuardTestGame.ps1', 'tests/GuardImeTests/GameChecks.cs']
+permissions:
+  contents: read
+jobs:
+  game:
+    runs-on: windows-2025
+    timeout-minutes: 12
+    env:
+      GUARD_TEST_IME_CLSID: D5A86FD5-5308-47EA-AD16-9C4EB160EC3C
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - shell: powershell
+        run: ./tools/Install-GuardGoogleIme.ps1
+      - shell: pwsh
+        run: ./tools/Install-GuardTestGame.ps1
+      - name: Validate actual game input in windowed and fullscreen modes
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          dotnet build tests/GuardImeTests/GuardImeTests.csproj -c Release -p:Edition=Guard --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet tests/GuardImeTests/bin/Guard/Release/net8.0-windows/GuardImeTests.dll --game-only
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v3-game-evidence
+          path: |
+            ${{ runner.temp }}/v3-ime-*.txt
+            ${{ runner.temp }}/v3-ime-game-*.png
+          retention-days: 7
