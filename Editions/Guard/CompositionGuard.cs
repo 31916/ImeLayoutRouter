@@ -141,8 +141,12 @@ internal sealed class CompositionGuard : IDisposable
         uint thread = Native.GetWindowThreadProcessId(foreground, out uint pid);
         var info = new Native.GuiInfo { Size = (uint)Marshal.SizeOf<Native.GuiInfo>() };
         Rectangle? caret = null;
-        if (thread != 0 && Native.GetGUIThreadInfo(thread, ref info) && info.Caret != 0)
+        if (thread != 0 && Native.GetGUIThreadInfo(thread, ref info) && info.Caret != 0
+            && !((Native.GetClassLongW(info.Caret, -26) & 0x10000) != 0 && IsCompositionSurface(info.Caret)))
         {
+            // TSF's fallback popup can own the thread's caret while composing.
+            // That caret follows the misplaced popup; it is not evidence that
+            // the application's insertion point belongs at the monitor corner.
             var point = new Native.Point { X = info.CaretRect.Left, Y = info.CaretRect.Top };
             if (Native.ClientToScreen(info.Caret, ref point))
                 caret = new Rectangle(point.X, point.Y, Math.Max(1, info.CaretRect.Right - info.CaretRect.Left),
