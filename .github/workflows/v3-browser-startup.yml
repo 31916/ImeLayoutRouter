@@ -1,0 +1,39 @@
+name: V3 browser cold-start investigation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [legacy, native-ready]
+    env:
+      GUARD_TEST_IME_CLSID: D5A86FD5-5308-47EA-AD16-9C4EB160EC3C
+      GUARD_BROWSER_STARTS: '12'
+      GUARD_BROWSER_READY_MODE: ${{ matrix.mode }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - shell: powershell
+        run: ./tools/Install-GuardGoogleIme.ps1
+      - name: Exercise fresh browser profiles without retrying failed input
+        shell: pwsh
+        run: |
+          dotnet build tests/GuardImeTests/GuardImeTests.csproj -c Release -p:Edition=Guard --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet tests/GuardImeTests/bin/Guard/Release/net8.0-windows/GuardImeTests.dll --browser-only
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v3-browser-startup-${{ matrix.mode }}
+          path: |
+            ${{ runner.temp }}/v3-ime-*.txt
+            ${{ runner.temp }}/v3-ime-*.png
+          retention-days: 7

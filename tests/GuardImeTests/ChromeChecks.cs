@@ -81,9 +81,13 @@ internal static class ChromeChecks
                     cdp.Value($"(()=>{{const e=document.getElementById('{field}');e.value='';window.imeEvents=[];window.keyEvents=[];e.focus();return e.id;}})()");
                     Check(cdp.Value("document.activeElement.id") == field && cdp.Value("String(document.hasFocus())") == "true",
                         "Local Chrome field owns document focus: " + field);
+                    bool legacy = Environment.GetEnvironmentVariable("GUARD_BROWSER_READY_MODE") == "legacy";
+                    if (!legacy) WaitForNativeInput(window, browserThread, false);
                     Key(window, 0x16); // VK_IME_ON in this browser's input context
                     if (string.Equals(Environment.GetEnvironmentVariable("GUARD_TEST_IME_CLSID"),
                         "03B5835F-F03C-411B-9CE2-AA23E1171E36", StringComparison.OrdinalIgnoreCase)) HiraganaShortcut(window);
+                    if (!legacy) WaitForNativeInput(window, browserThread, true);
+                    Console.WriteLine("Browser input immediately before first key: " + DescribeInput(browserThread));
                     foreach (char key in "NIHONN") { Key(window, key); Pump(100); }
                     string pending = cdp.Value($"document.getElementById('{field}').value");
                     Console.WriteLine($"Chrome {field}, enabled={enabled}: pending={pending}; events=" + cdp.Value("JSON.stringify(window.imeEvents)"));
@@ -117,6 +121,44 @@ internal static class ChromeChecks
             if (!browser.HasExited) { browser.Kill(entireProcessTree: true); browser.WaitForExit(5000); }
         }
     }
+    private static string DescribeInput(uint thread)
+    {
+        var info = new CompositionGuard.Native.GuiInfo { Size = (uint)Marshal.SizeOf<CompositionGuard.Native.GuiInfo>() };
+        if (!CompositionGuard.Native.GetGUIThreadInfo(thread, ref info)) return "GUI thread unavailable";
+        nint ime = ImmGetDefaultIMEWnd(info.Focus);
+        nint open = 0, conversion = 0;
+        bool queried = ime != 0 && SendMessageTimeoutW(ime, 0x283, 5, 0, 2, 100, out open) != 0;
+        if (ime != 0) SendMessageTimeoutW(ime, 0x283, 1, 0, 2, 100, out conversion);
+        return $"focus=0x{info.Focus:X}; ime=0x{ime:X}; queried={queried}; open={open}; conversion=0x{conversion:X}";
+    }
+    private static void WaitForNativeInput(nint window, uint thread, bool requireOpen)
+    {
+        // DOM focus is renderer state. Chrome updates its Windows text-input
+        // client asynchronously, so it is not an input-service readiness fence.
+        // Read only this disposable browser's native focus and IME state. Do not
+        // type a warm-up word, discard failures or retry the measured input.
+        long deadline = Environment.TickCount64 + 5000;
+        nint lastFocus = 0; long stableSince = Environment.TickCount64;
+        while (Environment.TickCount64 < deadline)
+        {
+            if (Native.GetForegroundWindow() != window) throw new InvalidOperationException("Chrome lost focus during native input preparation");
+            var info = new CompositionGuard.Native.GuiInfo { Size = (uint)Marshal.SizeOf<CompositionGuard.Native.GuiInfo>() };
+            bool ready = CompositionGuard.Native.GetGUIThreadInfo(thread, ref info) && info.Focus != 0;
+            if (ready) { Native.GetWindowThreadProcessId(info.Focus, out uint pid); Native.GetWindowThreadProcessId(window, out uint owner); ready = pid == owner; }
+            if (ready && requireOpen)
+            {
+                nint ime = ImmGetDefaultIMEWnd(info.Focus);
+                ready = ime != 0 && SendMessageTimeoutW(ime, 0x283, 5, 0, 2, 100, out nint open) != 0 && open != 0;
+            }
+            if (!ready || info.Focus != lastFocus) { stableSince = Environment.TickCount64; lastFocus = info.Focus; }
+            if (ready && Environment.TickCount64 - stableSince >= 300)
+            { Console.WriteLine("Native browser input ready: " + DescribeInput(thread)); return; }
+            Pump(25);
+        }
+        throw new InvalidOperationException("Native Chrome input preparation failed: " + DescribeInput(thread));
+    }
+    [DllImport("imm32.dll")] private static extern nint ImmGetDefaultIMEWnd(nint window);
+    [DllImport("user32.dll")] private static extern nint SendMessageTimeoutW(nint window, uint message, nint wp, nint lp, uint flags, uint timeout, out nint result);
     private static void Key(nint window, int key)
     {
         if (Native.GetForegroundWindow() != window) throw new InvalidOperationException("Chrome lost focus; browser test input stopped");

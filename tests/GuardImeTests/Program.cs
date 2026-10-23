@@ -72,7 +72,14 @@ internal static class Program
         if (browserOnly)
         {
             using var browserGuard = new CompositionGuardClient();
-            ChromeChecks.Run(browserGuard);
+            int starts = int.TryParse(Environment.GetEnvironmentVariable("GUARD_BROWSER_STARTS"), out int requested) ? requested : 1;
+            if (starts < 1 || starts > 20) throw new InvalidOperationException("Browser cold-start count must be 1..20");
+            for (int start = 0; start < starts; start++)
+            {
+                Focus();
+                Console.WriteLine($"Browser cold start {start + 1}/{starts}; mode={Environment.GetEnvironmentVariable("GUARD_BROWSER_READY_MODE") ?? "native-ready"}");
+                ChromeChecks.Run(browserGuard);
+            }
             return;
         }
         bool microsoftIme = string.Equals(Environment.GetEnvironmentVariable("GUARD_TEST_IME_CLSID"),
