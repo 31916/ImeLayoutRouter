@@ -223,11 +223,37 @@ internal static class Program
         }
         Console.WriteLine("Real popup show-event to empty-region observations (ms; not video/first-frame latency): " + string.Join(", ", timings));
         RunFullscreenChecks(guard);
+        if (Environment.GetEnvironmentVariable("GUARD_TEST_DPI") == "1") RunDpiChecks(guard);
         if (Environment.GetEnvironmentVariable("GUARD_TEST_VM_SLEEP") == "1") RunResumeChecks(guard);
         if (Environment.GetEnvironmentVariable("GUARD_TEST_VM_DISPLAYS") == "1") RunMonitorChecks(guard);
         guard.SetEnabled(false);
         Pump(600);
         if (Environment.GetEnvironmentVariable("GUARD_TEST_BROWSER") == "chrome") ChromeChecks.Run(guard);
+    }
+
+    private static void RunDpiChecks(CompositionGuardClient guard)
+    {
+        using var scaling = new VmDpi();
+        string? baseline = null;
+        foreach (int percent in new[] { 100, 150, 200 })
+        {
+            guard.SetEnabled(false);
+            scaling.Set(Screen.PrimaryScreen!.DeviceName, percent);
+            Wait(() => GetDpiForWindow(window) == percent * 96 / 100, "Windows reports actual fixture DPI for " + percent + "%");
+            Focus();
+            foreach (bool enabled in new[] { false, true })
+            {
+                guard.SetEnabled(enabled); Pump(400);
+                PositionComposition(new Point(0, 0)); TypeNihon();
+                Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h) == enabled,
+                    $"Real IME at actual {percent}% DPI respects suppression={enabled}");
+                Check(Composition() == "にほん", "Actual DPI transition preserves preedit");
+                string result = ConvertAndCommit($"dpi-{percent}-{enabled}", enabled ? guard : null);
+                baseline ??= result;
+                Check(result == baseline, "Actual display scaling preserves converted text");
+            }
+        }
+        guard.SetEnabled(false);
     }
 
     private static void RunFullscreenChecks(CompositionGuardClient guard)
