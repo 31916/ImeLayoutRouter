@@ -48,7 +48,8 @@ jobs:
           df -h "$RUNNER_TEMP"
           # The Azure image mirror can stall partway through a package. Keep
           # signature validation, use Ubuntu's own HTTPS mirror and bound waits.
-          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          # Hosted images use mirror+file: indirection in ubuntu.sources.
+          printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -qq
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends qemu-system-x86 qemu-system-modules-spice qemu-system-gui qemu-utils ovmf swtpm genisoimage python3-pil acl tesseract-ocr tesseract-ocr-jpn
           qemu-system-x86_64 -spice help
