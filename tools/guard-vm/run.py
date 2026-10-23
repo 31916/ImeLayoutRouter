@@ -97,7 +97,7 @@ with zipfile.ZipFile(io.BytesIO(driver)) as archive:
     for name in ("qxldod.inf", "qxldod.sys", "qxldod.cat"):
         (payload / "display-driver" / name).write_bytes(archive.read("w10/amd64/" + name))
 
-unattend = f'''<?xml version="1.0" encoding="utf-8"?>
+unattend = rf'''<?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
  <settings pass="windowsPE">
   <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
