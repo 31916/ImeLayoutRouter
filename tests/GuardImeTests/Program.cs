@@ -30,6 +30,8 @@ internal static class Program
         bool desktopOnly = args.Length == 1 && args[0] == "--check-desktop";
         try
         {
+            if (args.Length == 1 && args[0] == "--configure-vm-display")
+            { Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); VmDisplays.Configure(false); return 0; }
             Run(desktopOnly, browserOnly);
             Console.WriteLine(desktopOnly ? "PASS Disposable desktop accepts fixture focus. No IME input tested." :
                 browserOnly ? "PASS Ordinary browser IME compatibility checks completed; fallback suppression was not tested." : "PASS Real Japanese IME checks completed.");
@@ -203,10 +205,47 @@ internal static class Program
         }
         Console.WriteLine("Real popup show-event to empty-region observations (ms; not video/first-frame latency): " + string.Join(", ", timings));
         if (Environment.GetEnvironmentVariable("GUARD_TEST_VM_SLEEP") == "1") RunResumeChecks(guard);
+        if (Environment.GetEnvironmentVariable("GUARD_TEST_VM_DISPLAYS") == "1") RunMonitorChecks(guard);
         guard.SetEnabled(false);
         Pump(600);
         if (Environment.GetEnvironmentVariable("GUARD_TEST_BROWSER") == "chrome") ChromeChecks.Run(guard);
     }
+
+    private static void RunMonitorChecks(CompositionGuardClient guard)
+    {
+        guard.SetEnabled(false);
+        VmDisplays.Configure(true); Pump(1000); Focus();
+        foreach (var screen in Screen.AllScreens.OrderByDescending(s => s.Primary))
+        {
+            Console.WriteLine("Testing real input on monitor: " + screen.Bounds);
+            Native.SetWindowPos(window, 0, screen.Bounds.Left + 350, screen.Bounds.Top + 250, 600, 350, 0x14);
+            Focus();
+            foreach (bool enabled in new[] { false, true })
+            {
+                committed.Clear();
+                guard.SetEnabled(enabled); Pump(300);
+                PositionComposition(screen.Bounds.Location); TypeNihon();
+                Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h) == enabled,
+                    "Composition suppression matches selected state on " + screen.DeviceName);
+                nint popup = FindComposition();
+                Check(Native.GetWindowRect(popup, out var bounds) && Math.Abs(bounds.Left - screen.Bounds.Left) < 16
+                    && Math.Abs(bounds.Top - screen.Bounds.Top) < 16, "Real IME popup occupies the actual monitor corner");
+                Console.WriteLine($"Popup DPI={GetDpiForWindow(popup)}; physical corner={bounds.Left},{bounds.Top}");
+                Key(0x0D); Pump(300);
+                Check(committed.ToString() == "にほん" && Composition().Length == 0, "Monitor transition preserves actual committed input");
+            }
+            // Move the real pending popup away from this monitor's corner.
+            guard.SetEnabled(true); PositionComposition(screen.Bounds.Location); TypeNihon();
+            Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "Monitor corner is masked before position correction");
+            PositionComposition(new Point(screen.Bounds.Left + 300, screen.Bounds.Top + 180)); Pump(500);
+            Wait(() => FindComposition() is var h && h != 0 && !EmptyRegion(h), "Corrected composition position is restored on this monitor");
+            Check(Composition() == "にほん", "Moving a real composition does not change pending text");
+            Key(0x1B); Pump(100); Key(0x1B); Pump(100);
+        }
+        guard.SetEnabled(false);
+        VmDisplays.Configure(false); Pump(500); Focus();
+    }
+    [DllImport("user32.dll")] private static extern uint GetDpiForWindow(nint h);
 
     private static void RunResumeChecks(CompositionGuardClient guard)
     {

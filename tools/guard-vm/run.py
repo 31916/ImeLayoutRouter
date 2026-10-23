@@ -10,6 +10,8 @@ import socket
 import subprocess
 import threading
 import time
+import io
+import urllib.request
 import zipfile
 from PIL import Image
 
@@ -76,12 +78,24 @@ if shutil.disk_usage(root).free < 35 * 1024**3:
 # https://support.microsoft.com/en-us/servicing/os/windows/docs/2026/09/verify-the-authenticity-of-a-windows-11-enterprise-evaluation-iso-file
 iso = root / "windows11-ja.iso"
 url = "https://software-static.download.prss.microsoft.com/dbazure/26300.9457.260913-1737.26h2_ge_release_svc_refresh_CLIENTENTERPRISEEVAL_OEMRET_x64FRE_ja-jp.iso"
-subprocess.run(["curl", "--fail", "--location", "--retry", "2", "--max-time", "1200", "--output", str(iso), url], check=True)
+subprocess.run(["curl", "--silent", "--show-error", "--fail", "--location", "--retry", "2", "--max-time", "1200", "--output", str(iso), url], check=True)
 with iso.open("rb") as source:
     digest = hashlib.file_digest(source, "sha256").hexdigest().upper()
 if digest != "8FB2CC19C8AEE87A688C1CB73E726816C01F0C6EE9A17BB2FB73E4533837E698":
     raise SystemExit("Official Windows evaluation ISO hash mismatch")
 print("Verified official Windows 11 Japanese x64 evaluation ISO", flush=True)
+
+# Official SPICE QXL package; only the three named x64 driver files are copied.
+# The guest additionally verifies Microsoft's hardware-publisher catalog.
+driver_url = "https://www.spice-space.org/download/windows/qxl-wddm-dod/qxl-wddm-dod-0.21/spice-qxl-wddm-dod-0.21-no-MSIs.zip"
+with urllib.request.urlopen(driver_url, timeout=60) as response:
+    driver = response.read(2 * 1024 * 1024)
+if hashlib.sha256(driver).hexdigest() != "78c079c53b84cc0550841a1a8f71b6bb1fbd4caa48682cd9db132524fd9332d9":
+    raise SystemExit("Pinned QXL driver archive hash mismatch")
+(payload / "display-driver").mkdir()
+with zipfile.ZipFile(io.BytesIO(driver)) as archive:
+    for name in ("qxldod.inf", "qxldod.sys", "qxldod.cat"):
+        (payload / "display-driver" / name).write_bytes(archive.read("w10/amd64/" + name))
 
 unattend = f'''<?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
@@ -133,7 +147,8 @@ command = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35,smm=on", "-cpu"
            "-chardev", f"socket,id=chrtpm,path={root}/tpm.sock", "-tpmdev", "emulator,id=tpm0,chardev=chrtpm", "-device", "tpm-tis,tpmdev=tpm0",
            "-drive", f"file={disk},format=qcow2,if=ide", "-drive", f"file={iso},media=cdrom,readonly=on,if=ide",
            "-drive", f"file={payload_iso},media=cdrom,readonly=on,if=ide", "-boot", "once=d,menu=off",
-           "-device", "e1000,netdev=net0", "-netdev", "user,id=net0", "-vga", "std",
+           "-device", "e1000,netdev=net0", "-netdev", "user,id=net0", "-vga", "qxl",
+           "-device", "qxl,id=secondary", "-spice", "unix=on,addr=" + str(root / "spice.sock") + ",disable-ticketing=on",
            "-display", "none", "-qmp", f"unix:{qmp_path},server=on,wait=off"]
 with (evidence / "qemu.txt").open("w") as log:
     process = subprocess.Popen(command, stdout=log, stderr=log)
@@ -158,12 +173,29 @@ with (evidence / "qemu.txt").open("w") as log:
                     raise RuntimeError(str(response["error"]))
 
         qmp("qmp_capabilities")
+        if not qmp("query-current-machine").get("wakeup-suspend-support"):
+            raise RuntimeError("The disposable machine cannot resume from ACPI sleep")
         started = time.monotonic()
         last_report = 0
+        suspended_at = None
+        resume_cycles = 0
         while not finished.wait(5):
             elapsed = time.monotonic() - started
             if elapsed < 35:
                 qmp("send-key", {"keys": [{"type": "qcode", "data": "ret"}]})
+            state = qmp("query-status")["status"]
+            if state == "suspended":
+                if not phase.startswith("suspend-ready-"):
+                    raise RuntimeError("Unexpected guest suspend outside the input lifecycle test")
+                if suspended_at is None:
+                    suspended_at = time.monotonic()
+                    print("Observed actual guest ACPI S3", flush=True)
+                elif time.monotonic() - suspended_at >= 10:
+                    qmp("system_wakeup")
+                    resume_cycles += 1
+                    suspended_at = None
+                    (evidence / "hypervisor-resume.txt").write_text(f"actual_s3_resume_cycles={resume_cycles}\n")
+                    print("Resumed actual guest ACPI S3, cycle", resume_cycles, flush=True)
             if elapsed - last_report >= 60:
                 last_report = elapsed
                 print(f"VM {int(elapsed)}s: {phase}; {qmp('query-status')['status']}", flush=True)
@@ -171,6 +203,9 @@ with (evidence / "qemu.txt").open("w") as log:
                 qmp("screendump", {"filename": str(ppm)})
                 with Image.open(ppm) as shot:
                     shot.save(evidence / "latest-screen.png")
+                # Installation errors remain inspectable while this job runs.
+                ocr = subprocess.run(["tesseract", str(evidence / "latest-screen.png"), "stdout", "-l", "jpn+eng"], capture_output=True, text=True)
+                print("Guest screen:", ocr.stdout.strip()[:1500], flush=True)
             if elapsed > 55 * 60:
                 raise TimeoutError("Windows VM validation did not finish within its bounded window")
             if process.poll() is not None:
@@ -181,6 +216,8 @@ with (evidence / "qemu.txt").open("w") as log:
             result = archive.read("result.txt").decode("utf-8-sig").strip()
             if result != "exit=0":
                 raise RuntimeError("Guest result does not confirm success")
+        if resume_cycles != 2:
+            raise RuntimeError("Two actual ACPI sleep/resume cycles were not verified")
         print("PASS Isolated Windows 11 x64 checks", flush=True)
     finally:
         process.terminate()

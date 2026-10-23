@@ -46,7 +46,7 @@ jobs:
           test -c /dev/kvm
           df -h "$RUNNER_TEMP"
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf swtpm genisoimage python3-pil acl
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf swtpm genisoimage python3-pil acl tesseract-ocr tesseract-ocr-jpn
           sudo setfacl -m u:"$USER":rw /dev/kvm
       - name: Boot official Windows 11 evaluation and validate actual input
         timeout-minutes: 75

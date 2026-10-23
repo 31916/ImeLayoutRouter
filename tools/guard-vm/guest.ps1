@@ -24,7 +24,21 @@ $taskExit = 1
 try {
     Report 'booted'
     Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture
+    $taskCatalog = Get-AuthenticodeSignature C:/V3Fixture/display-driver/qxldod.cat
+    if ($taskCatalog.Status -ne 'Valid' -or $taskCatalog.SignerCertificate.Subject -notmatch 'CN=Microsoft Windows Hardware Compatibility Publisher') { throw 'Microsoft-signed QXL display driver required' }
+    pnputil /add-driver C:/V3Fixture/display-driver/qxldod.inf /install
+    if ($LASTEXITCODE -notin 0,3010) { throw 'Signed QXL driver installation failed' }
+    Start-Sleep -Seconds 5
+    & ./ime/GuardImeTests.exe --configure-vm-display *> "$taskEvidence/display-setup.txt"
+    if ($LASTEXITCODE -ne 0) { throw 'Disposable display setup failed' }
     powercfg /a
+    # No sign-in or network access to this guest is exposed outside its isolated
+    # hypervisor. Keep only its throwaway fixture session unlocked for S3 tests.
+    powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 0
+    if ($LASTEXITCODE -ne 0) { throw 'Disposable resume configuration failed' }
+    powercfg /SETACTIVE SCHEME_CURRENT
+    powercfg /change standby-timeout-ac 0
+    powercfg /change monitor-timeout-ac 0
     ./Initialize-GuardTestDesktop.ps1 -RefreshShell
     Report 'installing-browser'
     $taskChrome = "$taskEvidence/chrome.msi"
@@ -39,7 +53,14 @@ try {
     Report 'browser-input'
     & ./ime/GuardImeTests.exe --browser-only *> "$taskEvidence/browser-console.txt"
     if ($LASTEXITCODE -ne 0) { throw 'Browser input checks failed' }
+    Copy-Item "$taskEvidence/v3-ime-browser-checks.txt" "$taskEvidence/chrome-checks.txt"
+    $env:GUARD_TEST_BROWSER = 'edge'
+    & ./ime/GuardImeTests.exe --browser-only *> "$taskEvidence/edge-console.txt"
+    if ($LASTEXITCODE -ne 0) { throw 'Edge input checks failed' }
+    $env:GUARD_TEST_BROWSER = ''
     Report 'composition-input'
+    $env:GUARD_TEST_VM_SLEEP = '1'
+    $env:GUARD_TEST_VM_DISPLAYS = '1'
     & ./ime/GuardImeTests.exe *> "$taskEvidence/composition-console.txt"
     if ($LASTEXITCODE -ne 0) { throw 'Composition input checks failed' }
     $taskExit = 0
