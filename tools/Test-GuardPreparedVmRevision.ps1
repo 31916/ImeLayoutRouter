@@ -18,6 +18,7 @@ while ([DateTime]::UtcNow -lt $taskDeadline) {
     git checkout --detach --quiet $taskNext
     if ($LASTEXITCODE -ne 0) { throw 'Could not check out the V3 validation revision.' }
     $taskRevision = $taskNext
+    $taskRevisionStarted = [DateTime]::UtcNow
     $taskEvidence = Join-Path $env:RUNNER_TEMP "v3-repairs/$taskRevision"
     New-Item -ItemType Directory -Path $taskEvidence -Force | Out-Null
     Write-Output "Validating prepared VM revision $taskRevision"
@@ -31,7 +32,11 @@ while ([DateTime]::UtcNow -lt $taskDeadline) {
         ./tools/Initialize-GuardTestDesktop.ps1
         dotnet tests/GuardImeTests/bin/Guard/Release/net8.0-windows/GuardImeTests.dll
         $taskNative = $LASTEXITCODE
-        Get-ChildItem -LiteralPath $env:RUNNER_TEMP -File | Where-Object { $_.Name -like 'v3-ime-*' } |
+        # Do not carry a previous revision's failure screenshot into a later
+        # passing revision. Provisioning evidence is retained by the first upload.
+        Get-ChildItem -LiteralPath $env:RUNNER_TEMP -File | Where-Object {
+            $_.Name -like 'v3-ime-*' -and $_.LastWriteTimeUtc -ge $taskRevisionStarted
+        } |
             Copy-Item -Destination $taskEvidence
     }
     $taskResult = "revision=$taskRevision`nbuild=$taskBuild`nbrowser=$taskBrowser`nfallback=$taskNative"

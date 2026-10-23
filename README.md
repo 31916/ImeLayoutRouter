@@ -1,7 +1,8 @@
 # IMELayoutRouter (IME Layout Router)
 
 > **V3開発ブランチ / V3 development branch:** 左上の未確定文字の小窓を隠す単体版を開発中です。
-> V1・V2への追加は保留しています。V3は未リリースで、実際のIMEとの互換性確認が残っています。
+> V1・V2への追加は保留しています。V3は未リリースです。Google日本語入力とMicrosoft日本語IMEの
+> 実入力・候補保持・表示抑制は検証済みですが、複数モニター・復帰動作などの確認が残っています。
 > このブランチの既定ビルドはV3です。既存版はV1・V2ブランチを参照してください。
 > Builds on this branch default to V3. Use the V1/V2 branches for existing editions.
 > [V3の仕様・検証状況 / V3 scope and validation](Editions/Guard/README.md)

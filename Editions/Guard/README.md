@@ -38,16 +38,19 @@ V1・V2とは設定・起動登録を分けているため、既存版と同時�
 Google日本語入力3.34.6260.0の実入力・変換・確定・取消し・表示復元を確認しました。
 通常位置の表示、左上に実際のカーソルがある場合の表示、前面切り替え、10回連続の入力も
 確認済みです。Chromeの通常の入力欄・複数行入力欄でも、日本語入力と変換結果が
-V3のオン・オフで変わらないことを確認しました。Microsoft IME、他のブラウザーやゲーム、複数モニター、復帰動作は
+V3のオン・オフで変わらないことを確認しました。同日、Windows 11 ARM（build 26200）の
+Microsoft日本語IMEでも、同じ入力・候補保持・表示抑制・復元の検証に成功しました。
+候補一覧は実際の描画とキー操作で照合し、画像も目視確認しています。
+他のブラウザーやゲーム、Windows 11 x64、複数モニター、復帰動作は
 まだ検証完了していないため、完成版としては公開していません。
 
 ## Validation gates
 
-- [Native and installer run 39872667272](https://github.com/31916/ImeLayoutRouter/actions/runs/39872667272)
-  passed at `bd81ab0`: 25 policy/settings checks, 38 native checks, and development
+- [Native and installer run 39877751275](https://github.com/31916/ImeLayoutRouter/actions/runs/39877751275)
+  passed at `7f21609`: 25 policy/settings checks, 38 native checks, and development
   installer lifecycle checks. All 200 cross-process move/restore/remask cycles
   and 100 custom-region move/restore cycles passed. The ordinary-region
-  move-to-mask observations were 35–98 ms, not real IME first-frame latency.
+  move-to-mask observations were 31–95 ms, not real IME first-frame latency.
   Japanese/English settings renders retain the existing icon and were visually
   reviewed for missing text, overlap and clipping.
 - A rare restoration failure was reproduced in
@@ -68,14 +71,14 @@ V3のオン・オフで変わらないことを確認しました。Microsoft IM
 - Installer tests cover installation, upgrade/uninstall while running, preserving
   saved choices on upgrade, refusing both operations when recovery is incomplete,
   and retaining V1/V2 startup registration. No release installer is uploaded.
-- [Google IME and Chrome run 39871728039](https://github.com/31916/ImeLayoutRouter/actions/runs/39871728039)
-  passed at `144332b` on Windows Server 2025 with Google Japanese Input 3.34.6260.0.
+- [Google IME and Chrome run 39877751312](https://github.com/31916/ImeLayoutRouter/actions/runs/39877751312)
+  passed at `7f21609` on Windows Server 2025 with Google Japanese Input 3.34.6260.0.
   Actual keystrokes produced `にほん`; conversion committed `日本` with V3 off/on.
   The baseline/masked/candidate images show that only the fallback composition
   frame disappeared and candidates remained visible. Cancellation, preserving
   pending text, disabling suppression, normal positioning, a real corner caret,
   switching input threads and ten repeated input cycles passed. The ten
-  show-event-to-empty-region observations were 32–79 ms. These measurements include
+  show-event-to-empty-region observations were 32–125 ms. These measurements include
   event delivery and observation delay; they do not demonstrate zero-frame hiding.
 - The same Google IME run passed ordinary Chrome text input and textarea checks:
   both emitted actual composition events and committed the same `日本` result
@@ -88,9 +91,28 @@ V3のオン・オフで変わらないことを確認しました。Microsoft IM
   with suppression off/on. The separate raw-window fallback stage failed before
   V3 was enabled: the IME immediately committed each kana in that fixture.
   The overall run is failed and does not establish Microsoft fallback-popup
-  suppression compatibility. A Windows 11 fixture reached uncommitted text and
-  a visible candidate panel; its full suppression validation is still pending.
-- Microsoft fallback-popup validation, other browsers/games, multiple physical monitors/DPI and
+  suppression compatibility.
+- [Windows 11 Microsoft IME run 39874656891](https://github.com/31916/ImeLayoutRouter/actions/runs/39874656891)
+  passed on ARM64 build 26200 after validating repair revision `7f21609` on the
+  same prepared disposable VM. The workflow's initial `e49d608` revision failed
+  candidate observation; it is not the passing revision. Both browser and native
+  fixture exit codes were 0 at `7f21609`. Real preedit `にほん`, conversion `日本`,
+  candidate selection, cancellation, focus changes, disable/restore, normal
+  positioning, a real corner caret and ten repeated input cycles passed.
+  Candidate APIs exposed no IMM/TSF list or UIA descendants on this image, so the
+  fixture compared the rendered panel and actual Up/Enter results. All 1,965
+  measured candidate glyph pixels matched with V3 off/on. Full screenshots were
+  also reviewed. Show-event-to-empty-region observations were 62–125 ms, not
+  first-frame latency. ARM64 evidence does not establish Windows 11 x64 coverage.
+  The original repair artifact copied an older `v3-ime-failure.png` forward;
+  `revision.txt`, the checks log and baseline/enabled images identify the actual
+  result. Later repair collection excludes files predating the tested revision.
+- One earlier Google browser baseline at `319fef3`
+  ([run 39877451559](https://github.com/31916/ImeLayoutRouter/actions/runs/39877451559))
+  failed before V3 was enabled: Chrome received only `honn` with no composition
+  events. Later independent runs passed, but the cold-start fixture/input-service
+  readiness issue is not considered resolved by those passes.
+- Other browsers/games, Windows 11 x64, multiple physical monitors/DPI and
   sleep/resume remain separate release gates. A passing synthetic test alone
   does not authorize a release installer or download-page update.
 - The helper reacts to foreground/window show, hide, destroy and position events,
@@ -139,7 +161,31 @@ one never substitutes for the other.
 Modern Microsoft IME candidates can be absent from the legacy IMM candidate API.
 The fixture can also read `ITfCandidateListUIElement` on its own TSF thread,
 checking visibility, candidate text and selection without changing the IME UI.
-This test-only code is excluded from the application.
+If neither candidate API supplies a list, the fixture checks the Microsoft input
+host's accessibility tree from an MTA thread while pumping the owning STA. If
+that tree is also empty, the fixed 1024×768 fixture compares a candidate-only
+screen rectangle outside the preedit popup and test window. It requires actual
+glyph changes after conversion, at least 500 dark glyph pixels and preservation
+of at least 95% of baseline glyph pixels/count, plus the expected second-to-first
+candidate selection and committed result. This is a fixture-specific visual
+regression check, not OCR or a universal candidate detector. The full before/
+after screenshots remain subject to human review. All this observation code is
+excluded from the application.
+
+An optional, explicitly dispatched 10-minute repair window keeps the prepared
+VM available for new V3 revisions after a failure. Each exact revision and result
+is recorded separately. The workflow passes only if both input tests pass for
+the initial revision or one recorded repair revision; failed evidence is retained.
+
+### Reviewed screenshots (2026-10-23 JST)
+
+These contain only fixed fixture input on disposable VMs. They are evidence for
+the tested environment, not a promise for every application.
+
+| IME | V3 off | V3 on |
+| --- | --- | --- |
+| Microsoft Japanese IME / Windows 11 ARM | [Composition and candidates](../../docs/v3-validation/microsoft-before.png) | [Candidates preserved, composition hidden](../../docs/v3-validation/microsoft-after.png) |
+| Google Japanese Input / Windows Server 2025 | [Composition and candidates](../../docs/v3-validation/google-before.png) | [Candidates preserved, composition hidden](../../docs/v3-validation/google-after.png) |
 
 ## Build / check
 
