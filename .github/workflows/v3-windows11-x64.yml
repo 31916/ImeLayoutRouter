@@ -23,6 +23,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item tools/guard-vm/guest.ps1 artifacts/vm/
           Copy-Item tools/Initialize-GuardTestDesktop.ps1 artifacts/vm/
+          git rev-parse HEAD | Set-Content artifacts/vm/revision.txt
       - uses: actions/upload-artifact@v4
         with:
           name: v3-vm-test-bundle

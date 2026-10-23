@@ -18,7 +18,7 @@ internal static class CandidateRaster
         graphics.CopyFromScreen(new Point(0, 40), Point.Empty, bitmap.Size);
         return bitmap;
     }
-    internal static bool Verify(Bitmap before, string label)
+    internal static bool Verify(Bitmap before, string label, bool compareBaseline)
     {
         using var panel = Capture();
         string evidence = Environment.GetEnvironmentVariable("RUNNER_TEMP")!;
@@ -34,7 +34,7 @@ internal static class CandidateRaster
             if (IsInk(pixel)) ink++;
             if ((IsInk(previous) || IsInk(pixel)) && (Math.Abs(pixel.R - previous.R) > 30
                 || Math.Abs(pixel.G - previous.G) > 30 || Math.Abs(pixel.B - previous.B) > 30)) changedInk++;
-            if (baseline != null && IsInk(baseline.GetPixel(x, y)))
+            if (compareBaseline && baseline != null && IsInk(baseline.GetPixel(x, y)))
             {
                 referenceInk++;
                 var expected = baseline.GetPixel(x, y);
@@ -46,7 +46,15 @@ internal static class CandidateRaster
         // Learned predictive suggestions can already be visible before Space.
         // Require actual glyph changes into the conversion panel, not blankness.
         if (changedInk < 200 || ink < 500) return false;
-        if (baseline == null) { baseline = (Bitmap)panel.Clone(); return true; }
+        // Windowed and fullscreen fixtures can place the same candidate panel
+        // at different coordinates. Establish the off-state reference for each
+        // geometry, then compare the on-state against that exact reference.
+        if (!compareBaseline)
+        {
+            baseline?.Dispose();
+            baseline = (Bitmap)panel.Clone();
+            return true;
+        }
         return referenceInk > 500 && matched >= referenceInk * .95
             && ink >= referenceInk * .95 && ink <= referenceInk * 1.05;
     }

@@ -3,6 +3,7 @@ import hashlib
 import http.server
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import shutil
@@ -30,13 +31,14 @@ token = secrets.token_urlsafe(32)
 password = secrets.token_urlsafe(24)
 phase = "preparing"
 finished = threading.Event()
+resume_cycles = 0
 
 class Receiver(http.server.BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
     def do_POST(self):
-        global phase
+        global phase, resume_cycles
         if self.headers.get("Authorization") != token:
             self.send_error(403)
             return
@@ -48,10 +50,23 @@ class Receiver(http.server.BaseHTTPRequestHandler):
         if self.path == "/status":
             phase = str(json.loads(body)["phase"])
             print("Guest phase:", phase, flush=True)
+            if phase.startswith("attempt-start-"):
+                resume_cycles = 0
             if phase.startswith("finished-"):
                 finished.set()
         elif self.path == "/result":
             (evidence / "guest-results.zip").write_bytes(body)
+        elif re.fullmatch(r"/result-[0-9a-f]{40}", self.path):
+            (evidence / (self.path[1:] + ".zip")).write_bytes(body)
+            # Fixed fixture logs only: expose failures while this prepared VM
+            # is still available for a new source revision, preserving the zip.
+            with zipfile.ZipFile(io.BytesIO(body)) as archive:
+                for name in archive.namelist():
+                    if name.endswith("checks.txt"):
+                        lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+                        findings = [line for line in lines if "FAIL" in line or "Exception:" in line]
+                        for line in findings[:8]:
+                            print("Fixture failure:", line[:1000], flush=True)
         else:
             self.send_error(404)
             return

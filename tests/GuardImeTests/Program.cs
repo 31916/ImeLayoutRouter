@@ -379,7 +379,7 @@ internal static class Program
         var tsf = bytes == 0 ? TsfCandidates.Read() : null;
         bool accessible = bytes == 0 && tsf == null && AccessibleCandidates.AreVisible(() => Pump(10));
         bool raster = bytes == 0 && tsf == null && !accessible && beforeCandidates != null
-            && CandidateRaster.Verify(beforeCandidates, label);
+            && CandidateRaster.Verify(beforeCandidates, label, guard != null);
         bool observed = accessible || raster;
         Check((bytes >= 24 && bytes < 1024 * 1024) || tsf is { Count: > 0, Shown: true } || observed,
             label + ": actual IME conversion candidates exist via IMM, TSF, accessibility or compared panel pixels");
