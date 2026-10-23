@@ -8,13 +8,39 @@ using System.Runtime.InteropServices;
 internal sealed class VmDpi : IDisposable
 {
     private readonly List<ScaleSet> originals = [];
-    internal void Set(string device, int percent)
+    private string? resolutionDevice;
+    private VmDisplays.Mode originalMode;
+    private static void RequireDisposable()
     {
         if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true"
             || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted"
             || (Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "31916/ImeLayoutRouter"
                 && Environment.MachineName != "V3-TEST"))
             throw new InvalidOperationException("DPI setup is restricted to disposable project VMs");
+    }
+    internal void PrepareResolution(string device)
+    {
+        RequireDisposable();
+        if (resolutionDevice != null) throw new InvalidOperationException("DPI fixture resolution was already prepared");
+        originalMode = new VmDisplays.Mode { Size = (ushort)Marshal.SizeOf<VmDisplays.Mode>() };
+        if (!VmDisplays.EnumDisplaySettingsExW(device, -1, ref originalMode, 0)) throw new InvalidOperationException("Original VM display mode unavailable");
+        var modes = new List<VmDisplays.Mode>();
+        for (int index = 0; index < 512; index++)
+        {
+            var mode = new VmDisplays.Mode { Size = (ushort)Marshal.SizeOf<VmDisplays.Mode>() };
+            if (!VmDisplays.EnumDisplaySettingsExW(device, index, ref mode, 0)) break;
+            if (mode.Bits == 32 && mode.Width is >= 2560 and <= 3840 && mode.Height is >= 1440 and <= 2160) modes.Add(mode);
+        }
+        if (modes.Count == 0) throw new InvalidOperationException("This VM has no display mode large enough for actual 200% DPI testing");
+        var chosen = modes.OrderBy(mode => mode.Width * mode.Height).ThenBy(mode => Math.Abs((int)mode.Frequency - 60)).First();
+        Console.WriteLine($"Preparing actual VM resolution: {chosen.Width}x{chosen.Height}");
+        chosen.Fields = 0x40000 | 0x80000 | 0x100000 | 0x400000;
+        if (VmDisplays.ChangeDisplaySettingsExW(device, ref chosen, 0, 0, 0) != 0) throw new InvalidOperationException("VM resolution change failed");
+        resolutionDevice = device;
+    }
+    internal void Set(string device, int percent)
+    {
+        RequireDisposable();
         int index = percent switch { 100 => 0, 150 => 2, 200 => 4, _ => throw new ArgumentOutOfRangeException(nameof(percent)) };
         if (GetDisplayConfigBufferSizes(2, out uint count, out uint modes) != 0 || count is 0 or > 16 || modes > 256)
             throw new InvalidOperationException("Active display topology unavailable");
@@ -31,6 +57,7 @@ internal sealed class VmDpi : IDisposable
                 var scale = new ScaleGet { Info = name.Info with { Type = unchecked((uint)-3), Size = (uint)Marshal.SizeOf<ScaleGet>() } };
                 int result = ReadScale(ref scale);
                 if (result != 0) throw new InvalidOperationException("VM display does not support DPI configuration: " + result);
+                Console.WriteLine($"Available DPI steps: min={scale.Min}; current={scale.Current}; max={scale.Max}");
                 int desired = scale.Min + index;
                 if (desired > scale.Max) throw new InvalidOperationException("Requested DPI exceeds this test display's available scaling");
                 var change = new ScaleSet { Info = scale.Info with { Type = unchecked((uint)-4), Size = (uint)Marshal.SizeOf<ScaleSet>() }, Value = desired };
@@ -54,6 +81,12 @@ internal sealed class VmDpi : IDisposable
             if (result != 0) throw new InvalidOperationException("Could not restore disposable display DPI: " + result);
         }
         originals.Clear();
+        if (resolutionDevice != null)
+        {
+            if (VmDisplays.ChangeDisplaySettingsExW(resolutionDevice, ref originalMode, 0, 0, 0) != 0)
+                throw new InvalidOperationException("Could not restore the disposable display resolution");
+            resolutionDevice = null;
+        }
     }
     [StructLayout(LayoutKind.Sequential)] private record struct Info { internal uint Type, Size, Low; internal int High; internal uint Id; }
     [StructLayout(LayoutKind.Sequential)] private struct Source { internal uint Low; internal int High; internal uint Id, Mode, Flags; }

@@ -58,7 +58,7 @@ internal static class VmDisplays
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] internal string? Id;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] internal string? Key;
     }
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] private struct Mode
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] internal struct Mode
     {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] internal string? Device;
         internal ushort Spec, Driver, Size, Extra;
@@ -71,7 +71,7 @@ internal static class VmDisplays
         internal uint Bits, Width, Height, Flags, Frequency, IcmMethod, IcmIntent, Media, Dither, Reserved1, Reserved2, PanWidth, PanHeight;
     }
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool EnumDisplayDevicesW(string? device, uint index, ref Device info, uint flags);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool EnumDisplaySettingsExW(string device, int index, ref Mode mode, uint flags);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int ChangeDisplaySettingsExW(string? device, ref Mode mode, nint window, uint flags, nint param);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern bool EnumDisplaySettingsExW(string device, int index, ref Mode mode, uint flags);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern int ChangeDisplaySettingsExW(string? device, ref Mode mode, nint window, uint flags, nint param);
     [DllImport("user32.dll", EntryPoint = "ChangeDisplaySettingsExW", CharSet = CharSet.Unicode)] private static extern int ApplyDisplaySettings(string? device, nint mode, nint window, uint flags, nint param);
 }

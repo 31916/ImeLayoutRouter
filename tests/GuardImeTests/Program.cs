@@ -234,6 +234,9 @@ internal static class Program
     private static void RunDpiChecks(CompositionGuardClient guard)
     {
         using var scaling = new VmDpi();
+        scaling.PrepareResolution(Screen.PrimaryScreen!.DeviceName); Pump(1000);
+        var desktop = Screen.PrimaryScreen!.Bounds;
+        Native.SetWindowPos(backdrop, 0, desktop.Left, desktop.Top, desktop.Width, desktop.Height, 0x14);
         string? baseline = null;
         foreach (int percent in new[] { 100, 150, 200 })
         {
