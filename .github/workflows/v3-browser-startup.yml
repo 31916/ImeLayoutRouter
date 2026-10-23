@@ -1,6 +1,9 @@
 name: V3 browser cold-start investigation
 on:
   workflow_dispatch:
+  push:
+    branches: [V3]
+    paths: ['.github/workflows/v3-browser-startup.yml']
 permissions:
   contents: read
 jobs:

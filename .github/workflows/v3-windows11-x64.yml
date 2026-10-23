@@ -1,0 +1,61 @@
+name: V3 isolated Windows 11 x64
+on:
+  workflow_dispatch:
+  push:
+    branches: [V3]
+    paths: ['.github/workflows/v3-windows11-x64.yml', 'tools/guard-vm/**']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - shell: pwsh
+        run: |
+          dotnet publish tests/GuardImeTests/GuardImeTests.csproj -c Release -p:Edition=Guard -r win-x64 --self-contained true -o artifacts/vm/ime --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet publish tests/GuardTests/GuardTests.csproj -c Release -p:Edition=Guard -r win-x64 --self-contained true -o artifacts/vm/native --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item tools/guard-vm/guest.ps1 artifacts/vm/
+          Copy-Item tools/Initialize-GuardTestDesktop.ps1 artifacts/vm/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v3-vm-test-bundle
+          path: artifacts/vm/
+          retention-days: 1
+  windows11:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: v3-vm-test-bundle
+          path: artifacts/vm
+      - name: Prepare disposable nested virtualization tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true && test "$RUNNER_ENVIRONMENT" = github-hosted
+          test -c /dev/kvm
+          df -h "$RUNNER_TEMP"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf swtpm genisoimage python3-pil acl
+          sudo setfacl -m u:"$USER":rw /dev/kvm
+      - name: Boot official Windows 11 evaluation and validate actual input
+        timeout-minutes: 75
+        shell: bash
+        run: python3 tools/guard-vm/run.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v3-windows11-x64-evidence
+          path: artifacts/vm-evidence/
+          retention-days: 7
+          if-no-files-found: warn
