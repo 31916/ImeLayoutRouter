@@ -299,34 +299,41 @@ internal static class Program
     {
         guard.SetEnabled(false);
         VmDisplays.Configure(true); Pump(1000); Focus();
-        foreach (var screen in Screen.AllScreens.OrderByDescending(s => s.Primary))
+        using (var scaling = new VmDpi())
         {
-            Console.WriteLine("Testing real input on monitor: " + screen.Bounds);
-            Native.SetWindowPos(window, 0, screen.Bounds.Left + 350, screen.Bounds.Top + 250, 600, 350, 0x14);
-            Focus();
-            foreach (bool enabled in new[] { false, true })
+            foreach (var screen in Screen.AllScreens) scaling.Set(screen.DeviceName, screen.Primary ? 100 : 125);
+            Pump(1000);
+            foreach (var screen in Screen.AllScreens.OrderByDescending(s => s.Primary))
             {
-                committed.Clear();
-                guard.SetEnabled(enabled); Pump(300);
-                PositionComposition(screen.Bounds.Location); TypeNihon();
-                Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h) == enabled,
-                    "Composition suppression matches selected state on " + screen.DeviceName);
-                nint popup = FindComposition();
-                Check(Native.GetWindowRect(popup, out var bounds) && Math.Abs(bounds.Left - screen.Bounds.Left) < 16
-                    && Math.Abs(bounds.Top - screen.Bounds.Top) < 16, "Real IME popup occupies the actual monitor corner");
-                Console.WriteLine($"Popup DPI={GetDpiForWindow(popup)}; physical corner={bounds.Left},{bounds.Top}");
-                Key(0x0D); Pump(300);
-                Check(committed.ToString() == "にほん" && Composition().Length == 0, "Monitor transition preserves actual committed input");
+                Console.WriteLine("Testing real input on monitor: " + screen.Bounds);
+                Native.SetWindowPos(window, 0, screen.Bounds.Left + 350, screen.Bounds.Top + 250, 600, 350, 0x14);
+                Focus();
+                Wait(() => GetDpiForWindow(window) == (screen.Primary ? 96 : 120),
+                    "Actual per-monitor DPI transition reaches " + screen.DeviceName);
+                foreach (bool enabled in new[] { false, true })
+                {
+                    committed.Clear();
+                    guard.SetEnabled(enabled); Pump(300);
+                    PositionComposition(screen.Bounds.Location); TypeNihon();
+                    Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h) == enabled,
+                        "Composition suppression matches selected state on " + screen.DeviceName);
+                    nint popup = FindComposition();
+                    Check(Native.GetWindowRect(popup, out var bounds) && Math.Abs(bounds.Left - screen.Bounds.Left) < 16
+                        && Math.Abs(bounds.Top - screen.Bounds.Top) < 16, "Real IME popup occupies the actual monitor corner");
+                    Console.WriteLine($"Popup DPI={GetDpiForWindow(popup)}; physical corner={bounds.Left},{bounds.Top}");
+                    Key(0x0D); Pump(300);
+                    Check(committed.ToString() == "にほん" && Composition().Length == 0, "Monitor transition preserves actual committed input");
+                }
+                // Move the real pending popup away from this monitor's corner.
+                guard.SetEnabled(true); PositionComposition(screen.Bounds.Location); TypeNihon();
+                Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "Monitor corner is masked before position correction");
+                PositionComposition(new Point(screen.Bounds.Left + 300, screen.Bounds.Top + 180)); Pump(500);
+                Wait(() => FindComposition() is var h && h != 0 && !EmptyRegion(h), "Corrected composition position is restored on this monitor");
+                Check(Composition() == "にほん", "Moving a real composition does not change pending text");
+                Key(0x1B); Pump(100); Key(0x1B); Pump(100);
             }
-            // Move the real pending popup away from this monitor's corner.
-            guard.SetEnabled(true); PositionComposition(screen.Bounds.Location); TypeNihon();
-            Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "Monitor corner is masked before position correction");
-            PositionComposition(new Point(screen.Bounds.Left + 300, screen.Bounds.Top + 180)); Pump(500);
-            Wait(() => FindComposition() is var h && h != 0 && !EmptyRegion(h), "Corrected composition position is restored on this monitor");
-            Check(Composition() == "にほん", "Moving a real composition does not change pending text");
-            Key(0x1B); Pump(100); Key(0x1B); Pump(100);
-        }
-        guard.SetEnabled(false);
+            guard.SetEnabled(false);
+            }
         VmDisplays.Configure(false); Pump(500); Focus();
     }
     [DllImport("user32.dll")] private static extern uint GetDpiForWindow(nint h);

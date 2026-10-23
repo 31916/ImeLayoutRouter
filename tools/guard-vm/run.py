@@ -78,7 +78,17 @@ if shutil.disk_usage(root).free < 35 * 1024**3:
 # https://support.microsoft.com/en-us/servicing/os/windows/docs/2026/09/verify-the-authenticity-of-a-windows-11-enterprise-evaluation-iso-file
 iso = root / "windows11-ja.iso"
 url = "https://software-static.download.prss.microsoft.com/dbazure/26300.9457.260913-1737.26h2_ge_release_svc_refresh_CLIENTENTERPRISEEVAL_OEMRET_x64FRE_ja-jp.iso"
-subprocess.run(["curl", "--silent", "--show-error", "--fail", "--location", "--retry", "2", "--max-time", "1200", "--output", str(iso), url], check=True)
+for attempt in range(3):
+    download = subprocess.Popen(["curl", "--silent", "--show-error", "--fail", "--location", "--continue-at", "-", "--max-time", "1200", "--output", str(iso), url])
+    while download.poll() is None:
+        try:
+            download.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            print("Official ISO download bytes:", iso.stat().st_size if iso.exists() else 0, flush=True)
+    if download.returncode == 0:
+        break
+    if attempt == 2:
+        raise RuntimeError("Official evaluation download failed after bounded resumable attempts")
 with iso.open("rb") as source:
     digest = hashlib.file_digest(source, "sha256").hexdigest().upper()
 if digest != "8FB2CC19C8AEE87A688C1CB73E726816C01F0C6EE9A17BB2FB73E4533837E698":
@@ -179,9 +189,12 @@ with (evidence / "qemu.txt").open("w") as log:
         last_report = 0
         suspended_at = None
         resume_cycles = 0
-        while not finished.wait(5):
+        while not finished.wait(1):
             elapsed = time.monotonic() - started
-            if elapsed < 35:
+            # Two virtual GPUs and Secure Boot can delay the optical boot
+            # prompt beyond 35 seconds. Its acceptance window is only seconds.
+            # All keys remain inside this newly created, empty disposable VM.
+            if elapsed < 180:
                 qmp("send-key", {"keys": [{"type": "qcode", "data": "ret"}]})
             state = qmp("query-status")["status"]
             if state == "suspended":

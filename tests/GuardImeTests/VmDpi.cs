@@ -42,7 +42,7 @@ internal sealed class VmDpi : IDisposable
     internal void Set(string device, int percent)
     {
         RequireDisposable();
-        int index = percent switch { 100 => 0, 150 => 2, 200 => 4, _ => throw new ArgumentOutOfRangeException(nameof(percent)) };
+        int index = percent switch { 100 => 0, 125 => 1, 150 => 2, 200 => 4, _ => throw new ArgumentOutOfRangeException(nameof(percent)) };
         if (GetDisplayConfigBufferSizes(2, out uint count, out uint modes) != 0 || count is 0 or > 16 || modes > 256)
             throw new InvalidOperationException("Active display topology unavailable");
         var paths = new DisplayPath[count];
