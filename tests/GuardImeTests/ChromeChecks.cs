@@ -33,6 +33,7 @@ internal static class ChromeChecks
         File.WriteAllText(page, """
             <!doctype html><meta charset="utf-8"><title>V3 local browser input fixture</title>
             <style>body{font:24px sans-serif;margin:80px}input,textarea{font:28px sans-serif;display:block;margin:20px 0;width:600px}</style>
+            <i aria-hidden="true" style="position:fixed;left:12px;top:12px;width:12px;height:12px;background:rgb(33,77,155)"></i>
             <h1>Disposable V3 input validation</h1><label>Text<input id="text"></label><label>Multiline<textarea id="area"></textarea></label>
             <script>window.imeEvents=[];window.keyEvents=[];for(const type of ['compositionstart','compositionupdate','compositionend'])document.addEventListener(type,e=>imeEvents.push({type,data:e.data}));document.addEventListener('keydown',e=>keyEvents.push({key:e.key,target:e.target.id,composing:e.isComposing}));</script>
             """, Encoding.UTF8);
@@ -96,7 +97,7 @@ internal static class ChromeChecks
                     bool legacy = Environment.GetEnvironmentVariable("GUARD_BROWSER_READY_MODE") == "legacy";
                     cdp.Value($"(()=>{{const e=document.getElementById('{field}');e.value='';window.imeEvents=[];window.keyEvents=[];{(legacy ? "e.focus();" : "")}return e.id;}})()");
                     if (!legacy) ClickInput(cdp, window, browser.Id, field);
-                    Check(cdp.Value("document.activeElement.id") == field && cdp.Value("String(document.hasFocus())") == "true",
+                    Wait(() => cdp.Value("document.activeElement.id") == field && cdp.Value("String(document.hasFocus())") == "true",
                         "Local Chrome field owns document focus: " + field);
                     if (!legacy) WaitForNativeInput(window, browserThread, false);
                     Key(window, 0x16); // VK_IME_ON in this browser's input context
@@ -151,6 +152,17 @@ internal static class ChromeChecks
         }, 0);
         Check(render != 0, "The local browser owns a native render view");
         var g = geometry.RootElement;
+        var marker = new Native.Point { X = (int)(18 * g.GetProperty("scale").GetDouble()), Y = (int)(18 * g.GetProperty("scale").GetDouble()) };
+        Check(Native.ClientToScreen(render, ref marker), "Own rendered-page marker maps to this browser");
+        // A loaded DOM and existing HWND can precede Chrome's first visible
+        // frame. Do not click an unpainted startup surface and call it focus.
+        using (var sample = new Bitmap(1, 1))
+        using (var graphics = Graphics.FromImage(sample))
+            Wait(() => {
+                graphics.CopyFromScreen(new Point(marker.X, marker.Y), Point.Empty, new Size(1, 1));
+                var pixel = sample.GetPixel(0, 0);
+                return Math.Abs(pixel.R - 33) <= 2 && Math.Abs(pixel.G - 77) <= 2 && Math.Abs(pixel.B - 155) <= 2;
+            }, "The local fixture has actually painted before any input", 30000);
         var point = new Native.Point { X = (int)(g.GetProperty("x").GetDouble() * g.GetProperty("scale").GetDouble()),
             Y = (int)(g.GetProperty("y").GetDouble() * g.GetProperty("scale").GetDouble()) };
         Check(Native.ClientToScreen(render, ref point), "Test field coordinates belong to the browser render view");
