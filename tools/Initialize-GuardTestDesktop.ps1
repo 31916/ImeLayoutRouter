@@ -8,6 +8,29 @@ Start-Transcript -Path (Join-Path $env:RUNNER_TEMP 'v3-ime-desktop.txt')
 try {
     $taskSession = (Get-Process -Id $PID).SessionId
     Write-Output "Disposable input session: $taskSession"
+    if ((Get-CimInstance Win32_Processor | Where-Object Architecture -eq 12) -and
+        $env:GITHUB_REPOSITORY -eq '31916/ImeLayoutRouter') {
+        # The hosted ARM runner agent repeatedly launches a broken WSL updater
+        # that steals focus every ~30-90 seconds. WSL is not used by these tests.
+        # Restrict the documented runner workaround to this disposable ARM VM;
+        # never apply it on a workstation or ship it in the application.
+        # https://github.com/actions/runner-images/issues/14264
+        $taskStub = Join-Path $env:WINDIR 'System32/systray.exe'
+        if (!(Test-Path -LiteralPath $taskStub)) { throw 'Hosted ARM stub missing' }
+        foreach ($taskSoftware in @('SOFTWARE', 'SOFTWARE/WOW6432Node')) {
+            $taskWslKey = "HKLM:/$taskSoftware/Microsoft/Windows NT/CurrentVersion/Image File Execution Options/wsl.exe"
+            New-Item -Path $taskWslKey -Force | Out-Null
+            New-ItemProperty -Path $taskWslKey -Name Debugger -Value $taskStub -PropertyType String -Force | Out-Null
+        }
+        Get-CimInstance Win32_Process -Filter "Name='wsl.exe'" | Where-Object {
+            $_.SessionId -eq $taskSession -and $_.CommandLine -match '--update' -and
+            $_.CommandLine -match '--confirm' -and $_.CommandLine -match '--prompt-before-exit'
+        } | ForEach-Object {
+            Write-Output "Closing hosted ARM WSL updater prompt: $($_.ProcessId)"
+            Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
+        }
+        Write-Output 'Hosted ARM WSL prompt workaround enabled for this disposable VM only.'
+    }
     # Windows 11 hosted images may display first-logon privacy setup and keep
     # focus away from the fixture. Use the documented managed-device policy;
     # do not click Accept or enable optional data collection for this test.
