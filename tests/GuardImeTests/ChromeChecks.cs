@@ -154,7 +154,16 @@ internal static class ChromeChecks
                     Check(pending == "にほん", "Chrome receives real Japanese preedit in " + field
                         + (pending == "にほん" ? "" : $"; enabled={enabled}; pending={pending}; native={DescribeInput(browserThread)}; events="
                             + cdp.Value("JSON.stringify(window.imeEvents)") + "; keys=" + cdp.Value("JSON.stringify(window.keyEvents)")));
-                    Key(window, 0x20); Pump(200); Key(window, 0x20); Pump(200); Key(window, 0x26); Key(window, 0x0D); Pump(300);
+                    Key(window, 0x20);
+                    Wait(() => cdp.Value($"document.getElementById('{field}').value") == "日本",
+                        "The first conversion is delivered before requesting another candidate", 5000);
+                    Key(window, 0x20);
+                    Wait(() => cdp.Value($"document.getElementById('{field}').value") == "二本",
+                        "The second candidate is delivered before selecting the first", 5000);
+                    Key(window, 0x26);
+                    Wait(() => cdp.Value($"document.getElementById('{field}').value") == "日本",
+                        "Up selects the first candidate before Enter commits it", 5000);
+                    Key(window, 0x0D); Pump(300);
                     Wait(() => cdp.Value("String(window.imeEvents.some(e=>e.type==='compositionend'))") == "true",
                         "The already-sent conversion reaches the browser renderer", 5000);
                     string result = cdp.Value($"document.getElementById('{field}').value");
