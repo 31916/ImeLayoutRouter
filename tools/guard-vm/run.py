@@ -201,11 +201,18 @@ qmp_path = root / "qmp.sock"
 # Windows otherwise uses expensive emulated timer/APIC paths under KVM. These
 # documented guest interfaces preserve Secure Boot, TPM and OS security policy.
 # https://www.qemu.org/docs/master/system/i386/hyperv.html
+timer_mode = os.environ.get("GUARD_VM_TIMERS", "direct")
+if timer_mode not in ("direct", "hardware"):
+    raise SystemExit("Unsupported disposable VM timer mode")
+cpu = "host,hv-relaxed,hv-vapic,hv-spinlocks=0x1fff,hv-vpindex,hv-time"
+if timer_mode == "direct":
+    # Use direct interrupts for nested synthetic timers, not the classic
+    # SynIC-message delivery path that hung the V3-off S3 baseline.
+    cpu += ",hv-synic,hv-stimer,hv-stimer-direct"
+(evidence / "vm-timers.txt").write_text(cpu + "\n")
+print("Disposable VM timer mode:", timer_mode, flush=True)
 command = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35,smm=on", "-cpu",
-           # Keep clock/APIC optimizations, but use the ordinary hardware timer
-           # path for S3. The synthetic timer path hung this guest during the
-           # V3-off baseline; see upstream QEMU issue 1887 for a related report.
-           "host,hv-relaxed,hv-vapic,hv-spinlocks=0x1fff,hv-vpindex,hv-time", "-smp", "4", "-m", "8192",
+           cpu, "-smp", "4", "-m", "8192",
            "-global", "driver=cfi.pflash01,property=secure,value=on",
            "-drive", "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.ms.fd",
            "-drive", f"if=pflash,format=raw,file={variables}",
@@ -275,7 +282,12 @@ with (evidence / "qemu.txt").open("w") as log:
                     raise TimeoutError("The Windows guest did not acknowledge S3 wakeup within three minutes")
             if elapsed - last_report >= 60:
                 last_report = elapsed
-                print(f"VM {int(elapsed)}s: {phase}; {qmp('query-status')['status']}", flush=True)
+                # Allocation and CPU counters distinguish slow setup from a
+                # stalled guest without dumping memory or VM credentials.
+                stat = Path(f"/proc/{process.pid}/stat").read_text().split()
+                cpu_seconds = (int(stat[13]) + int(stat[14])) / os.sysconf("SC_CLK_TCK")
+                allocated_mb = disk.stat().st_blocks * 512 // (1024 * 1024)
+                print(f"VM {int(elapsed)}s: {phase}; {qmp('query-status')['status']}; disk={allocated_mb}MiB; CPU={cpu_seconds:.0f}s", flush=True)
                 ppm = root / "screen.ppm"
                 qmp("screendump", {"filename": str(ppm)})
                 with Image.open(ppm) as shot:

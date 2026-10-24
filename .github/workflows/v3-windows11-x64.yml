@@ -1,6 +1,12 @@
 name: V3 isolated Windows 11 x64
 on:
   workflow_dispatch:
+    inputs:
+      timers:
+        description: Isolated VM timer path for Windows S3 compatibility
+        type: choice
+        options: [direct, hardware]
+        default: direct
 # A full OS install is expensive. Dispatch explicitly; in-flight prepared VMs
 # can validate corrected V3 revisions without starting another OS installation.
 permissions:
@@ -75,6 +81,8 @@ jobs:
       - name: Boot official Windows 11 evaluation and validate actual input
         timeout-minutes: 75
         shell: bash
+        env:
+          GUARD_VM_TIMERS: ${{ inputs.timers }}
         run: python3 tools/guard-vm/run.py
       - uses: actions/upload-artifact@v4
         if: always()
