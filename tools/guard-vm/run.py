@@ -62,9 +62,9 @@ class Receiver(http.server.BaseHTTPRequestHandler):
             # is still available for a new source revision, preserving the zip.
             with zipfile.ZipFile(io.BytesIO(body)) as archive:
                 for name in archive.namelist():
-                    if name.endswith("checks.txt"):
+                    if name.endswith("checks.txt") or name == "failure.txt":
                         lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
-                        findings = [line for line in lines if "FAIL" in line or "Exception:" in line]
+                        findings = lines if name == "failure.txt" else [line for line in lines if "FAIL" in line or "Exception:" in line]
                         for line in findings[:8]:
                             print("Fixture failure:", line[:1000], flush=True)
         else:
@@ -267,7 +267,7 @@ with (evidence / "qemu.txt").open("w") as log:
                 # Installation errors remain inspectable while this job runs.
                 ocr = subprocess.run(["tesseract", str(evidence / "latest-screen.png"), "stdout", "-l", "jpn+eng"], capture_output=True, text=True)
                 print("Guest screen:", ocr.stdout.strip()[:1500], flush=True)
-            if elapsed > 55 * 60:
+            if elapsed > 65 * 60:
                 raise TimeoutError("Windows VM validation did not finish within its bounded window")
             if process.poll() is not None:
                 raise RuntimeError("VM exited before validation completed")

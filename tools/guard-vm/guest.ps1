@@ -6,7 +6,9 @@ $taskSource = "$($taskDisk.DriveLetter):\"
 $taskConfig = Get-Content -Raw -LiteralPath (Join-Path $taskSource 'config.json') | ConvertFrom-Json
 if ((Get-CimInstance Win32_ComputerSystem).Model -notmatch 'QEMU|Standard PC') { throw 'Nested QEMU VM required' }
 New-Item -ItemType Directory -Path C:/V3Fixture -Force | Out-Null
-Copy-Item -Path "$taskSource*" -Destination C:/V3Fixture -Recurse -Force
+if (!(Test-Path -LiteralPath C:/V3Fixture/revision.txt)) {
+    Copy-Item -Path "$taskSource*" -Destination C:/V3Fixture -Recurse -Force
+}
 Set-Location C:/V3Fixture
 $taskEvidence = 'C:/V3Fixture/evidence'
 New-Item -ItemType Directory -Path $taskEvidence -Force | Out-Null
@@ -18,6 +20,9 @@ $env:GUARD_BROWSER_STARTS = '3'
 $env:GUARD_TEST_VM_ENDPOINT = $taskConfig.endpoint
 $env:GUARD_TEST_VM_TOKEN = $taskConfig.token
 $taskRevision = (Get-Content -Raw C:/V3Fixture/revision.txt).Trim()
+if (Test-Path -LiteralPath C:/V3Fixture/bootstrap-revision.txt) {
+    $taskRevision = (Get-Content -Raw C:/V3Fixture/bootstrap-revision.txt).Trim()
+}
 if ($taskRevision -notmatch '^[0-9a-f]{40}$') { throw 'Exact test revision required' }
 $taskFixtureRoot = 'C:/V3Fixture'
 $taskSdk = $null
@@ -43,8 +48,10 @@ function Prepare-Repair([string]$Revision) {
     # Public V3 source only. A changed revision is required; failed words are
     # never retried inside a passing attempt. The original evidence is retained.
     if (!$script:taskSdk) {
-        Invoke-WebRequest -UseBasicParsing https://dot.net/v1/dotnet-install.ps1 -OutFile C:/V3Fixture/dotnet-install.ps1
-        & C:/V3Fixture/dotnet-install.ps1 -Channel 8.0 -Architecture x64 -InstallDir C:/V3Fixture/dotnet -NoPath
+        if (!(Test-Path -LiteralPath C:/V3Fixture/dotnet/dotnet.exe)) {
+            Invoke-WebRequest -UseBasicParsing https://dot.net/v1/dotnet-install.ps1 -OutFile C:/V3Fixture/dotnet-install.ps1
+            & C:/V3Fixture/dotnet-install.ps1 -Channel 8.0 -Architecture x64 -InstallDir C:/V3Fixture/dotnet -NoPath
+        }
         $script:taskSdk = 'C:/V3Fixture/dotnet/dotnet.exe'
         if (!(Test-Path -LiteralPath $script:taskSdk)) { throw 'Official test SDK installation failed' }
     }
@@ -59,16 +66,53 @@ function Prepare-Repair([string]$Revision) {
         }
     } finally { Pop-Location }
 }
-Start-Transcript -Path "$taskEvidence/guest.txt"
+function Wait-Repair {
+    $taskDeadlineFile = 'C:/V3Fixture/repair-deadline.txt'
+    if (!(Test-Path -LiteralPath $taskDeadlineFile)) {
+        [DateTime]::UtcNow.AddMinutes(10).ToString('o') | Set-Content $taskDeadlineFile
+    }
+    $taskDeadline = [DateTime]::Parse((Get-Content -Raw $taskDeadlineFile)).ToUniversalTime()
+    while ([DateTime]::UtcNow -lt $taskDeadline) {
+        $taskRef = Invoke-RestMethod -Uri 'https://api.github.com/repos/31916/ImeLayoutRouter/git/ref/heads/V3' -Headers @{'User-Agent'='IMELayoutRouter-disposable-validation'}
+        $taskNext = $taskRef.object.sha
+        if ($taskNext -notmatch '^[0-9a-f]{40}$') { throw 'Invalid public V3 revision' }
+        if ($taskNext -ne $taskRevision) { return $taskNext }
+        Start-Sleep -Seconds 20
+    }
+    throw 'No corrected revision arrived within the prepared VM window'
+}
+$taskRebooting = $false
+$taskDelegated = $false
+$taskTranscriptStopped = $false
+Start-Transcript -Path "$taskEvidence/guest.txt" -Append
 $taskExit = 1
 try {
     Report 'booted'
     Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture
-    $taskCatalog = Get-AuthenticodeSignature C:/V3Fixture/display-driver/qxldod.cat
-    if ($taskCatalog.Status -ne 'Valid' -or $taskCatalog.SignerCertificate.Subject -notmatch 'CN=Microsoft Windows Hardware Compatibility Publisher') { throw 'Microsoft-signed QXL display driver required' }
-    pnputil /add-driver C:/V3Fixture/display-driver/qxldod.inf /install
-    if ($LASTEXITCODE -notin 0,3010) { throw 'Signed QXL driver installation failed' }
-    Start-Sleep -Seconds 5
+    if (!(Test-Path -LiteralPath C:/V3Fixture/display-reboot.marker)) {
+        $taskCatalog = Get-AuthenticodeSignature C:/V3Fixture/display-driver/qxldod.cat
+        if ($taskCatalog.Status -ne 'Valid' -or $taskCatalog.SignerCertificate.Subject -notmatch 'CN=Microsoft Windows Hardware Compatibility Publisher') { throw 'Microsoft-signed QXL display driver required' }
+        $taskInf = (Resolve-Path -LiteralPath C:/V3Fixture/display-driver/qxldod.inf).ProviderPath
+        pnputil /add-driver $taskInf /install
+        if ($LASTEXITCODE -notin 0,3010) { throw 'Signed QXL driver installation failed' }
+        # Activate the driver in a fresh interactive logon. The task and account
+        # exist only in this gated, disposable VM; no host desktop is involved.
+        $taskResumeScript = if ($PSCommandPath.StartsWith($taskSource, [StringComparison]::OrdinalIgnoreCase)) { 'C:\V3Fixture\guest.ps1' } else { $PSCommandPath }
+        $taskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $taskResumeScript + '"')
+        $taskPrincipal = New-ScheduledTaskPrincipal -UserId "$env:COMPUTERNAME\V3Test" -LogonType Interactive -RunLevel Highest
+        $taskTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:COMPUTERNAME\V3Test"
+        Register-ScheduledTask -TaskName 'V3DisposableResume' -Action $taskAction -Principal $taskPrincipal -Trigger $taskTrigger -Force | Out-Null
+        'Driver installation complete; activation must be verified after reboot.' | Set-Content C:/V3Fixture/display-reboot.marker
+        Report 'rebooting-display-driver'
+        Stop-Transcript
+        $taskTranscriptStopped = $true
+        $taskRebooting = $true
+        try { Restart-Computer -Force } catch { $taskRebooting = $false; throw }
+        return
+    }
+    Unregister-ScheduledTask -TaskName 'V3DisposableResume' -Confirm:$false -ErrorAction SilentlyContinue
+    Get-CimInstance Win32_VideoController | Select-Object Caption, DriverVersion, ConfigManagerErrorCode
+    Get-PnpDevice -Class Display | Select-Object Status, FriendlyName, InstanceId
     powercfg /a
     # No sign-in or network access to this guest is exposed outside its isolated
     # hypervisor. Keep only its throwaway fixture session unlocked for S3 tests.
@@ -79,7 +123,9 @@ try {
     powercfg /change monitor-timeout-ac 0
     ./Initialize-GuardTestDesktop.ps1 -RefreshShell
     Report 'installing-browser'
-    $taskChrome = 'C:/V3Fixture/chrome.msi'
+    # Windows Installer rejects forward slashes even though PowerShell and
+    # MsiOpenPackage can open the same file. Pass canonical native paths.
+    $taskChrome = (Resolve-Path -LiteralPath C:/V3Fixture/chrome.msi).ProviderPath
     # Authenticode is required in the preceding Windows build job. Recheck the
     # exact verified bytes here, without changing any guest security settings.
     $taskBrowserHash = (Get-Content -Raw C:/V3Fixture/chrome.sha256).Trim()
@@ -89,10 +135,11 @@ try {
     }
     Get-Content C:/V3Fixture/browser-signature.txt
     Report 'installing-signed-browser'
-    $taskInstall = Start-Process msiexec.exe -ArgumentList @('/i', $taskChrome, '/qn', '/norestart', '/L*v', "$taskEvidence/chrome-install.txt") -WindowStyle Hidden -PassThru
+    $taskInstallLog = [IO.Path]::GetFullPath("$taskEvidence/chrome-install.txt")
+    $taskInstall = Start-Process msiexec.exe -ArgumentList @('/i', $taskChrome, '/qn', '/norestart', '/L*v', $taskInstallLog) -WindowStyle Hidden -PassThru
     if (!$taskInstall.WaitForExit(300000)) { throw 'Signed Chrome installation exceeded five minutes; see MSI log' }
     if ($taskInstall.ExitCode -ne 0) { throw "Chrome installation failed: $($taskInstall.ExitCode)" }
-    $taskRepairDeadline = $null
+    if ($taskRevision -ne (Get-Content -Raw C:/V3Fixture/revision.txt).Trim()) { Prepare-Repair $taskRevision }
     while ($true) {
         $taskEvidence = "C:/V3Fixture/evidence/$taskRevision"
         New-Item -ItemType Directory -Path $taskEvidence -Force | Out-Null
@@ -124,15 +171,7 @@ try {
             'exit=1' | Set-Content "$taskEvidence/result.txt"
             Save-Attempt
             Report "validation-failed-$taskRevision"
-            if (!$taskRepairDeadline) { $taskRepairDeadline = [DateTime]::UtcNow.AddMinutes(10) }
-            $taskNext = $taskRevision
-            while ($taskNext -eq $taskRevision -and [DateTime]::UtcNow -lt $taskRepairDeadline) {
-                Start-Sleep -Seconds 20
-                $taskRef = Invoke-RestMethod -Uri 'https://api.github.com/repos/31916/ImeLayoutRouter/git/ref/heads/V3' -Headers @{'User-Agent'='IMELayoutRouter-disposable-validation'}
-                $taskNext = $taskRef.object.sha
-                if ($taskNext -notmatch '^[0-9a-f]{40}$') { throw 'Invalid public V3 revision' }
-            }
-            if ($taskNext -eq $taskRevision) { throw 'No corrected revision arrived within the prepared VM window' }
+            $taskNext = Wait-Repair
             Report "preparing-repair-$taskNext"
             Prepare-Repair $taskNext
             $taskRevision = $taskNext
@@ -141,9 +180,28 @@ try {
 } catch {
     $taskExit = 1
     $_ | Out-String | Write-Output
+    $_ | Out-String | Set-Content "$taskEvidence/failure.txt"
+    if (!$taskTranscriptStopped) { Stop-Transcript; $taskTranscriptStopped = $true }
+    'exit=1' | Set-Content "$taskEvidence/result.txt"
+    Save-Attempt
+    Report "bootstrap-failed-$taskRevision"
+    try {
+        $taskNext = Wait-Repair
+        Report "preparing-bootstrap-repair-$taskNext"
+        Invoke-WebRequest -UseBasicParsing "https://codeload.github.com/31916/ImeLayoutRouter/zip/$taskNext" -OutFile C:/V3Fixture/bootstrap-repair.zip
+        Expand-Archive -LiteralPath C:/V3Fixture/bootstrap-repair.zip -DestinationPath C:/V3Fixture/bootstrap-repairs -Force
+        $taskNextScript = "C:\V3Fixture\bootstrap-repairs\ImeLayoutRouter-$taskNext\tools\guard-vm\guest.ps1"
+        if (!(Test-Path -LiteralPath $taskNextScript)) { throw 'Corrected VM bootstrap script missing' }
+        $taskNext | Set-Content C:/V3Fixture/bootstrap-revision.txt
+        Start-Process powershell.exe -WindowStyle Hidden -ArgumentList ('-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $taskNextScript + '"') | Out-Null
+        $taskDelegated = $true
+    } catch {
+        $_ | Out-String | Set-Content "$taskEvidence/repair-failure.txt"
+    }
 } finally {
+    if (!$taskRebooting -and !$taskDelegated) {
     "exit=$taskExit" | Set-Content "$taskEvidence/result.txt"
-    Stop-Transcript
+    if (!$taskTranscriptStopped) { Stop-Transcript }
     if ($taskEvidence -ne 'C:/V3Fixture/evidence') {
         Get-ChildItem -LiteralPath C:/V3Fixture/evidence -File -Filter '*.txt' | ForEach-Object {
             Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $taskEvidence ('bootstrap-' + $_.Name))
@@ -154,4 +212,5 @@ try {
     Compress-Archive -LiteralPath $taskFiles.FullName -DestinationPath C:/V3Fixture/result.zip -Force
     Invoke-RestMethod -Method Post -Uri "$($taskConfig.endpoint)/result" -Headers @{Authorization=$taskConfig.token} -ContentType application/zip -InFile C:/V3Fixture/result.zip | Out-Null
     Report "finished-$taskExit"
+    }
 }
