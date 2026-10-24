@@ -8,6 +8,15 @@ using System.Text.Json;
 internal static class VmLifecycle
 {
     private static readonly List<int> powerEvents = [];
+    internal static void BeginAttempt()
+    {
+        RequireDisposable();
+        // Each corrected source revision gets a bounded opportunity to be
+        // inspected/repaired without reinstalling Windows. This changes only
+        // the debugging wait, never assertions or failed-input handling. The
+        // external hypervisor still enforces its absolute 65-minute lifetime.
+        File.WriteAllText(@"C:\V3Fixture\repair-deadline.txt", DateTime.UtcNow.AddMinutes(10).ToString("o"));
+    }
     internal static void Observe(uint message, nint parameter)
     {
         if (message == 0x218 && (parameter == 4 || parameter == 7 || parameter == 18))
@@ -15,16 +24,24 @@ internal static class VmLifecycle
     }
     internal static void Suspend(Action<int> pump, int cycle)
     {
-        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true"
-            || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted"
-            || Environment.MachineName != "V3-TEST"
-            || Environment.GetEnvironmentVariable("GUARD_TEST_VM_ENDPOINT") != "http://10.0.2.2:8000")
-            throw new InvalidOperationException("Sleep is restricted to the disposable nested V3 VM");
+        RequireDisposable();
         powerEvents.Clear();
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         http.DefaultRequestHeaders.Add("Authorization", Environment.GetEnvironmentVariable("GUARD_TEST_VM_TOKEN"));
         using var body = new StringContent(JsonSerializer.Serialize(new { phase = $"suspend-ready-{cycle}" }), Encoding.UTF8, "application/json");
         http.PostAsync("http://10.0.2.2:8000/status", body).GetAwaiter().GetResult().EnsureSuccessStatusCode();
+        SuspendCore(pump);
+    }
+    private static void RequireDisposable()
+    {
+        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true"
+            || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted"
+            || Environment.MachineName != "V3-TEST"
+            || Environment.GetEnvironmentVariable("GUARD_TEST_VM_ENDPOINT") != "http://10.0.2.2:8000")
+            throw new InvalidOperationException("Sleep is restricted to the disposable nested V3 VM");
+    }
+    private static void SuspendCore(Action<int> pump)
+    {
         var request = Task.Run(() => {
             if (!OpenProcessToken(Process.GetCurrentProcess().Handle, 0x28, out nint token))
                 throw new InvalidOperationException("Sleep privilege token unavailable");
