@@ -30,13 +30,14 @@ internal static class ChromeChecks
         string root = Path.Combine(Environment.GetEnvironmentVariable("RUNNER_TEMP")!, "guard-chrome-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         string page = Path.Combine(root, "input.html");
+        string pageTitle = "V3 local browser input fixture " + Guid.NewGuid().ToString("N");
         File.WriteAllText(page, """
             <!doctype html><meta charset="utf-8"><title>V3 local browser input fixture</title>
             <style>body{font:24px sans-serif;margin:80px}input,textarea{font:28px sans-serif;display:block;margin:20px 0;width:600px}</style>
             <i aria-hidden="true" style="position:fixed;left:12px;top:12px;width:12px;height:12px;background:rgb(33,77,155)"></i>
             <h1>Disposable V3 input validation</h1><label>Text<input id="text"></label><label>Multiline<textarea id="area"></textarea></label>
             <script>window.imeEvents=[];window.keyEvents=[];for(const type of ['compositionstart','compositionupdate','compositionend'])document.addEventListener(type,e=>imeEvents.push({type,data:e.data}));document.addEventListener('keydown',e=>keyEvents.push({key:e.key,target:e.target.id,composing:e.isComposing}));</script>
-            """, Encoding.UTF8);
+            """.Replace("V3 local browser input fixture", pageTitle, StringComparison.Ordinal), Encoding.UTF8);
         string profile = Path.Combine(root, "profile");
         var startupMessages = new System.Collections.Concurrent.ConcurrentQueue<string>();
         var start = new ProcessStartInfo(chrome) { UseShellExecute = false, RedirectStandardError = true };
@@ -44,6 +45,7 @@ internal static class ChromeChecks
             "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--enable-logging=stderr", "--new-window", new Uri(page).AbsoluteUri })
             start.ArgumentList.Add(arg);
         using var browser = Process.Start(start) ?? throw new InvalidOperationException("Could not start fixture Chrome");
+        int browserPid = 0;
         browser.ErrorDataReceived += (_, e) => { if (e.Data != null && startupMessages.Count < 200) startupMessages.Enqueue(e.Data); };
         browser.BeginErrorReadLine();
         try
@@ -51,7 +53,11 @@ internal static class ChromeChecks
             string portFile = Path.Combine(profile, "DevToolsActivePort");
             int port = 0;
             Wait(() => {
-                if (browser.HasExited) throw new InvalidOperationException($"Fixture Chrome exited during startup: {browser.ExitCode}");
+                // Chromium can successfully relaunch at normal user privilege
+                // and exit this initial launcher with code 0. Keep its normal
+                // security behavior; identify the replacement by our unique
+                // profile endpoint, exact local URL and unique window title.
+                if (browser.HasExited && browser.ExitCode != 0) throw new InvalidOperationException($"Fixture Chrome exited during startup: {browser.ExitCode}");
                 // Existence precedes the browser closing/flushing this file.
                 // Wait for a complete endpoint, not a retry of failed typing.
                 try
@@ -67,7 +73,7 @@ internal static class ChromeChecks
             // The port file can be complete before Chrome's HTTP target service
             // answers. This bounded readiness probe precedes every test key.
             Wait(() => {
-                if (browser.HasExited) throw new InvalidOperationException("Fixture browser exited before exposing its page");
+                if (browser.HasExited && browser.ExitCode != 0) throw new InvalidOperationException("Fixture browser exited before exposing its page");
                 try
                 {
                     using var targets = JsonDocument.Parse(http.GetStringAsync($"http://127.0.0.1:{port}/json/list").GetAwaiter().GetResult());
@@ -80,22 +86,29 @@ internal static class ChromeChecks
                 catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return false; }
             }, "Browser debugger serves exactly the local fixture target", 60000);
             using var cdp = new Cdp(debugger!);
-            Wait(() => cdp.Value("document.title") == "V3 local browser input fixture", "Chrome loaded only the local test page");
+            Wait(() => cdp.Value("document.title") == pageTitle, "Chrome loaded only the local test page");
             nint window = 0;
             Wait(() => {
                 Native.EnumWindows((h, _) => {
                     Native.GetWindowThreadProcessId(h, out uint pid);
-                    if (pid != browser.Id || !Native.IsWindowVisible(h)) return true;
+                    if (!Native.IsWindowVisible(h)) return true;
                     var name = new StringBuilder(128); var title = new StringBuilder(256);
                     Native.GetClassNameW(h, name, name.Capacity); Native.GetWindowTextW(h, title, title.Capacity);
                     // Chrome also owns visible utility/compositor windows.
                     // Select the actual main window for our local document.
                     if (name.ToString() == "Chrome_WidgetWin_1"
-                        && title.ToString().Contains("V3 local browser input fixture", StringComparison.Ordinal)) window = h;
+                        && title.ToString().Contains(pageTitle, StringComparison.Ordinal))
+                    {
+                        using var candidate = Process.GetProcessById(checked((int)pid));
+                        if (!string.Equals(candidate.MainModule?.FileName, chrome, StringComparison.OrdinalIgnoreCase))
+                            throw new InvalidOperationException("Unique fixture window is not owned by the installed browser");
+                        window = h; browserPid = candidate.Id;
+                    }
                     return true;
                 }, 0);
                 return window != 0;
             }, "The new Chrome process owns a visible test window");
+            Console.WriteLine($"Verified local-page browser PID={browserPid}; initial launcher PID={browser.Id}");
             Native.SetForegroundWindow(window);
             Wait(() => Native.GetForegroundWindow() == window, "Only the isolated Chrome window receives browser test keys");
             uint browserThread = Native.GetWindowThreadProcessId(window, out _);
@@ -110,7 +123,7 @@ internal static class ChromeChecks
                 {
                     bool legacy = Environment.GetEnvironmentVariable("GUARD_BROWSER_READY_MODE") == "legacy";
                     cdp.Value($"(()=>{{const e=document.getElementById('{field}');e.value='';window.imeEvents=[];window.keyEvents=[];{(legacy ? "e.focus();" : "")}return e.id;}})()");
-                    if (!legacy) ClickInput(cdp, window, browser.Id, field);
+                    if (!legacy) ClickInput(cdp, window, browserPid, field);
                     Wait(() => cdp.Value("document.activeElement.id") == field && cdp.Value("String(document.hasFocus())") == "true",
                         "Local Chrome field owns document focus: " + field);
                     if (!legacy) WaitForNativeInput(window, browserThread, false);
@@ -150,6 +163,15 @@ internal static class ChromeChecks
         {
             guard.SetEnabled(false);
             // Only the process launched with this new, unique test profile.
+            if (browserPid != 0 && browserPid != browser.Id)
+            {
+                try
+                {
+                    using var actual = Process.GetProcessById(browserPid);
+                    if (!actual.HasExited) { actual.Kill(entireProcessTree: true); actual.WaitForExit(5000); }
+                }
+                catch (ArgumentException) { } // the verified profile already exited
+            }
             if (!browser.HasExited) { browser.Kill(entireProcessTree: true); browser.WaitForExit(5000); }
         }
     }
