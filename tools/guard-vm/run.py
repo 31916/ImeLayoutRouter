@@ -152,6 +152,9 @@ with zipfile.ZipFile(io.BytesIO(driver)) as archive:
     for name in ("qxldod.inf", "qxldod.sys", "qxldod.cat"):
         (payload / "display-driver" / name).write_bytes(archive.read("w10/amd64/" + name))
 
+# FirstLogonCommands precedes the normal desktop. Detach the long-running
+# fixture so Windows can finish logon independently (Microsoft's documented
+# separate-process pattern), instead of holding setup open for all tests.
 unattend = rf'''<?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend">
  <settings pass="windowsPE">
@@ -180,7 +183,7 @@ unattend = rf'''<?xml version="1.0" encoding="utf-8"?>
    <OOBE><HideEULAPage>true</HideEULAPage><HideOnlineAccountScreens>true</HideOnlineAccountScreens><HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE><ProtectYourPC>3</ProtectYourPC></OOBE>
    <UserAccounts><LocalAccounts><LocalAccount wcm:action="add"><Name>V3Test</Name><Group>Administrators</Group><Password><Value>{password}</Value><PlainText>true</PlainText></Password></LocalAccount></LocalAccounts></UserAccounts>
    <AutoLogon><Enabled>true</Enabled><Username>V3Test</Username><LogonCount>2</LogonCount><Password><Value>{password}</Value><PlainText>true</PlainText></Password></AutoLogon>
-   <FirstLogonCommands><SynchronousCommand wcm:action="add"><Order>1</Order><Description>Run isolated V3 checks</Description><CommandLine>powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "$d=Get-Volume | Where-Object FileSystemLabel -eq 'V3TEST' | Select-Object -First 1; &amp; ($d.DriveLetter + ':\guest.ps1')"</CommandLine></SynchronousCommand></FirstLogonCommands>
+   <FirstLogonCommands><SynchronousCommand wcm:action="add"><Order>1</Order><Description>Start independent isolated V3 checks</Description><CommandLine>powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "$d=Get-Volume | Where-Object FileSystemLabel -eq 'V3TEST' | Select-Object -First 1; Start-Process powershell.exe -WindowStyle Hidden -ArgumentList ('-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ' + $d.DriveLetter + ':\guest.ps1')"</CommandLine></SynchronousCommand></FirstLogonCommands>
   </component>
  </settings>
 </unattend>'''
