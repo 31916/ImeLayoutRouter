@@ -3,11 +3,21 @@ on:
   push:
     branches: [V3]
   workflow_dispatch:
+    inputs:
+      test_os:
+        description: Disposable Windows environment for the packaged x64 installer
+        type: choice
+        options: [windows-latest, windows-11-arm]
+        default: windows-latest
+      package:
+        description: Retain the validated V3 installer after the release gates pass
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   guard:
-    runs-on: windows-latest
+    runs-on: ${{ inputs.test_os || 'windows-latest' }}
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
@@ -44,3 +54,23 @@ jobs:
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer/V3.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./tools/Test-GuardInstaller.ps1 -Installer (Get-ChildItem installer/output-v3/*-Setup.exe).FullName
+      - name: Checksum the exact validated installer
+        if: github.event_name == 'workflow_dispatch' && inputs.package
+        shell: pwsh
+        run: |
+          $taskInstaller = Get-ChildItem installer/output-v3/*-Setup.exe
+          if (@($taskInstaller).Count -ne 1 -or $taskInstaller.Name -ne 'ImeLayoutRouter-3.0.0-Setup.exe') {
+            throw 'Only the completed V3 version may be retained as an installer.'
+          }
+          $taskHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $taskInstaller.FullName).Hash.ToLowerInvariant()
+          "$taskHash  $($taskInstaller.Name)" | Set-Content installer/output-v3/SHA256SUMS.txt -Encoding ascii
+      - name: Retain the validated installer and checksum
+        if: github.event_name == 'workflow_dispatch' && inputs.package
+        uses: actions/upload-artifact@v4
+        with:
+          name: IMELayoutRouter-V3-validated-installer
+          path: |
+            installer/output-v3/ImeLayoutRouter-3.0.0-Setup.exe
+            installer/output-v3/SHA256SUMS.txt
+          retention-days: 7
+          if-no-files-found: error
