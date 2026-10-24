@@ -27,7 +27,8 @@ if ($taskRevision -notmatch '^[0-9a-f]{40}$') { throw 'Exact test revision requi
 $taskFixtureRoot = 'C:/V3Fixture'
 $taskSdk = $null
 function Report([string]$Phase) {
-    Invoke-RestMethod -Method Post -Uri "$($taskConfig.endpoint)/status" -Headers @{Authorization=$taskConfig.token} -ContentType application/json -Body (@{phase=$Phase} | ConvertTo-Json -Compress) | Out-Null
+    $taskBody = [Text.Encoding]::UTF8.GetBytes((@{phase=$Phase} | ConvertTo-Json -Compress))
+    Invoke-RestMethod -Method Post -Uri "$($taskConfig.endpoint)/status" -Headers @{Authorization=$taskConfig.token} -ContentType 'application/json; charset=utf-8' -Body $taskBody | Out-Null
 }
 function Save-Attempt {
     $taskFiles = Get-ChildItem -LiteralPath $taskEvidence -File | Where-Object Extension -in '.txt', '.png'
@@ -101,8 +102,8 @@ try {
     # the exact baseline/commit evidence while this disposable VM is repairable.
     Get-ChildItem -LiteralPath C:/V3Fixture/evidence -Recurse -File -Filter '*-checks.txt' | ForEach-Object {
         $taskPrior = $_.FullName
-        Get-Content -LiteralPath $taskPrior | Where-Object { $_ -match '^Chrome (text|area), enabled=|^System.InvalidOperationException: FAIL' } |
-            Select-Object -Last 10 | ForEach-Object { Report ('previous-fixture: ' + $_) }
+        Get-Content -Encoding UTF8 -LiteralPath $taskPrior | Where-Object { $_ -match '^Chrome (text|area), enabled=|^System.InvalidOperationException: FAIL|^Wait failure state:|^Fixture failure state:|^class=|^  child class=' } |
+            Select-Object -Last 25 | ForEach-Object { Report ('previous-fixture: ' + $_) }
     }
     Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture
     if (!(Test-Path -LiteralPath C:/V3Fixture/display-reboot.marker)) {
