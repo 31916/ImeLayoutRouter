@@ -53,8 +53,8 @@ function Invoke-Stage([string]$Name, [scriptblock]$Action) {
         $_ | Out-String | Set-Content "$taskEvidence/failure-$Name.txt"
         Write-Output "Independent validation stage failed: $Name"
         Get-ChildItem -LiteralPath $taskEvidence -File -Filter '*-checks.txt' | ForEach-Object {
-            Get-Content -Encoding UTF8 -LiteralPath $_.FullName | Where-Object { $_ -match '^VM |^Actual Windows monitor:|^Testing real input on monitor:|^Requested actual VM display scale:|^Available DPI steps:|^System.InvalidOperationException:' } |
-                Select-Object -Last 20 | ForEach-Object { Report ('fixture-diagnostic: ' + $_) }
+            Get-Content -Encoding UTF8 -LiteralPath $_.FullName | Where-Object { $_ -match '^VM |^Actual Windows monitor:|^Testing real input on monitor:|^Requested actual VM display scale:|^Available DPI steps:|^System.InvalidOperationException:|^Wait failure state:|^Observed composition:|^Composition after IMM position notification:' } |
+                Select-Object -Last 30 | ForEach-Object { Report ('fixture-diagnostic: ' + $_) }
         }
         Save-Attempt
     }

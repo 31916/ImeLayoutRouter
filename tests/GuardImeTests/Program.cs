@@ -324,13 +324,33 @@ internal static class Program
                     Key(0x0D); Pump(300);
                     Check(committed.ToString() == "にほん" && Composition().Length == 0, "Monitor transition preserves actual committed input");
                 }
-                // Move the real pending popup away from this monitor's corner.
-                guard.SetEnabled(true); PositionComposition(screen.Bounds.Location); TypeNihon();
-                Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h), "Monitor corner is masked before position correction");
-                PositionComposition(new Point(screen.Bounds.Left + 300, screen.Bounds.Top + 180)); Pump(500);
-                Wait(() => FindComposition() is var h && h != 0 && !EmptyRegion(h), "Corrected composition position is restored on this monitor");
-                Check(Composition() == "にほん", "Moving a real composition does not change pending text");
-                Key(0x1B); Pump(100); Key(0x1B); Pump(100);
+                foreach (bool enabled in new[] { false, true })
+                {
+                    committed.Clear();
+                    guard.SetEnabled(enabled); PositionComposition(screen.Bounds.Location); TypeNihon();
+                    Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h) == enabled,
+                        "Monitor corner has the selected state before position correction");
+                    nint popup = FindComposition();
+                    var corrected = new Point(screen.Bounds.Left + 300, screen.Bounds.Top + 180);
+                    PositionComposition(corrected); Pump(500);
+                    Native.GetWindowRect(popup, out var notified);
+                    Console.WriteLine($"Composition after IMM position notification: {notified.Left},{notified.Top}; requested={corrected.X},{corrected.Y}; enabled={enabled}");
+                    // Modern TSF may retain its existing UI position after an
+                    // IMM coordinate notification. Test actual window movement,
+                    // not an assumption that the notification moved it. This is
+                    // the real IME surface enumerated on our own fixture thread;
+                    // the preedit buffer and IME UI are not replaced or mocked.
+                    Check(Native.SetWindowPos(popup, 0, corrected.X, corrected.Y, 0, 0, 0x15),
+                        "Own real composition surface receives a position change");
+                    Wait(() => Native.GetWindowRect(popup, out var moved) && moved.Left == corrected.X && moved.Top == corrected.Y,
+                        "Actual composition window reaches the corrected physical position");
+                    Wait(() => Native.IsWindowVisible(popup) && !EmptyRegion(popup),
+                        "Corrected composition position is drawable on this monitor");
+                    Check(Composition() == "にほん", "Moving a real composition does not change pending text");
+                    Key(0x0D); Pump(300);
+                    Check(committed.ToString() == "にほん" && Composition().Length == 0,
+                        "Repositioned real composition commits the same input");
+                }
             }
             guard.SetEnabled(false);
             }
@@ -610,6 +630,9 @@ internal static class Program
         var gui = new CompositionGuard.Native.GuiInfo { Size = (uint)Marshal.SizeOf<CompositionGuard.Native.GuiInfo>() };
         bool queried = CompositionGuard.Native.GetGUIThreadInfo(Native.GetCurrentThreadId(), ref gui);
         Console.WriteLine($"Wait failure state: helper={activeGuard?.CheckError() ?? "no reported error"}; queried={queried}; foreground=0x{Native.GetForegroundWindow():X}; own=0x{window:X}; caret=0x{gui.Caret:X}; caretClass={Class(gui.Caret)}; caretRect={gui.CaretRect.Left},{gui.CaretRect.Top},{gui.CaretRect.Right},{gui.CaretRect.Bottom}");
+        nint observed = FindComposition();
+        Native.GetWindowRect(observed, out var observedBounds);
+        Console.WriteLine($"Observed composition: class={Class(observed)}; rect={observedBounds.Left},{observedBounds.Top},{observedBounds.Right},{observedBounds.Bottom}; empty={EmptyRegion(observed)}");
         Check(false, name);
     }
     private static void Check(bool value, string name) { if (!value) throw new InvalidOperationException("FAIL " + name); Console.WriteLine("PASS " + name); }
