@@ -202,7 +202,10 @@ qmp_path = root / "qmp.sock"
 # documented guest interfaces preserve Secure Boot, TPM and OS security policy.
 # https://www.qemu.org/docs/master/system/i386/hyperv.html
 command = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35,smm=on", "-cpu",
-           "host,hv-relaxed,hv-vapic,hv-spinlocks=0x1fff,hv-vpindex,hv-time,hv-synic,hv-stimer", "-smp", "4", "-m", "8192",
+           # Keep clock/APIC optimizations, but use the ordinary hardware timer
+           # path for S3. The synthetic timer path hung this guest during the
+           # V3-off baseline; see upstream QEMU issue 1887 for a related report.
+           "host,hv-relaxed,hv-vapic,hv-spinlocks=0x1fff,hv-vpindex,hv-time", "-smp", "4", "-m", "8192",
            "-global", "driver=cfi.pflash01,property=secure,value=on",
            "-drive", "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.ms.fd",
            "-drive", f"if=pflash,format=raw,file={variables}",
@@ -240,6 +243,8 @@ with (evidence / "qemu.txt").open("w") as log:
         started = time.monotonic()
         last_report = 0
         suspended_at = None
+        resumed_at = None
+        resumed_phase = None
         resume_cycles = 0
         while not finished.wait(1):
             elapsed = time.monotonic() - started
@@ -259,8 +264,15 @@ with (evidence / "qemu.txt").open("w") as log:
                     qmp("system_wakeup")
                     resume_cycles += 1
                     suspended_at = None
+                    resumed_at = time.monotonic()
+                    resumed_phase = phase
                     (evidence / "hypervisor-resume.txt").write_text(f"actual_s3_resume_cycles={resume_cycles}\n")
                     print("Resumed actual guest ACPI S3, cycle", resume_cycles, flush=True)
+            if resumed_at is not None:
+                if phase != resumed_phase:
+                    resumed_at = None
+                elif time.monotonic() - resumed_at > 180:
+                    raise TimeoutError("The Windows guest did not acknowledge S3 wakeup within three minutes")
             if elapsed - last_report >= 60:
                 last_report = elapsed
                 print(f"VM {int(elapsed)}s: {phase}; {qmp('query-status')['status']}", flush=True)

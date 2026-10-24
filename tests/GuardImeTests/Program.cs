@@ -224,8 +224,8 @@ internal static class Program
         Console.WriteLine("Real popup show-event to empty-region observations (ms; not video/first-frame latency): " + string.Join(", ", timings));
         RunFullscreenChecks(guard);
         if (Environment.GetEnvironmentVariable("GUARD_TEST_DPI") == "1") RunDpiChecks(guard);
-        if (Environment.GetEnvironmentVariable("GUARD_TEST_VM_SLEEP") == "1") RunResumeChecks(guard);
         if (Environment.GetEnvironmentVariable("GUARD_TEST_VM_DISPLAYS") == "1") RunMonitorChecks(guard);
+        if (Environment.GetEnvironmentVariable("GUARD_TEST_VM_SLEEP") == "1") RunResumeChecks(guard);
         guard.SetEnabled(false);
         Pump(600);
         if (Environment.GetEnvironmentVariable("GUARD_TEST_BROWSER") == "chrome") ChromeChecks.Run(guard);

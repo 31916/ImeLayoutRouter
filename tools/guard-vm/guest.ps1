@@ -24,6 +24,7 @@ if (Test-Path -LiteralPath C:/V3Fixture/bootstrap-revision.txt) {
     $taskRevision = (Get-Content -Raw C:/V3Fixture/bootstrap-revision.txt).Trim()
 }
 if ($taskRevision -notmatch '^[0-9a-f]{40}$') { throw 'Exact test revision required' }
+$env:GUARD_TEST_VM_REVISION = $taskRevision
 $taskFixtureRoot = 'C:/V3Fixture'
 $taskSdk = $null
 function Report([string]$Phase) {

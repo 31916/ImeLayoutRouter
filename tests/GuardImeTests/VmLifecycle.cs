@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.IO.Compression;
 
 // Test-only ACPI sleep handshake. The external hypervisor must independently
 // observe S3 and wake this disposable guest; simulated messages never pass.
@@ -19,9 +20,26 @@ internal static class VmLifecycle
         powerEvents.Clear();
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         http.DefaultRequestHeaders.Add("Authorization", Environment.GetEnvironmentVariable("GUARD_TEST_VM_TOKEN"));
+        // Preserve fixed fixture evidence before a baseline OS/driver resume
+        // failure can make the guest unreachable. Never transfer a guest disk,
+        // credentials, downloaded packages, or arbitrary filesystem content.
+        string revision = Environment.GetEnvironmentVariable("GUARD_TEST_VM_REVISION") ?? "";
+        if (revision.Length != 40 || revision.Any(c => !Uri.IsHexDigit(c)))
+            throw new InvalidOperationException("Exact revision required for the pre-suspend checkpoint");
+        using (var memory = new MemoryStream())
+        {
+            using (var archive = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
+                foreach (string file in Directory.GetFiles(Environment.GetEnvironmentVariable("RUNNER_TEMP")!, "v3-ime-*")
+                    .Where(f => Path.GetExtension(f) is ".txt" or ".png"))
+                    archive.CreateEntryFromFile(file, Path.GetFileName(file));
+            using var checkpoint = new ByteArrayContent(memory.ToArray());
+            http.PostAsync("http://10.0.2.2:8000/result-" + revision, checkpoint).GetAwaiter().GetResult().EnsureSuccessStatusCode();
+        }
         using var body = new StringContent(JsonSerializer.Serialize(new { phase = $"suspend-ready-{cycle}" }), Encoding.UTF8, "application/json");
         http.PostAsync("http://10.0.2.2:8000/status", body).GetAwaiter().GetResult().EnsureSuccessStatusCode();
         SuspendCore(pump);
+        using var resumed = new StringContent(JsonSerializer.Serialize(new { phase = $"suspend-returned-{cycle}" }), Encoding.UTF8, "application/json");
+        http.PostAsync("http://10.0.2.2:8000/status", resumed).GetAwaiter().GetResult().EnsureSuccessStatusCode();
     }
     private static void RequireDisposable()
     {
