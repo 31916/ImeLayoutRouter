@@ -463,14 +463,26 @@ internal static class Program
             // our own raw HWND, on this disposable VM. Never click setup UI or
             // an unrelated window to obtain focus.
             var point = new Native.Point { X = 40, Y = 80 };
-            Check(Native.ClientToScreen(window, ref point) && Native.WindowFromPoint(point) == window,
-                "Fixture focus click belongs only to its own uncovered client area");
-            Check(Native.SetCursorPos(point.X, point.Y) && Native.WindowFromPoint(point) == window,
-                "Disposable pointer is positioned on the fixture only");
-            var down = new Native.Input { Type = 0, Data = new Native.InputUnion { Mouse = new Native.Mouse { Flags = 2 } } };
-            var up = down; up.Data.Mouse.Flags = 4;
-            Check(Native.SendInput(2, [down, up], Marshal.SizeOf<Native.Input>()) == 2, "Own fixture focus click is accepted");
-            Pump(200);
+            Check(Native.ClientToScreen(window, ref point), "Own fixture client point maps to the desktop");
+            var blocker = new StringBuilder(128);
+            Native.GetClassNameW(Native.WindowFromPoint(point), blocker, blocker.Capacity);
+            Console.WriteLine($"Fixture activation preparation: foreground=0x{Native.GetForegroundWindow():X}; hitClass={blocker}; point={point.X},{point.Y}");
+            // Foreground-lock rules can leave a newly created test HWND behind
+            // the disposable shell. Raise only our HWND before clicking it,
+            // then remove topmost immediately so it cannot cover IME candidates.
+            Check(Native.SetWindowPos(window, (nint)(-1), 0, 0, 0, 0, 0x13), "Own fixture is raised without changing another window");
+            try
+            {
+                Wait(() => Native.WindowFromPoint(point) == window,
+                    "Fixture focus click belongs only to its own uncovered client area");
+                Check(Native.SetCursorPos(point.X, point.Y) && Native.WindowFromPoint(point) == window,
+                    "Disposable pointer is positioned on the fixture only");
+                var down = new Native.Input { Type = 0, Data = new Native.InputUnion { Mouse = new Native.Mouse { Flags = 2 } } };
+                var up = down; up.Data.Mouse.Flags = 4;
+                Check(Native.SendInput(2, [down, up], Marshal.SizeOf<Native.Input>()) == 2, "Own fixture focus click is accepted");
+                Pump(200);
+            }
+            finally { Native.SetWindowPos(window, (nint)(-2), 0, 0, 0, 0, 0x13); }
         }
         Console.WriteLine($"Fixture focus: foreground=0x{Native.GetForegroundWindow():X}; focus=0x{Native.GetFocus():X}; own=0x{window:X}");
         Check(Native.GetForegroundWindow() == window && Native.GetFocus() == window, "Only the fixture owns input focus");
