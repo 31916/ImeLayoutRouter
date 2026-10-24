@@ -139,6 +139,16 @@ internal static class ChromeChecks
                     Console.WriteLine("Browser input immediately before first key: " + DescribeInput(browserThread));
                     foreach (char key in "NIHONN") { Key(window, key); Pump(100); }
                     string pending = cdp.Value($"document.getElementById('{field}').value");
+                    // SendInput queues OS input; acceptance is not a renderer
+                    // composition-delivery fence. Observe the one word already
+                    // sent for a bounded interval, without sending any extra key
+                    // or restarting an unsuccessful composition.
+                    long deliveredBy = Environment.TickCount64 + 3000;
+                    while (pending != "にほん" && Environment.TickCount64 < deliveredBy)
+                    {
+                        Pump(25);
+                        pending = cdp.Value($"document.getElementById('{field}').value");
+                    }
                     Console.WriteLine($"Chrome {field}, enabled={enabled}: pending={pending}; events=" + cdp.Value("JSON.stringify(window.imeEvents)"));
                     if (pending != "にほん") Console.WriteLine("Own browser key trace: " + cdp.Value("JSON.stringify(window.keyEvents)"));
                     Check(pending == "にほん", "Chrome receives real Japanese preedit in " + field
