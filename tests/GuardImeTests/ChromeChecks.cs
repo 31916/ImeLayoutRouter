@@ -46,6 +46,7 @@ internal static class ChromeChecks
             start.ArgumentList.Add(arg);
         using var browser = Process.Start(start) ?? throw new InvalidOperationException("Could not start fixture Chrome");
         int browserPid = 0;
+        Process? verifiedBrowser = null;
         browser.ErrorDataReceived += (_, e) => { if (e.Data != null && startupMessages.Count < 200) startupMessages.Enqueue(e.Data); };
         browser.BeginErrorReadLine();
         try
@@ -99,9 +100,13 @@ internal static class ChromeChecks
                     if (name.ToString() == "Chrome_WidgetWin_1"
                         && title.ToString().Contains(pageTitle, StringComparison.Ordinal))
                     {
-                        using var candidate = Process.GetProcessById(checked((int)pid));
+                        var candidate = Process.GetProcessById(checked((int)pid));
                         if (!string.Equals(candidate.MainModule?.FileName, chrome, StringComparison.OrdinalIgnoreCase))
-                            throw new InvalidOperationException("Unique fixture window is not owned by the installed browser");
+                        { candidate.Dispose(); throw new InvalidOperationException("Unique fixture window is not owned by the installed browser"); }
+                        // Hold its process handle through cleanup so a recycled
+                        // numeric PID can never target an unrelated process.
+                        _ = candidate.Handle;
+                        verifiedBrowser?.Dispose(); verifiedBrowser = candidate;
                         window = h; browserPid = candidate.Id;
                     }
                     return true;
@@ -163,14 +168,13 @@ internal static class ChromeChecks
         {
             guard.SetEnabled(false);
             // Only the process launched with this new, unique test profile.
-            if (browserPid != 0 && browserPid != browser.Id)
+            if (verifiedBrowser != null)
             {
                 try
                 {
-                    using var actual = Process.GetProcessById(browserPid);
-                    if (!actual.HasExited) { actual.Kill(entireProcessTree: true); actual.WaitForExit(5000); }
+                    if (!verifiedBrowser.HasExited) { verifiedBrowser.Kill(entireProcessTree: true); verifiedBrowser.WaitForExit(5000); }
                 }
-                catch (ArgumentException) { } // the verified profile already exited
+                finally { verifiedBrowser.Dispose(); }
             }
             if (!browser.HasExited) { browser.Kill(entireProcessTree: true); browser.WaitForExit(5000); }
         }
