@@ -315,9 +315,9 @@ internal static class Program
                     committed.Clear();
                     guard.SetEnabled(enabled); Pump(300);
                     PositionComposition(screen.Bounds.Location); TypeNihon();
-                    Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h) == enabled,
+                    nint popup = MoveOwnComposition(screen.Bounds.Location);
+                    Wait(() => Native.IsWindowVisible(popup) && EmptyRegion(popup) == enabled,
                         "Composition suppression matches selected state on " + screen.DeviceName);
-                    nint popup = FindComposition();
                     Check(Native.GetWindowRect(popup, out var bounds) && Math.Abs(bounds.Left - screen.Bounds.Left) < 16
                         && Math.Abs(bounds.Top - screen.Bounds.Top) < 16, "Real IME popup occupies the actual monitor corner");
                     Console.WriteLine($"Popup DPI={GetDpiForWindow(popup)}; physical corner={bounds.Left},{bounds.Top}");
@@ -328,9 +328,9 @@ internal static class Program
                 {
                     committed.Clear();
                     guard.SetEnabled(enabled); PositionComposition(screen.Bounds.Location); TypeNihon();
-                    Wait(() => FindComposition() is var h && h != 0 && EmptyRegion(h) == enabled,
+                    nint popup = MoveOwnComposition(screen.Bounds.Location);
+                    Wait(() => Native.IsWindowVisible(popup) && EmptyRegion(popup) == enabled,
                         "Monitor corner has the selected state before position correction");
-                    nint popup = FindComposition();
                     var corrected = new Point(screen.Bounds.Left + 300, screen.Bounds.Top + 180);
                     PositionComposition(corrected); Pump(500);
                     Native.GetWindowRect(popup, out var notified);
@@ -355,6 +355,24 @@ internal static class Program
             guard.SetEnabled(false);
             }
         VmDisplays.Configure(false); Pump(500); Focus();
+    }
+    private static nint MoveOwnComposition(Point position)
+    {
+        Wait(() => FindComposition() != 0, "Own thread exposes an actual IME composition surface");
+        nint popup = FindComposition();
+        Check(Native.GetWindowRect(popup, out var initial), "Actual composition bounds are available before monitor placement");
+        Console.WriteLine($"Monitor popup initial position={initial.Left},{initial.Top}; requested={position.X},{position.Y}; dpi={GetDpiForWindow(popup)}");
+        // IMM coordinates can be retained or transformed by modern TSF across
+        // differently scaled monitors. Deliberately place the real popup owned
+        // by this test thread to exercise each physical corner, while retaining
+        // the real IME, preedit and Windows DPI transitions. Production code
+        // neither moves IME windows nor contains this fixture routine.
+        Check(Native.SetWindowPos(popup, 0, position.X, position.Y, 0, 0, 0x15),
+            "Real fixture composition surface is placed on the selected monitor");
+        Wait(() => Native.GetWindowRect(popup, out var placed) && placed.Left == position.X && placed.Top == position.Y,
+            "Actual physical composition position matches the selected monitor corner");
+        Check(Composition() == "にほん", "Monitor placement preserves the real preedit buffer");
+        return popup;
     }
     [DllImport("user32.dll")] private static extern uint GetDpiForWindow(nint h);
 
