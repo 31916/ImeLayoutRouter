@@ -25,6 +25,27 @@ try {
     if ($readme -notmatch 'V3' -or $readme -notmatch 'not a released') { throw 'V3-specific development documentation missing.' }
     if ((Get-StartupValue 'ImeLayoutRouter') -ne 'preserved V2 startup') { throw 'V2 startup was changed.' }
     if (Get-StartupValue 'ImeLayoutRouterV3') { throw 'Installer enabled startup without a user choice.' }
+    # The initial settings dialog must not trap --shutdown before the tray's
+    # application loop starts. This is the real packaged process in the VM.
+    $taskFirstRun = Start-Process -FilePath $executable -ArgumentList '--first-run' -WindowStyle Hidden -PassThru
+    try {
+        $taskReadyBy = [Environment]::TickCount64 + 10000
+        do { $taskFirstRun.Refresh(); if ($taskFirstRun.MainWindowHandle -ne 0) { break }; Start-Sleep -Milliseconds 100 }
+        while (!$taskFirstRun.HasExited -and [Environment]::TickCount64 -lt $taskReadyBy)
+        if ($taskFirstRun.HasExited -or $taskFirstRun.MainWindowHandle -eq 0) { throw 'Packaged first-run settings did not open.' }
+        $taskStop = Start-Process -FilePath $executable -ArgumentList '--shutdown' -WindowStyle Hidden -PassThru
+        try {
+            if (!$taskStop.WaitForExit(10000) -or $taskStop.ExitCode -ne 0 -or !$taskFirstRun.WaitForExit(5000)) {
+                throw 'Packaged first-run settings prevented graceful shutdown.'
+            }
+        } finally { $taskStop.Dispose() }
+        Write-Output 'PASS Packaged first-run settings close through graceful shutdown.'
+    } finally {
+        # Only this throwaway, still-unsaved first-run process; suppression was
+        # never enabled. Cleanup cannot target an existing user application.
+        if (!$taskFirstRun.HasExited) { $taskFirstRun.Kill($true); $taskFirstRun.WaitForExit(5000) | Out-Null }
+        $taskFirstRun.Dispose()
+    }
     # Exercise the real WinExe helper without creating a tray or typing anything.
     $start = [Diagnostics.ProcessStartInfo]::new($executable)
     $start.UseShellExecute = $false; $start.CreateNoWindow = $true; $start.RedirectStandardInput = $true
