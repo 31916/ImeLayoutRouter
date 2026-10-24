@@ -78,6 +78,16 @@ server = http.server.ThreadingHTTPServer(("127.0.0.1", 8000), Receiver)
 threading.Thread(target=server.serve_forever, daemon=True).start()
 (payload / "config.json").write_text(json.dumps({"endpoint": "http://10.0.2.2:8000", "token": token}))
 
+# Provision the browser before boot, using a bounded host-side transfer. The
+# guest verifies the publisher before installation; no external download needs
+# to complete through emulated networking during the input-test window.
+chrome = payload / "chrome.msi"
+subprocess.run(["curl", "--silent", "--show-error", "--fail", "--location",
+                "--retry", "2", "--max-time", "300", "--output", str(chrome),
+                "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi"], check=True)
+with chrome.open("rb") as source:
+    (evidence / "browser-installer-sha256.txt").write_text(hashlib.file_digest(source, "sha256").hexdigest() + "\n")
+
 # Fixed preinstalled SDK directories on this disposable Linux image only.
 # They contain no repository data and are not needed by this VM-only job.
 if shutil.disk_usage(root).free < 45 * 1024**3:

@@ -60,7 +60,10 @@ try {
                     }
                     # FoD download can finish before Windows re-services the
                     # language package against the installed cumulative update.
-                    if ($taskTimer.Elapsed.TotalMinutes -ge 25) { throw "Capability installation timed out: $taskFeature" }
+                    # The ARM image can spend 24 minutes reapplying its LCU
+                    # before final cleanup. CBS confirms no reboot is needed;
+                    # allow that servicing to finish rather than killing it.
+                    if ($taskTimer.Elapsed.TotalMinutes -ge 35) { throw "Capability installation timed out: $taskFeature" }
                 }
                 $taskInstall = Receive-Job -Job $taskInstallJob -ErrorAction Stop
                 if ($taskInstallJob.State -ne 'Completed') { throw 'Capability installation job failed.' }

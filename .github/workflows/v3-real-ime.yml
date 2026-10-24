@@ -19,7 +19,7 @@ permissions:
 jobs:
   japanese-ime:
     runs-on: ${{ inputs.test_os }}
-    timeout-minutes: 50
+    timeout-minutes: 65
     env:
       GUARD_TEST_IME_CLSID: 03B5835F-F03C-411B-9CE2-AA23E1171E36
     steps:

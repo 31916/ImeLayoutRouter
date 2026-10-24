@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 $taskDisk = Get-Volume | Where-Object FileSystemLabel -eq 'V3TEST' | Select-Object -First 1
 if (!$taskDisk) { throw 'Disposable VM payload disk missing' }
 $taskSource = "$($taskDisk.DriveLetter):\"
@@ -78,11 +79,12 @@ try {
     powercfg /change monitor-timeout-ac 0
     ./Initialize-GuardTestDesktop.ps1 -RefreshShell
     Report 'installing-browser'
-    $taskChrome = "$taskEvidence/chrome.msi"
-    Invoke-WebRequest -UseBasicParsing -Uri 'https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi' -OutFile $taskChrome
+    $taskChrome = 'C:/V3Fixture/chrome.msi'
     $taskSignature = Get-AuthenticodeSignature $taskChrome
     if ($taskSignature.Status -ne 'Valid' -or $taskSignature.SignerCertificate.Subject -notmatch 'O=Google LLC') { throw 'Official signed Google Chrome installer required' }
-    $taskInstall = Start-Process msiexec.exe -ArgumentList @('/i', $taskChrome, '/qn', '/norestart') -WindowStyle Hidden -PassThru -Wait
+    Report 'installing-signed-browser'
+    $taskInstall = Start-Process msiexec.exe -ArgumentList @('/i', $taskChrome, '/qn', '/norestart', '/L*v', "$taskEvidence/chrome-install.txt") -WindowStyle Hidden -PassThru
+    if (!$taskInstall.WaitForExit(300000)) { throw 'Signed Chrome installation exceeded five minutes; see MSI log' }
     if ($taskInstall.ExitCode -ne 0) { throw "Chrome installation failed: $($taskInstall.ExitCode)" }
     $taskRepairDeadline = $null
     while ($true) {
