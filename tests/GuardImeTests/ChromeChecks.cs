@@ -305,7 +305,11 @@ internal static class ChromeChecks
     private static void Pump(int milliseconds)
     { long end = Environment.TickCount64 + milliseconds; do { Native.PumpMessages(); Thread.Sleep(10); } while (Environment.TickCount64 < end); }
     private static void Wait(Func<bool> predicate, string name, int timeoutMs = 15000)
-    { long end = Environment.TickCount64 + timeoutMs; while (!predicate() && Environment.TickCount64 < end) Pump(50); Check(predicate(), name); }
+    {
+        long end = Environment.TickCount64 + timeoutMs;
+        do { if (predicate()) { Check(true, name); return; } Pump(50); } while (Environment.TickCount64 < end);
+        Check(false, name);
+    }
     private static void Check(bool value, string name)
     { if (!value) throw new InvalidOperationException("FAIL " + name); Console.WriteLine("PASS " + name); }
     private sealed class Cdp : IDisposable

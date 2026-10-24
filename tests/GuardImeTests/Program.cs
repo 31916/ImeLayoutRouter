@@ -599,14 +599,18 @@ internal static class Program
     private static void Wait(Func<bool> predicate, string name)
     {
         long end = Environment.TickCount64 + 5000;
-        while (!predicate() && Environment.TickCount64 < end) Pump(20);
-        if (!predicate())
+        do
         {
-            var gui = new CompositionGuard.Native.GuiInfo { Size = (uint)Marshal.SizeOf<CompositionGuard.Native.GuiInfo>() };
-            bool queried = CompositionGuard.Native.GetGUIThreadInfo(Native.GetCurrentThreadId(), ref gui);
-            Console.WriteLine($"Wait failure state: helper={activeGuard?.CheckError() ?? "no reported error"}; queried={queried}; foreground=0x{Native.GetForegroundWindow():X}; own=0x{window:X}; caret=0x{gui.Caret:X}; caretClass={Class(gui.Caret)}; caretRect={gui.CaretRect.Left},{gui.CaretRect.Top},{gui.CaretRect.Right},{gui.CaretRect.Bottom}");
-        }
-        Check(predicate(), name);
+            // A successful native observation is the result. Re-querying it
+            // twice outside the wait loop created false failures during an
+            // owner's transient GetWindowRgn query/move (run 40063353493).
+            if (predicate()) { Check(true, name); return; }
+            Pump(20);
+        } while (Environment.TickCount64 < end);
+        var gui = new CompositionGuard.Native.GuiInfo { Size = (uint)Marshal.SizeOf<CompositionGuard.Native.GuiInfo>() };
+        bool queried = CompositionGuard.Native.GetGUIThreadInfo(Native.GetCurrentThreadId(), ref gui);
+        Console.WriteLine($"Wait failure state: helper={activeGuard?.CheckError() ?? "no reported error"}; queried={queried}; foreground=0x{Native.GetForegroundWindow():X}; own=0x{window:X}; caret=0x{gui.Caret:X}; caretClass={Class(gui.Caret)}; caretRect={gui.CaretRect.Left},{gui.CaretRect.Top},{gui.CaretRect.Right},{gui.CaretRect.Bottom}");
+        Check(false, name);
     }
     private static void Check(bool value, string name) { if (!value) throw new InvalidOperationException("FAIL " + name); Console.WriteLine("PASS " + name); }
     private sealed class TeeWriter(TextWriter console, TextWriter file) : TextWriter
