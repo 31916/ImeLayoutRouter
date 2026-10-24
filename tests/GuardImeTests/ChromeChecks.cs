@@ -156,13 +156,12 @@ internal static class ChromeChecks
                             + cdp.Value("JSON.stringify(window.imeEvents)") + "; keys=" + cdp.Value("JSON.stringify(window.keyEvents)")));
                     Key(window, 0x20);
                     Wait(() => cdp.Value($"document.getElementById('{field}').value") == "日本",
-                        "The first conversion is delivered before requesting another candidate", 5000);
-                    Key(window, 0x20);
-                    Wait(() => cdp.Value($"document.getElementById('{field}').value") == "二本",
-                        "The second candidate is delivered before selecting the first", 5000);
-                    Key(window, 0x26);
-                    Wait(() => cdp.Value($"document.getElementById('{field}').value") == "日本",
-                        "Up selects the first candidate before Enter commits it", 5000);
+                        "The actual first conversion is delivered before Enter commits it", 5000);
+                    // This gate verifies ordinary browser preedit and commit.
+                    // Space/Space/Up is not a portable candidate selector:
+                    // Google and Microsoft IMEs advance/open their panels
+                    // differently. Candidate visibility and navigation are
+                    // verified separately against the actual native panel.
                     Key(window, 0x0D); Pump(300);
                     Wait(() => cdp.Value("String(window.imeEvents.some(e=>e.type==='compositionend'))") == "true",
                         "The already-sent conversion reaches the browser renderer", 5000);
