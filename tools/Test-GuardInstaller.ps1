@@ -110,6 +110,12 @@ try {
     try {
         Start-Sleep -Milliseconds 1000
         if ($app.HasExited) { throw 'Installed V3 did not remain running.' }
+        Invoke-Setup $executable @('--first-run')
+        $taskReadyBy = [Environment]::TickCount64 + 10000
+        while (![GuardInstallerWindow]::SettingsExist($app.Id) -and [Environment]::TickCount64 -lt $taskReadyBy) {
+            Start-Sleep -Milliseconds 100
+        }
+        if (![GuardInstallerWindow]::SettingsExist($app.Id)) { throw 'Running V3 did not reopen its settings.' }
         Invoke-Setup $Installer @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=""', "/DIR=`"$testRoot`"")
         if (!$app.WaitForExit(5000)) { throw 'Upgrade did not stop V3 through its restoration path.' }
         if ((Get-StartupValue 'ImeLayoutRouterV3') -ne ('"' + $executable + '"') -or
