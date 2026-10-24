@@ -2,6 +2,28 @@
 param([Parameter(Mandatory)][string]$Installer)
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or !$env:RUNNER_TEMP) { throw 'This installer test is restricted to the disposable GitHub-hosted runner.' }
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class GuardInstallerWindow {
+    private delegate bool Callback(IntPtr window, IntPtr parameter);
+    [DllImport("user32.dll")] private static extern bool EnumWindows(Callback callback, IntPtr parameter);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] private static extern int GetWindowTextW(IntPtr window, StringBuilder text, int count);
+    public static bool SettingsExist(int process) {
+        bool found=false;
+        EnumWindows((window, _) => {
+            uint owner; GetWindowThreadProcessId(window, out owner);
+            if (owner != process) return true;
+            var text=new StringBuilder(256); GetWindowTextW(window,text,text.Capacity);
+            if (text.ToString().StartsWith("IME Layout Router V3",StringComparison.Ordinal)) found=true;
+            return !found;
+        },IntPtr.Zero);
+        return found;
+    }
+}
+'@
 $testRoot = Join-Path $env:RUNNER_TEMP ('v3-install-' + [Guid]::NewGuid().ToString('N'))
 $runKey = 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Run'
 function Get-StartupValue([string]$Name) {
@@ -30,9 +52,9 @@ try {
     $taskFirstRun = Start-Process -FilePath $executable -ArgumentList '--first-run' -WindowStyle Hidden -PassThru
     try {
         $taskReadyBy = [Environment]::TickCount64 + 10000
-        do { $taskFirstRun.Refresh(); if ($taskFirstRun.MainWindowHandle -ne 0) { break }; Start-Sleep -Milliseconds 100 }
+        do { if ([GuardInstallerWindow]::SettingsExist($taskFirstRun.Id)) { break }; Start-Sleep -Milliseconds 100 }
         while (!$taskFirstRun.HasExited -and [Environment]::TickCount64 -lt $taskReadyBy)
-        if ($taskFirstRun.HasExited -or $taskFirstRun.MainWindowHandle -eq 0) { throw 'Packaged first-run settings did not open.' }
+        if ($taskFirstRun.HasExited -or ![GuardInstallerWindow]::SettingsExist($taskFirstRun.Id)) { throw 'Packaged first-run settings did not open.' }
         $taskStop = Start-Process -FilePath $executable -ArgumentList '--shutdown' -WindowStyle Hidden -PassThru
         try {
             if (!$taskStop.WaitForExit(10000) -or $taskStop.ExitCode -ne 0 -or !$taskFirstRun.WaitForExit(5000)) {
