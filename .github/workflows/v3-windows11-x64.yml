@@ -23,6 +23,18 @@ jobs:
           Copy-Item tools/guard-vm/guest.ps1 artifacts/vm/
           Copy-Item tools/Initialize-GuardTestDesktop.ps1 artifacts/vm/
           git rev-parse HEAD | Set-Content artifacts/vm/revision.txt
+      - name: Verify the official browser before transferring it to the guest
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $taskBrowser = 'artifacts/vm/chrome.msi'
+          Invoke-WebRequest 'https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi' -OutFile $taskBrowser -TimeoutSec 180
+          $taskSignature = Get-AuthenticodeSignature -LiteralPath $taskBrowser
+          if ($taskSignature.Status -ne 'Valid' -or $taskSignature.SignerCertificate.Subject -notmatch 'O=Google LLC') {
+            throw 'A valid official Google signature is required before the browser enters the guest.'
+          }
+          (Get-FileHash -Algorithm SHA256 -LiteralPath $taskBrowser).Hash.ToLowerInvariant() | Set-Content artifacts/vm/chrome.sha256 -Encoding ascii
+          "Authenticode: $($taskSignature.Status); publisher: $($taskSignature.SignerCertificate.Subject)" | Set-Content artifacts/vm/browser-signature.txt
       - uses: actions/upload-artifact@v4
         with:
           name: v3-vm-test-bundle

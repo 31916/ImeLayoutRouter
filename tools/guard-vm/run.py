@@ -78,15 +78,16 @@ server = http.server.ThreadingHTTPServer(("127.0.0.1", 8000), Receiver)
 threading.Thread(target=server.serve_forever, daemon=True).start()
 (payload / "config.json").write_text(json.dumps({"endpoint": "http://10.0.2.2:8000", "token": token}))
 
-# Provision the browser before boot, using a bounded host-side transfer. The
-# guest verifies the publisher before installation; no external download needs
-# to complete through emulated networking during the input-test window.
+# The Windows build job validates Authenticode before uploading this payload.
+# Preserve that exact verified file through both transfers. A fresh guest's
+# synchronous signature query must not stall the input fixture.
 chrome = payload / "chrome.msi"
-subprocess.run(["curl", "--silent", "--show-error", "--fail", "--location",
-                "--retry", "2", "--max-time", "300", "--output", str(chrome),
-                "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi"], check=True)
+chrome_hash = (payload / "chrome.sha256").read_text().strip()
 with chrome.open("rb") as source:
-    (evidence / "browser-installer-sha256.txt").write_text(hashlib.file_digest(source, "sha256").hexdigest() + "\n")
+    if hashlib.file_digest(source, "sha256").hexdigest() != chrome_hash:
+        raise SystemExit("Signature-verified browser payload hash mismatch")
+(evidence / "browser-installer-sha256.txt").write_text(chrome_hash + "\n")
+shutil.copyfile(payload / "browser-signature.txt", evidence / "browser-signature.txt")
 
 # Fixed preinstalled SDK directories on this disposable Linux image only.
 # They contain no repository data and are not needed by this VM-only job.
@@ -103,17 +104,36 @@ if shutil.disk_usage(root).free < 35 * 1024**3:
 # https://support.microsoft.com/en-us/servicing/os/windows/docs/2026/09/verify-the-authenticity-of-a-windows-11-enterprise-evaluation-iso-file
 iso = root / "windows11-ja.iso"
 url = "https://software-static.download.prss.microsoft.com/dbazure/26300.9457.260913-1737.26h2_ge_release_svc_refresh_CLIENTENTERPRISEEVAL_OEMRET_x64FRE_ja-jp.iso"
-for attempt in range(3):
-    download = subprocess.Popen(["curl", "--silent", "--show-error", "--fail", "--location", "--continue-at", "-", "--max-time", "1200", "--output", str(iso), url])
-    while download.poll() is None:
-        try:
-            download.wait(timeout=30)
-        except subprocess.TimeoutExpired:
-            print("Official ISO download bytes:", iso.stat().st_size if iso.exists() else 0, flush=True)
-    if download.returncode == 0:
-        break
-    if attempt == 2:
-        raise RuntimeError("Official evaluation download failed after bounded resumable attempts")
+# Microsoft's endpoint advertises byte ranges and this exact Content-Length.
+# Four bounded transfers avoid a single slow connection dominating VM setup.
+# The published whole-file SHA-256 below remains the acceptance criterion.
+iso_size = 8434176000
+downloads = []
+try:
+    for index in range(4):
+        start, end = iso_size * index // 4, iso_size * (index + 1) // 4 - 1
+        part = root / f"windows11-part-{index}"
+        download = subprocess.Popen(["curl", "--silent", "--show-error", "--fail", "--location",
+            "--retry", "2", "--max-time", "600", "--range", f"{start}-{end}",
+            "--max-filesize", str(end - start + 1), "--output", str(part), url])
+        downloads.append((download, part, end - start + 1))
+    while any(job.poll() is None for job, _, _ in downloads):
+        if any(job.poll() not in (None, 0) for job, _, _ in downloads):
+            raise RuntimeError("Official evaluation range download failed")
+        time.sleep(30)
+        print("Official ISO download bytes:", sum(part.stat().st_size for _, part, _ in downloads if part.exists()), flush=True)
+    if any(job.returncode != 0 or part.stat().st_size != size for job, part, size in downloads):
+        raise RuntimeError("Official evaluation range length mismatch")
+    with iso.open("wb") as target:
+        for _, part, _ in downloads:
+            with part.open("rb") as source:
+                shutil.copyfileobj(source, target, 1024 * 1024)
+            part.unlink()
+finally:
+    for job, _, _ in downloads:
+        if job.poll() is None:
+            job.kill()
+        job.wait()
 with iso.open("rb") as source:
     digest = hashlib.file_digest(source, "sha256").hexdigest().upper()
 if digest != "8FB2CC19C8AEE87A688C1CB73E726816C01F0C6EE9A17BB2FB73E4533837E698":

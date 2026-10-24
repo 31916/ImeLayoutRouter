@@ -80,8 +80,14 @@ try {
     ./Initialize-GuardTestDesktop.ps1 -RefreshShell
     Report 'installing-browser'
     $taskChrome = 'C:/V3Fixture/chrome.msi'
-    $taskSignature = Get-AuthenticodeSignature $taskChrome
-    if ($taskSignature.Status -ne 'Valid' -or $taskSignature.SignerCertificate.Subject -notmatch 'O=Google LLC') { throw 'Official signed Google Chrome installer required' }
+    # Authenticode is required in the preceding Windows build job. Recheck the
+    # exact verified bytes here, without changing any guest security settings.
+    $taskBrowserHash = (Get-Content -Raw C:/V3Fixture/chrome.sha256).Trim()
+    if ($taskBrowserHash -notmatch '^[0-9a-f]{64}$' -or
+        (Get-FileHash -Algorithm SHA256 -LiteralPath $taskChrome).Hash.ToLowerInvariant() -ne $taskBrowserHash) {
+        throw 'Signature-verified browser payload hash mismatch in guest'
+    }
+    Get-Content C:/V3Fixture/browser-signature.txt
     Report 'installing-signed-browser'
     $taskInstall = Start-Process msiexec.exe -ArgumentList @('/i', $taskChrome, '/qn', '/norestart', '/L*v', "$taskEvidence/chrome-install.txt") -WindowStyle Hidden -PassThru
     if (!$taskInstall.WaitForExit(300000)) { throw 'Signed Chrome installation exceeded five minutes; see MSI log' }
