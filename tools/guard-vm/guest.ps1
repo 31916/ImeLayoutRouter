@@ -50,6 +50,7 @@ function Invoke-Stage([string]$Name, [scriptblock]$Action) {
         $script:taskStageFailures.Add($Name)
         $_ | Out-String | Set-Content "$taskEvidence/failure-$Name.txt"
         Write-Output "Independent validation stage failed: $Name"
+        Save-Attempt
     }
 }
 function Prepare-Repair([string]$Revision) {
@@ -75,7 +76,7 @@ function Prepare-Repair([string]$Revision) {
     } finally { Pop-Location }
 }
 function Wait-Repair {
-    $taskDeadlineFile = 'C:/V3Fixture/repair-deadline.txt'
+    $taskDeadlineFile = "C:/V3Fixture/repair-deadline-$taskRevision.txt"
     if (!(Test-Path -LiteralPath $taskDeadlineFile)) {
         [DateTime]::UtcNow.AddMinutes(10).ToString('o') | Set-Content $taskDeadlineFile
     }
@@ -143,10 +144,16 @@ try {
     }
     Get-Content C:/V3Fixture/browser-signature.txt
     Report 'installing-signed-browser'
-    $taskInstallLog = [IO.Path]::GetFullPath("$taskEvidence/chrome-install.txt")
-    $taskInstall = Start-Process msiexec.exe -ArgumentList @('/i', $taskChrome, '/qn', '/norestart', '/L*v', $taskInstallLog) -WindowStyle Hidden -PassThru
-    if (!$taskInstall.WaitForExit(300000)) { throw 'Signed Chrome installation exceeded five minutes; see MSI log' }
-    if ($taskInstall.ExitCode -ne 0) { throw "Chrome installation failed: $($taskInstall.ExitCode)" }
+    $taskInstalledMarker = 'C:/V3Fixture/browser-installed.txt'
+    if (!(Test-Path -LiteralPath $taskInstalledMarker) -or
+        (Get-Content -Raw $taskInstalledMarker).Trim() -ne $taskBrowserHash -or
+        !(Test-Path -LiteralPath "$env:ProgramFiles/Google/Chrome/Application/chrome.exe")) {
+        $taskInstallLog = [IO.Path]::GetFullPath("$taskEvidence/chrome-install.txt")
+        $taskInstall = Start-Process msiexec.exe -ArgumentList @('/i', $taskChrome, '/qn', '/norestart', '/L*v', $taskInstallLog) -WindowStyle Hidden -PassThru
+        if (!$taskInstall.WaitForExit(300000)) { throw 'Signed Chrome installation exceeded five minutes; see MSI log' }
+        if ($taskInstall.ExitCode -ne 0) { throw "Chrome installation failed: $($taskInstall.ExitCode)" }
+        $taskBrowserHash | Set-Content $taskInstalledMarker
+    }
     if ($taskRevision -ne (Get-Content -Raw C:/V3Fixture/revision.txt).Trim()) { Prepare-Repair $taskRevision }
     while ($true) {
         $taskEvidence = "C:/V3Fixture/evidence/$taskRevision"
@@ -165,7 +172,7 @@ try {
                         foreach ($taskKind in @('checks.txt', 'failure.png')) {
                             $taskBrowserEvidence = "$taskEvidence/v3-ime-browser-$taskKind"
                             if (Test-Path -LiteralPath $taskBrowserEvidence) {
-                                Copy-Item -LiteralPath $taskBrowserEvidence -Destination "$taskEvidence/$taskBrowser-$taskKind"
+                                Move-Item -LiteralPath $taskBrowserEvidence -Destination "$taskEvidence/$taskBrowser-$taskKind" -Force
                             }
                         }
                     }
@@ -188,10 +195,9 @@ try {
             'exit=1' | Set-Content "$taskEvidence/result.txt"
             Save-Attempt
             Report "validation-failed-$taskRevision"
-            $taskNext = Wait-Repair
-            Report "preparing-repair-$taskNext"
-            Prepare-Repair $taskNext
-            $taskRevision = $taskNext
+            # Re-enter the corrected guest script as well as its test binaries.
+            # Setup repairs therefore work in this same prepared VM too.
+            throw
         }
     }
 } catch {
@@ -201,7 +207,7 @@ try {
     if (!$taskTranscriptStopped) { Stop-Transcript; $taskTranscriptStopped = $true }
     'exit=1' | Set-Content "$taskEvidence/result.txt"
     Save-Attempt
-    Report "bootstrap-failed-$taskRevision"
+    Report "validation-or-setup-failed-$taskRevision"
     try {
         $taskNext = Wait-Repair
         Report "preparing-bootstrap-repair-$taskNext"

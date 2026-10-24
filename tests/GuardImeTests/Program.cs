@@ -32,7 +32,7 @@ internal static class Program
         try
         {
             if (args.Length == 1 && args[0] == "--configure-vm-display")
-            { Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); VmLifecycle.BeginAttempt(); VmDisplays.Configure(false); return 0; }
+            { Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); VmDisplays.Configure(false); return 0; }
             Run(desktopOnly, browserOnly, args.Length == 1 && args[0] == "--game-only");
             Console.WriteLine(desktopOnly ? "PASS Disposable desktop accepts fixture focus. No IME input tested." :
                 browserOnly ? "PASS Ordinary browser IME compatibility checks completed; fallback suppression was not tested." : "PASS Real Japanese IME checks completed.");

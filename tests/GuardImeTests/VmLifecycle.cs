@@ -8,15 +8,6 @@ using System.Text.Json;
 internal static class VmLifecycle
 {
     private static readonly List<int> powerEvents = [];
-    internal static void BeginAttempt()
-    {
-        RequireDisposable();
-        // Each corrected source revision gets a bounded opportunity to be
-        // inspected/repaired without reinstalling Windows. This changes only
-        // the debugging wait, never assertions or failed-input handling. The
-        // external hypervisor still enforces its absolute 65-minute lifetime.
-        File.WriteAllText(@"C:\V3Fixture\repair-deadline.txt", DateTime.UtcNow.AddMinutes(10).ToString("o"));
-    }
     internal static void Observe(uint message, nint parameter)
     {
         if (message == 0x218 && (parameter == 4 || parameter == 7 || parameter == 18))
