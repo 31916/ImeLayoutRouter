@@ -16,7 +16,7 @@ $env:GITHUB_ACTIONS = 'true'
 $env:RUNNER_ENVIRONMENT = 'github-hosted'
 $env:RUNNER_TEMP = $taskEvidence
 $env:GUARD_TEST_IME_CLSID = '03B5835F-F03C-411B-9CE2-AA23E1171E36'
-$env:GUARD_BROWSER_STARTS = '3'
+$env:GUARD_BROWSER_STARTS = '12'
 $env:GUARD_TEST_VM_ENDPOINT = $taskConfig.endpoint
 $env:GUARD_TEST_VM_TOKEN = $taskConfig.token
 $taskRevision = (Get-Content -Raw C:/V3Fixture/revision.txt).Trim()
@@ -43,6 +43,14 @@ function Invoke-Fixture([string]$Kind, [string[]]$Arguments, [string]$Log) {
         & "$taskFixtureRoot/$Kind/$taskExecutable" @Arguments *> "$taskEvidence/$Log"
     }
     if ($LASTEXITCODE -ne 0) { throw "Fixture failed: $Kind $Arguments (exit $LASTEXITCODE)" }
+}
+function Invoke-Stage([string]$Name, [scriptblock]$Action) {
+    Report $Name
+    try { & $Action } catch {
+        $script:taskStageFailures.Add($Name)
+        $_ | Out-String | Set-Content "$taskEvidence/failure-$Name.txt"
+        Write-Output "Independent validation stage failed: $Name"
+    }
 }
 function Prepare-Repair([string]$Revision) {
     # Public V3 source only. A changed revision is required; failed words are
@@ -148,19 +156,28 @@ try {
         Report "attempt-start-$taskRevision"
         try {
             Invoke-Fixture 'ime' @('--configure-vm-display') 'display-setup.txt'
-            Report 'native-checks'
-            Invoke-Fixture 'native' @() 'policy.txt'
-            Report 'browser-input'
+            $script:taskStageFailures = [Collections.Generic.List[string]]::new()
+            Invoke-Stage 'native-checks' { Invoke-Fixture 'native' @() 'policy.txt' }
+            foreach ($taskBrowser in @('chrome', 'edge')) {
+                $env:GUARD_TEST_BROWSER = $taskBrowser
+                Invoke-Stage "$taskBrowser-input" {
+                    try { Invoke-Fixture 'ime' @('--browser-only') "$taskBrowser-console.txt" } finally {
+                        foreach ($taskKind in @('checks.txt', 'failure.png')) {
+                            $taskBrowserEvidence = "$taskEvidence/v3-ime-browser-$taskKind"
+                            if (Test-Path -LiteralPath $taskBrowserEvidence) {
+                                Copy-Item -LiteralPath $taskBrowserEvidence -Destination "$taskEvidence/$taskBrowser-$taskKind"
+                            }
+                        }
+                    }
+                }
+            }
             $env:GUARD_TEST_BROWSER = ''
-            Invoke-Fixture 'ime' @('--browser-only') 'browser-console.txt'
-            Copy-Item "$taskEvidence/v3-ime-browser-checks.txt" "$taskEvidence/chrome-checks.txt"
-            $env:GUARD_TEST_BROWSER = 'edge'
-            Invoke-Fixture 'ime' @('--browser-only') 'edge-console.txt'
-            $env:GUARD_TEST_BROWSER = ''
-            Report 'composition-input'
-            $env:GUARD_TEST_VM_SLEEP = '1'
-            $env:GUARD_TEST_VM_DISPLAYS = '1'
-            Invoke-Fixture 'ime' @() 'composition-console.txt'
+            Invoke-Stage 'composition-input' {
+                $env:GUARD_TEST_VM_SLEEP = '1'
+                $env:GUARD_TEST_VM_DISPLAYS = '1'
+                Invoke-Fixture 'ime' @() 'composition-console.txt'
+            }
+            if ($taskStageFailures.Count) { throw ('Validation stages failed: ' + ($taskStageFailures -join ', ')) }
             $taskExit = 0
             'exit=0' | Set-Content "$taskEvidence/result.txt"
             Save-Attempt

@@ -155,6 +155,8 @@ internal static class ChromeChecks
                         + (pending == "にほん" ? "" : $"; enabled={enabled}; pending={pending}; native={DescribeInput(browserThread)}; events="
                             + cdp.Value("JSON.stringify(window.imeEvents)") + "; keys=" + cdp.Value("JSON.stringify(window.keyEvents)")));
                     Key(window, 0x20); Pump(200); Key(window, 0x20); Pump(200); Key(window, 0x26); Key(window, 0x0D); Pump(300);
+                    Wait(() => cdp.Value("String(window.imeEvents.some(e=>e.type==='compositionend'))") == "true",
+                        "The already-sent conversion reaches the browser renderer", 5000);
                     string result = cdp.Value($"document.getElementById('{field}').value");
                     Check(cdp.Value("String(window.imeEvents.some(e=>e.type==='compositionend'))") == "true" && result.Any(c => c > 0x3000),
                         "Chrome receives an actual IME composition-end and Japanese commit in " + field);

@@ -198,7 +198,11 @@ tpm = root / "tpm"
 tpm.mkdir()
 subprocess.run(["swtpm", "socket", "--tpm2", "--tpmstate", f"dir={tpm}", "--ctrl", f"type=unixio,path={root}/tpm.sock", "--daemon"], check=True)
 qmp_path = root / "qmp.sock"
-command = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35,smm=on", "-cpu", "host", "-smp", "4", "-m", "8192",
+# Windows otherwise uses expensive emulated timer/APIC paths under KVM. These
+# documented guest interfaces preserve Secure Boot, TPM and OS security policy.
+# https://www.qemu.org/docs/master/system/i386/hyperv.html
+command = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35,smm=on", "-cpu",
+           "host,hv-relaxed,hv-vapic,hv-spinlocks=0x1fff,hv-vpindex,hv-time,hv-synic,hv-stimer", "-smp", "4", "-m", "8192",
            "-global", "driver=cfi.pflash01,property=secure,value=on",
            "-drive", "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.ms.fd",
            "-drive", f"if=pflash,format=raw,file={variables}",
