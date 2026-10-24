@@ -52,6 +52,10 @@ function Invoke-Stage([string]$Name, [scriptblock]$Action) {
         $script:taskStageFailures.Add($Name)
         $_ | Out-String | Set-Content "$taskEvidence/failure-$Name.txt"
         Write-Output "Independent validation stage failed: $Name"
+        Get-ChildItem -LiteralPath $taskEvidence -File -Filter '*-checks.txt' | ForEach-Object {
+            Get-Content -Encoding UTF8 -LiteralPath $_.FullName | Where-Object { $_ -match '^VM |^Actual Windows monitor:|^Testing real input on monitor:|^Requested actual VM display scale:|^Available DPI steps:|^System.InvalidOperationException:' } |
+                Select-Object -Last 20 | ForEach-Object { Report ('fixture-diagnostic: ' + $_) }
+        }
         Save-Attempt
     }
 }
@@ -103,7 +107,7 @@ try {
     # the exact baseline/commit evidence while this disposable VM is repairable.
     Get-ChildItem -LiteralPath C:/V3Fixture/evidence -Recurse -File -Filter '*-checks.txt' | ForEach-Object {
         $taskPrior = $_.FullName
-        Get-Content -Encoding UTF8 -LiteralPath $taskPrior | Where-Object { $_ -match '^Chrome (text|area), enabled=|^System.InvalidOperationException: FAIL|^Wait failure state:|^Fixture failure state:|^class=|^  child class=' } |
+        Get-Content -Encoding UTF8 -LiteralPath $taskPrior | Where-Object { $_ -match '^Chrome (text|area), enabled=|^System.InvalidOperationException:|^Wait failure state:|^Fixture failure state:|^class=|^  child class=|^VM |^Actual Windows monitor:' } |
             Select-Object -Last 25 | ForEach-Object { Report ('previous-fixture: ' + $_) }
     }
     Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture
