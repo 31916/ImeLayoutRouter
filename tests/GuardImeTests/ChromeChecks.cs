@@ -141,7 +141,9 @@ internal static class ChromeChecks
                     string pending = cdp.Value($"document.getElementById('{field}').value");
                     Console.WriteLine($"Chrome {field}, enabled={enabled}: pending={pending}; events=" + cdp.Value("JSON.stringify(window.imeEvents)"));
                     if (pending != "にほん") Console.WriteLine("Own browser key trace: " + cdp.Value("JSON.stringify(window.keyEvents)"));
-                    Check(pending == "にほん", "Chrome receives real Japanese preedit in " + field);
+                    Check(pending == "にほん", "Chrome receives real Japanese preedit in " + field
+                        + (pending == "にほん" ? "" : $"; enabled={enabled}; pending={pending}; native={DescribeInput(browserThread)}; events="
+                            + cdp.Value("JSON.stringify(window.imeEvents)") + "; keys=" + cdp.Value("JSON.stringify(window.keyEvents)")));
                     Key(window, 0x20); Pump(200); Key(window, 0x20); Pump(200); Key(window, 0x26); Key(window, 0x0D); Pump(300);
                     string result = cdp.Value($"document.getElementById('{field}').value");
                     Check(cdp.Value("String(window.imeEvents.some(e=>e.type==='compositionend'))") == "true" && result.Any(c => c > 0x3000),
