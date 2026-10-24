@@ -97,6 +97,13 @@ Start-Transcript -Path "$taskEvidence/guest.txt" -Append
 $taskExit = 1
 try {
     Report 'booted'
+    # Only fixed, generated fixture observations from prior revisions. Expose
+    # the exact baseline/commit evidence while this disposable VM is repairable.
+    Get-ChildItem -LiteralPath C:/V3Fixture/evidence -Recurse -File -Filter '*-checks.txt' | ForEach-Object {
+        $taskPrior = $_.FullName
+        Get-Content -LiteralPath $taskPrior | Where-Object { $_ -match '^Chrome (text|area), enabled=|^System.InvalidOperationException: FAIL' } |
+            Select-Object -Last 10 | ForEach-Object { Report ('previous-fixture: ' + $_) }
+    }
     Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture
     if (!(Test-Path -LiteralPath C:/V3Fixture/display-reboot.marker)) {
         $taskCatalog = Get-AuthenticodeSignature C:/V3Fixture/display-driver/qxldod.cat

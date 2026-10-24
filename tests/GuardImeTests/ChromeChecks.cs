@@ -161,7 +161,9 @@ internal static class ChromeChecks
                     Check(cdp.Value("String(window.imeEvents.some(e=>e.type==='compositionend'))") == "true" && result.Any(c => c > 0x3000),
                         "Chrome receives an actual IME composition-end and Japanese commit in " + field);
                     if (enabled == enabledFirst) baseline[field] = result;
-                    else Check(result == baseline[field] && guard.CheckError() == null, "V3 preserves Chrome's baseline conversion in " + field);
+                    else Check(result == baseline[field] && guard.CheckError() == null, "V3 preserves Chrome's baseline conversion in " + field
+                        + $"; enabled={enabled}; expected={JsonSerializer.Serialize(baseline[field])}; actual={JsonSerializer.Serialize(result)}; helper={guard.CheckError() ?? "running"}; events="
+                        + cdp.Value("JSON.stringify(window.imeEvents)") + "; keys=" + cdp.Value("JSON.stringify(window.keyEvents)"));
                     Console.WriteLine($"Chrome {field}, enabled={enabled}: committed={result}");
                 }
             }
