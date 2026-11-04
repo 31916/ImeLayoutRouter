@@ -4,14 +4,12 @@ import { inspectField } from "./probe.js";
 const host = "ch.imelayoutrouter.numeric";
 const retryAlarm = "retry-native";
 let port;
-let connectedPage;
-let windowBlurred = false;
 let retryAfter = 0;
 let revision = 0;
 let hostRevision = 0;
 
 async function activePage(sites) {
-  if (!sites.length || windowBlurred) return null;
+  if (!sites.length) return null;
   const win = await chrome.windows.getLastFocused({ windowTypes: ["normal"] });
   if (!win.focused || win.incognito || win.state === "minimized") return null;
   // Query only hosts the user has enrolled. Never inspect a title or page content.
@@ -73,7 +71,6 @@ function attach(connection) {
     void chrome.runtime.lastError;
     if (port !== connection) return;
     port = undefined;
-    connectedPage = undefined;
     retryAfter = Date.now() + 60000;
     void reconcile();
   });
@@ -82,24 +79,23 @@ function attach(connection) {
 function disconnect() {
   const previous = port;
   port = undefined;
-  connectedPage = undefined;
   previous?.disconnect();
 }
 
 async function reconcile() {
   const request = ++hostRevision;
-  let page = null;
-  try { page = await activePage(await enabledOrigins()); }
-  catch { /* Closing the last window can invalidate an in-flight query. */ }
+  const sites = await enabledOrigins();
   if (request !== hostRevision) return;
-  if (!page) {
+  if (!sites.length) {
     disconnect();
+    retryAfter = 0;
     await chrome.alarms.clear(retryAlarm);
     return;
   }
-  if (port && connectedPage?.tabId === page.tabId && connectedPage.windowId === page.windowId &&
-      connectedPage.origin === page.origin) return;
-  disconnect();
+  // Tab and focus notifications can precede the browser's new active tab.
+  // Keep the transport while opted in; classify checks live permission,
+  // document and foreground on every request before reading field metadata.
+  if (port) return;
   if (Date.now() < retryAfter) {
     chrome.alarms.create(retryAlarm, { when: retryAfter });
     return;
@@ -109,7 +105,6 @@ async function reconcile() {
   if (request !== hostRevision || retry?.scheduledTime > Date.now()) return;
   try {
     port = chrome.runtime.connectNative(host);
-    connectedPage = page;
     attach(port);
   } catch {
     disconnect();
@@ -140,26 +135,10 @@ chrome.storage.onChanged.addListener((_, area) => {
 chrome.permissions.onAdded.addListener(changed);
 chrome.permissions.onRemoved.addListener(permissionsRemoved);
 chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === retryAlarm) void reconcile(); });
-chrome.tabs.onActivated.addListener(info => {
-  if (connectedPage && info.windowId === connectedPage.windowId && info.tabId !== connectedPage.tabId) disconnect();
-  return changed();
-});
-chrome.tabs.onUpdated.addListener((tabId, update, tab) => {
-  if (!tab.active || (!update.status && !("url" in update))) return;
-  if (connectedPage?.tabId === tabId && (update.status === "loading" || "url" in update)) disconnect();
-  return changed();
-});
-chrome.tabs.onRemoved.addListener(tabId => {
-  if (!connectedPage || connectedPage.tabId === tabId) {
-    disconnect();
-    return changed();
-  }
-});
-chrome.windows.onFocusChanged.addListener(windowId => {
-  windowBlurred = windowId === chrome.windows.WINDOW_ID_NONE;
-  if (connectedPage && connectedPage.windowId !== windowId) disconnect();
-  return changed();
-});
+chrome.tabs.onActivated.addListener(() => { revision++; });
+chrome.tabs.onUpdated.addListener((_, change) => { if (change.status || "url" in change) revision++; });
+chrome.tabs.onRemoved.addListener(() => { revision++; });
+chrome.windows.onFocusChanged.addListener(() => { revision++; });
 chrome.runtime.onStartup.addListener(() => { void reconcile(); });
 chrome.runtime.onInstalled.addListener(() => { void reconcile(); });
 chrome.action.onClicked.addListener(tab => {

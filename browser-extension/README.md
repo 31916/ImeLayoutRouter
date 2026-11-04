@@ -13,7 +13,7 @@ Chrome・Edgeが通常のテキスト欄としてWindowsに伝える数字欄を
 
 許可の対象はプロトコル・ホスト・ポートが一致するサイトです。Chrome・Edgeのホスト権限は同じホストの複数ポートに及びますが、拡張は有効にしたポートでだけ判定します。別サイトの埋め込み欄は、外側と埋め込み側の両方を許可した場合に限り判定対象になります。
 
-Windowsアプリとの接続は、許可したサイトのタブが前面にある間だけ開きます。別のアプリや許可していないタブに移ると閉じます。
+有効なサイトがある間はWindowsアプリとの接続を保持します。入力欄の判定は許可したサイトのタブが前面にあるときだけ行い、最後のサイトを無効にすると接続も閉じます。
 
 数字・小数用の入力モード、数値欄、`[0-9]+` や `\d{6}` のように数字だけを要求する単純な形式に対応します。サイト独自のJavaScriptだけで制限する欄は対象外です。ブラウザーからWindowsアプリに返すのは数字欄かどうかの判定だけです。入力した文字や認証コードを読み取らず、URLやページタイトルもアプリへ送信しません。
 
@@ -30,6 +30,6 @@ If you remove the edition whose extension folder you loaded and switch to anothe
 
 Enrollment applies only to the scheme, host and port you chose. The browser grants host permission across ports, but the extension checks the exact origin. For embedded fields, both the containing site and the embedded origin must be enrolled.
 
-The connection to the Windows app stays open only while an enrolled tab is active in the foreground browser. Switching to another application or an unenrolled tab closes it.
+The connection to the Windows app stays open while a site is enrolled. Field checks run only in the foreground tab on a permitted site. Disabling the last site closes the connection.
 
 The extension recognizes number controls, numeric and decimal input modes, and simple digit-only patterns such as `[0-9]+` and `\d{6}`. JavaScript-only restrictions are outside its scope. It sends only the field classification to the Windows app. It never reads typed characters or verification codes or sends page URLs or titles to the app.

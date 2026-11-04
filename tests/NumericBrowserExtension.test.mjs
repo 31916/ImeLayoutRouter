@@ -167,76 +167,28 @@ test("a durable setup tab enrolls only after approval for its unchanged opener",
   }
 });
 
-test("the host runs only for an eligible foreground tab; leaving also cancels its retry", async () => {
-  let origin = "https://not-enabled.example";
-  let tabId = 20, loading = false, grant = true;
-  let queried;
-  const queriedInitially = new Promise(resolve => { queried = resolve; });
-  const ports = [];
-  const entries = { ["site:"+topSite]: true };
-  let alarm;
-  const tick = () => new Promise(resolve => setImmediate(resolve));
+test("native transport follows enrollment, while field access follows foreground permission", async () => {
+  const entries = {};
+  let granted = true, closed = false, opens = 0;
+  const eventPort = {onMessage:event(), onDisconnect:event(), disconnect(){ closed = true; }};
   globalThis.chrome = {
-    action: {onClicked: event()},
-    runtime: { connectNative() {
-      const port = { closed: false, onMessage: event(), onDisconnect: event(),
-        disconnect() { this.closed = true; } };
-      ports.push(port);
-      return port;
-    }, onStartup: event(), onInstalled: event() },
-    storage: { local: { get: async () => entries, remove: async keys => { for (const key of keys) delete entries[key]; } }, onChanged: event() },
-    permissions: { contains: async () => grant, onAdded: event(), onRemoved: event() },
-    windows: { WINDOW_ID_NONE: -1, getLastFocused: async () => ({id: 1, focused: true}), onFocusChanged: event() },
-    tabs: { query: async () => { queried(); return [{ id: tabId, url: origin+"/", status: loading ? "loading" : "complete" }]; },
-      onActivated: event(), onUpdated: event(), onRemoved: event() },
-    alarms: { onAlarm: event(), create: (_, opts) => { alarm = {scheduledTime: opts.when}; },
-      get: async () => alarm, clear: async () => { alarm = undefined; } }
+    action:{onClicked:event()}, runtime:{onStartup:event(),onInstalled:event(),connectNative(){opens++;return eventPort;}},
+    alarms:{onAlarm:event(),clear:async()=>true,get:async()=>undefined},
+    tabs:{onUpdated:event(),onRemoved:event(),onActivated:event()},
+    windows:{onFocusChanged:event()}, permissions:{onAdded:event(),onRemoved:event(),contains:async()=>granted},
+    storage:{onChanged:event(),local:{get:async()=>entries,remove:async keys=>keys.forEach(k=>delete entries[k])}}
   };
-  await import("../browser-extension/worker.js?port-lifetime");
-  await queriedInitially;
-  await tick();
-  assert.equal(ports.length, 0);
-  origin = topSite;
-  await chrome.tabs.onActivated.fire({windowId: 1, tabId: ++tabId});
-  assert.equal(ports.length, 1);
-  origin = "https://not-enabled.example";
-  const activating = chrome.tabs.onActivated.fire({windowId: 1, tabId: ++tabId});
-  assert.equal(ports[0].closed, true, "revoked immediately on active tab change");
-  await activating;
-  assert.equal(ports.length, 1);
-  origin = topSite;
-  await chrome.tabs.onUpdated.fire(tabId, {status: "complete"}, {active: true});
-  assert.equal(ports.length, 2);
-  loading = true;
-  await chrome.tabs.onUpdated.fire(tabId, {status: "loading"}, {active: true});
-  assert.equal(ports[1].closed, true);
-  assert.equal(ports.length, 2);
-  loading = false;
-  await chrome.tabs.onUpdated.fire(tabId, {status: "complete"}, {active: true});
-  assert.equal(ports.length, 3);
-  const blurring = chrome.windows.onFocusChanged.fire(-1);
-  assert.equal(ports[2].closed, true, "revoked immediately on losing browser focus");
-  await blurring;
+  await import("../browser-extension/worker.js?lifetime");
   await chrome.runtime.onStartup.fire();
-  await tick();
-  assert.equal(ports.length, 3, "a stale getLastFocused result cannot undo the blur event");
-  await chrome.windows.onFocusChanged.fire(1);
-  assert.equal(ports.length, 4);
-  grant = false;
-  await chrome.permissions.onRemoved.fire();
-  assert.equal(ports[3].closed, true);
-  assert.equal(ports.length, 4);
-  grant = true;
-  await chrome.permissions.onAdded.fire();
-  assert.equal(ports.length, 4, "restoring a host permission alone does not reenroll the site");
-  entries["site:"+topSite] = true;
+  assert.equal(opens,0);
+  entries["site:"+topSite]=true;
   await chrome.storage.onChanged.fire({}, "local");
-  assert.equal(ports.length, 5);
-  await ports[4].onDisconnect.fire();
-  await tick();
-  assert.ok(alarm?.scheduledTime > Date.now());
-  origin = "https://not-enabled.example";
-  await chrome.tabs.onActivated.fire({windowId: 1, tabId: ++tabId});
-  assert.equal(alarm, undefined);
-  assert.equal(ports.length, 5);
+  assert.equal(opens,1);
+  await chrome.tabs.onActivated.fire({});
+  await chrome.windows.onFocusChanged.fire(-1);
+  assert.equal(closed,false);
+  granted=false;
+  await chrome.permissions.onRemoved.fire();
+  assert.equal(closed,true);
+  assert.equal(opens,1);
 });
