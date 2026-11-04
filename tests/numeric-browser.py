@@ -228,7 +228,7 @@ def exercise(page, channel, dll, revision, root):
     print(f"{revision} numeric evidence: {failures or 'all passed'}")
 
 
-def setting(app, edition, target):
+def setting(app, edition, target, hwnd):
     filename = "settings-v1.json" if edition == "Simple" else "settings-v2.json"
     path = Path(os.environ["LOCALAPPDATA"]) / "ImeLayoutRouter" / filename
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -239,7 +239,51 @@ def setting(app, edition, target):
             "Clsid": "D5A86FD5-5308-47EA-AD16-9C4EB160EC3C", "ProfileGuid": "773EB24E-CA1D-4B1B-B420-FA985BB0B80D"},
         "Target": {"LanguageId": target & 0xffff, "Hkl": target}
     }), encoding="utf-8")
-    return subprocess.Popen([app])
+    import win32api
+    import win32con
+    import win32security
+    import win32process
+    import win32event
+    pid = W.DWORD()
+    assert user32.GetForegroundWindow() == hwnd
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    browser = win32api.OpenProcess(0x1000, False, pid.value)
+    token = win32security.OpenProcessToken(browser, win32con.TOKEN_QUERY | win32con.TOKEN_DUPLICATE | win32con.TOKEN_ASSIGN_PRIMARY)
+    runner_token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), win32con.TOKEN_QUERY)
+    def integrity(t):
+        sid = win32security.GetTokenInformation(t, win32security.TokenIntegrityLevel)
+        if isinstance(sid, tuple): sid = sid[0]
+        return win32security.ConvertSidToStringSid(sid)
+    print("Fixture/browser integrity:", integrity(runner_token), integrity(token))
+    if integrity(runner_token) == integrity(token):
+        return subprocess.Popen([app])
+    # The hosted agent can be elevated while the browser runs with a filtered
+    # token. Use the verified foreground browser's primary token for this one
+    # installed fixture executable, under the same interactive Windows user.
+    class StartInfo(ctypes.Structure):
+        _fields_ = [("size", W.DWORD), ("reserved", W.LPWSTR), ("desktop", W.LPWSTR), ("title", W.LPWSTR),
+                    ("dimensions", W.DWORD * 8), ("show", W.WORD), ("reservedBytes", W.WORD),
+                    ("reservedPtr", W.LPVOID), ("stdIn", W.HANDLE), ("stdOut", W.HANDLE), ("stdErr", W.HANDLE)]
+    class ProcInfo(ctypes.Structure):
+        _fields_ = [("process", W.HANDLE), ("thread", W.HANDLE), ("pid", W.DWORD), ("tid", W.DWORD)]
+    info = StartInfo()
+    info.size = ctypes.sizeof(info)
+    proc = ProcInfo()
+    launch = ctypes.WinDLL("advapi32", use_last_error=True).CreateProcessWithTokenW
+    launch.argtypes = [W.HANDLE, W.DWORD, W.LPCWSTR, W.LPWSTR, W.DWORD, W.LPVOID, W.LPCWSTR, ctypes.POINTER(StartInfo), ctypes.POINTER(ProcInfo)]
+    if not launch(int(token), 0, str(app), None, 0, None, str(app.parent), ctypes.byref(info), ctypes.byref(proc)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    kernel32.CloseHandle(proc.thread)
+    class InstalledRouter:
+        def poll(self):
+            code = win32process.GetExitCodeProcess(proc.process)
+            return None if code == 259 else code
+        def terminate(self):
+            if self.poll() is None: win32process.TerminateProcess(proc.process, 0)
+        def wait(self, timeout):
+            try: assert win32event.WaitForSingleObject(proc.process, timeout*1000) == 0
+            finally: kernel32.CloseHandle(proc.process)
+    return InstalledRouter()
 
 
 def press_browser_button(hwnd, labels, approved=None):
@@ -358,7 +402,7 @@ def addon(context, channel, dll, app, edition, root):
         layouts = (W.HANDLE * 64)()
         count = user32.GetKeyboardLayoutList(len(layouts), layouts)
         target = next(h for h in layouts[:count] if h & 0xffff == 0x409)
-        router = setting(app, edition, target)
+        router = setting(app, edition, target, hwnd)
         page.wait_for_timeout(1200)
         assert router.poll() is None, "Production tray process exited"
 
