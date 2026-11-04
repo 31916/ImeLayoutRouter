@@ -13,7 +13,7 @@ if (!$installDirectory.StartsWith($root.TrimEnd('\') + '\', [StringComparison]::
     throw 'Installation must stay inside the test root.'
 }
 $editionName = if ($Edition -eq 'Simple') { 'V1' } else { 'V2' }
-$expectedVersion = if ($Edition -eq 'Simple') { '1.1.2' } else { '2.0.2' }
+$expectedVersion = if ($Edition -eq 'Simple') { '1.1.3' } else { '2.0.3' }
 $expectedIconHash = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot '../Assets/app.ico') -Algorithm SHA256).Hash
 $appId = if ($Edition -eq 'Simple') { '{CB27A979-27AB-40E2-A613-52CC5EFCB128}' } else { '{62EBC270-35B4-4E79-A170-426D38FEAA8C}' }
 $uninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\${appId}_is1"
@@ -32,8 +32,8 @@ function Get-SettingsFingerprint {
 $settingsBefore = Get-SettingsFingerprint
 $exe = Join-Path $installDirectory 'ImeLayoutRouter.exe'
 $uninstaller = Join-Path $installDirectory 'unins000.exe'
-function Install-TestPackage([string]$phase, [string]$package = $installerPath, [string]$version = $expectedVersion) {
-    $arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NOICONS', '/TASKS=""',
+function Install-TestPackage([string]$phase, [string]$package = $installerPath, [string]$version = $expectedVersion, [string]$tasks = '') {
+    $arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NOICONS', ('/TASKS="' + $tasks + '"'),
         ('/DIR="' + $installDirectory + '"'), ('/LOG="' + (Join-Path $root "$Edition-$phase.log") + '"'))
     $process = Start-Process -FilePath $package -ArgumentList $arguments -WindowStyle Hidden -PassThru -Wait
     if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
@@ -55,7 +55,7 @@ function Uninstall-TestPackage {
 try {
     $runKey.DeleteValue('ImeLayoutRouter', $false)
     if ($previousInstallerPath) {
-        $previousVersion = if ($Edition -eq 'Simple') { '1.1.1' } else { '2.0.1' }
+        $previousVersion = if ($Edition -eq 'Simple') { '1.1.2' } else { '2.0.2' }
         Install-TestPackage 'previous-version' $previousInstallerPath $previousVersion
         $ownCommand = '"' + $exe + '"'
         $runKey.SetValue('ImeLayoutRouter', $ownCommand, [Microsoft.Win32.RegistryValueKind]::String)
@@ -66,6 +66,7 @@ try {
         Write-Output "PASS $Edition upgrade from $previousVersion to $expectedVersion"
     }
     Install-TestPackage 'install'
+    if (Test-Path -LiteralPath (Join-Path $installDirectory 'numeric-host.json')) { throw 'Fresh installation enabled browser integration without a user choice.' }
     if ($null -ne $runKey.GetValue('ImeLayoutRouter')) { throw 'Fresh installation enabled startup without an existing opt-in.' }
     $installedHash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
     Install-TestPackage 'reinstall-upgrade'
@@ -104,6 +105,37 @@ try {
     if ($runKey.GetValue('ImeLayoutRouter') -ne $otherCommand) { throw 'Uninstall removed another edition startup registration.' }
     if ((Get-SettingsFingerprint) -ne $settingsBefore) { throw 'Installer lifecycle changed existing settings.' }
     Write-Output "PASS $Edition uninstall preserves other edition startup and existing settings"
+    if ($env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_ENVIRONMENT -eq 'github-hosted') {
+        Install-TestPackage 'numeric-companion' -tasks 'numericbrowser'
+        $manifestPath = Join-Path $installDirectory 'numeric-host.json'
+        $hostKeys = @('Google\Chrome','Microsoft\Edge') | ForEach-Object { "Software\$_\NativeMessagingHosts\ch.imelayoutrouter.numeric" }
+        $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+        if ($manifest.path -ne 'ImeLayoutRouter.exe' -or @($manifest.allowed_origins).Count -ne 1 -or
+            $manifest.allowed_origins[0] -ne 'chrome-extension://feaapoghfchepkmogdmdkcedfimopbpl/' -or
+            !(Test-Path -LiteralPath (Join-Path $installDirectory 'browser-extension/manifest.json'))) { throw 'Optional companion files do not match the browser registration.' }
+        foreach ($key in $hostKeys) {
+            if ([Microsoft.Win32.Registry]::GetValue("HKEY_CURRENT_USER\$key",'',$null) -ne $manifestPath) { throw 'Optional host registration missing.' }
+        }
+        $peerEdition = if ($Edition -eq 'Simple') { 'V2' } else { 'V1' }
+        $peerManifest = Join-Path $root 'peer-host.json'
+        Copy-Item -LiteralPath $manifestPath -Destination $peerManifest
+        $records = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\31916\IMELayoutRouter\NumericHost',$true)
+        try {
+            $records.SetValue($peerEdition, $peerManifest)
+            Uninstall-TestPackage
+            foreach ($key in $hostKeys) {
+                if ([Microsoft.Win32.Registry]::GetValue("HKEY_CURRENT_USER\$key",'',$null) -ne $peerManifest) { throw 'Uninstall did not preserve the other enabled edition.' }
+            }
+            if ($null -ne $records.GetValue($editionName)) { throw 'Uninstall kept this edition registered.' }
+        } finally {
+            $records.DeleteValue($peerEdition,$false)
+            $records.Dispose()
+            foreach ($key in $hostKeys) {
+                if ([Microsoft.Win32.Registry]::GetValue("HKEY_CURRENT_USER\$key",'',$null) -eq $peerManifest) { [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKey($key,$false) }
+            }
+        }
+        Write-Output "PASS $Edition optional numeric companion install, original extension origin and cross-edition uninstall handoff"
+    }
 } finally {
     try { if (Test-Path -LiteralPath $uninstaller) { Uninstall-TestPackage } }
     finally {

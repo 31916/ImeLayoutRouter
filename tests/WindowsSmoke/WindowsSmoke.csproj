@@ -14,6 +14,8 @@
     <Compile Include="../../RoutingPolicy.cs" Link="RoutingPolicy.cs" />
     <Compile Include="../../RoutingMonitor.cs" Link="RoutingMonitor.cs" />
     <Compile Include="../../FocusedInputProbe.cs" Link="FocusedInputProbe.cs" />
+    <Compile Include="../../NumericBrowserBridge.cs" Link="NumericBrowserBridge.cs" />
+    <Compile Include="../../NumericBrowserHost.cs" Link="NumericBrowserHost.cs" />
     <Compile Include="../../ImeLanguage.cs" Link="ImeLanguage.cs" />
     <Compile Include="../../TsfProfileEnumerator.cs" Link="TsfProfileEnumerator.cs" />
     <Compile Include="../../FocusEventListener.cs" Link="FocusEventListener.cs" />

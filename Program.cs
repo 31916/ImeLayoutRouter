@@ -6,6 +6,7 @@ class Program
     [STAThread]
     static void Main(string[] args)
     {
+        if (NumericBrowserHost.TryRun(args, out int hostExit)) { Environment.ExitCode = hostExit; return; }
         if (args.Length > 0 && args[0] == "--diagnose")
         {
             var configuration = SettingsService.Load();
