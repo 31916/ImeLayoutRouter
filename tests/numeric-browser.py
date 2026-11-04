@@ -366,8 +366,35 @@ def addon(context, channel, dll, app, edition, root):
             page.locator("#" + field).click()
             native_direct = metadata(dll, hwnd, field, "Direct")
             if enabled or native_direct:
-                until(lambda: user32.GetKeyboardLayout(thread) == target,
-                      f"{field}: packaged app did not route to target {target:#x}")
+                try:
+                    until(lambda: user32.GetKeyboardLayout(thread) == target,
+                          f"{field}: packaged app did not route to target {target:#x}")
+                except AssertionError:
+                    # Only this disposable test's own tab and installed app.
+                    # Never read a value, title, command line or browsing history into the log.
+                    print("Fixture state:", page.evaluate("""() => ({focused:document.hasFocus(),
+                          id:document.activeElement.id, inputMode:document.activeElement.inputMode})"""),
+                          "layout", hex(user32.GetKeyboardLayout(thread)), "foregroundMatch",
+                          user32.GetForegroundWindow() == hwnd, "appRunning", router.poll() is None)
+                    for w in context.service_workers:
+                        if w.url.startswith("chrome-extension://"+ext_id+"/"):
+                            print("Extension context:", w.evaluate("""async origin => {
+                                const win=await chrome.windows.getLastFocused({windowTypes:['normal']});
+                                const [tab]=await chrome.tabs.query({active:true,windowId:win.id});
+                                return {windowFocused:win.focused, tabMatches:tab?.url?.startsWith(origin+'/'),
+                                    optedIn:!!(await chrome.storage.local.get('site:'+origin))['site:'+origin],
+                                    granted:await chrome.permissions.contains({origins:[
+                                        new URL(origin).protocol+'//'+new URL(origin).hostname+'/*']})};
+                            }""", page.evaluate("location.origin")))
+                    ps = """Get-CimInstance Win32_Process -Filter "Name='ImeLayoutRouter.exe'" | ForEach-Object {
+                      [pscustomobject]@{ PID=$_.ProcessId; Parent=$_.ParentProcessId;
+                        MatchesInstalled=($_.ExecutablePath -eq $env:FIXTURE_APP);
+                        IsBrowserHost=($_.CommandLine -match 'chrome-extension://feaapoghfchepkmogdmdkcedfimopbpl/') }
+                    } | ConvertTo-Json -Compress"""
+                    print("Installed app / host processes:", subprocess.check_output(
+                        ["powershell","-NoProfile","-Command",ps], env={**os.environ,"FIXTURE_APP":str(app)},
+                        text=True, timeout=12).strip())
+                    raise
                 digits = "0012" if field != "number" else "12"
                 page.evaluate("id => document.getElementById(id).value=''", field)
                 for ch in digits:
