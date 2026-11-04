@@ -200,7 +200,28 @@ variables = root / "vars.fd"
 shutil.copyfile("/usr/share/OVMF/OVMF_VARS_4M.ms.fd", variables)
 tpm = root / "tpm"
 tpm.mkdir()
-subprocess.run(["swtpm", "socket", "--tpm2", "--tpmstate", f"dir={tpm}", "--ctrl", f"type=unixio,path={root}/tpm.sock", "--daemon"], check=True)
+def start_tpm():
+    channel = root / "tpm.sock"
+    channel.unlink(missing_ok=True)
+    proc = subprocess.Popen(["swtpm", "socket", "--tpm2", "--tpmstate", f"dir={tpm}",
+                             "--ctrl", f"type=unixio,path={channel}"])
+    deadline = time.monotonic() + 15
+    while not channel.exists():
+        if proc.poll() is not None or time.monotonic() >= deadline:
+            stop_owned(proc)
+            raise RuntimeError("The disposable TPM did not expose its socket")
+        time.sleep(0.1)
+    return proc
+
+
+def stop_owned(proc):
+    if proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
 qmp_path = root / "qmp.sock"
 # Windows otherwise uses expensive emulated timer/APIC paths under KVM. These
 # documented guest interfaces preserve Secure Boot, TPM and OS security policy.
@@ -239,6 +260,7 @@ def connect_qmp(process):
 
 
 with (evidence / "qemu.txt").open("w") as log:
+    tpm_process = start_tpm()
     process = subprocess.Popen(command, stdout=log, stderr=log)
     try:
         connection, stream = connect_qmp(process)
@@ -271,6 +293,11 @@ with (evidence / "qemu.txt").open("w") as log:
                 stream.close()
                 connection.close()
                 qmp_path.unlink(missing_ok=True)
+                # QEMU can send CMD_SHUTDOWN to swtpm when it exits. Restart
+                # our own emulator with its existing state directory, not a
+                # new TPM identity, for the next boot of the same guest.
+                stop_owned(tpm_process)
+                tpm_process = start_tpm()
                 command[command.index("-cpu") + 1] = hardware_cpu
                 command[command.index("-boot") + 1] = "order=c,menu=off"
                 process = subprocess.Popen(command, stdout=log, stderr=log)
@@ -346,9 +373,6 @@ with (evidence / "qemu.txt").open("w") as log:
             raise RuntimeError("Two actual ACPI sleep/resume cycles were not verified")
         print("PASS Isolated Windows 11 x64 checks", flush=True)
     finally:
-        process.terminate()
-        try:
-            process.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            process.kill()
+        stop_owned(process)
+        stop_owned(tpm_process)
         server.shutdown()
