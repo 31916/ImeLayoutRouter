@@ -1,12 +1,19 @@
 name: Numeric field routing in a Windows browser
 on:
   workflow_dispatch:
+    inputs:
+      installer_run:
+        description: Reuse the same branch's packaged installer for a fixture-only retest
+        type: string
+        required: false
 permissions:
   contents: read
+  actions: read
 env:
   EDITION: ${{ github.ref_name == 'V1' && 'Simple' || 'Full' }}
 jobs:
   installer:
+    if: inputs.installer_run == ''
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +46,7 @@ jobs:
           if-no-files-found: error
   numeric:
     needs: installer
+    if: always() && (needs.installer.result == 'success' || (inputs.installer_run != '' && needs.installer.result == 'skipped'))
     runs-on: windows-2025
     timeout-minutes: 18
     strategy:
@@ -49,6 +57,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: current
+          fetch-depth: 0
+      - name: Verify reused package source and branch
+        if: inputs.installer_run != ''
+        shell: pwsh
+        working-directory: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ inputs.installer_run }}
+        run: |
+          if ($env:SOURCE_RUN -notmatch '^[0-9]+$') { throw 'Invalid run ID' }
+          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:SOURCE_RUN" | ConvertFrom-Json
+          if ($run.head_branch -ne $env:GITHUB_REF_NAME -or $run.path -ne '.github/workflows/numeric-browser.yml') { throw 'Unexpected source run' }
+          git diff --quiet $run.head_sha HEAD -- . ':!tests' ':!.github'
+          if ($LASTEXITCODE -ne 0) { throw 'Installer inputs differ' }
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref_name == 'V1' && '4527c8e3e1de478abaefb96895e78b2e5a6d820f' || '0c04f2f4df93216fd15a112501b7cca5b95a3f7a' }}
@@ -92,6 +114,8 @@ jobs:
         with:
           name: numeric-browser-installer
           path: tested-installer
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.installer_run || github.run_id }}
       - name: Check the installed optional browser extension and native host
         shell: pwsh
         env:

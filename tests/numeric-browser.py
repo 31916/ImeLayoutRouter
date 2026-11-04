@@ -422,6 +422,22 @@ def addon(context, channel, dll, app, edition, root):
                           user32.GetForegroundWindow() == hwnd, "appRunning", router.poll() is None)
                     for w in context.service_workers:
                         if w.url.startswith("chrome-extension://"+ext_id+"/"):
+                            print("Native connection diagnostic:", w.evaluate("""async origin => {
+                                const win=await chrome.windows.getLastFocused({windowTypes:['normal']});
+                                const url=new URL(origin);
+                                const pattern=url.protocol+'//'+url.hostname+'/*';
+                                const [t]=await chrome.tabs.query({active:true,windowId:win.id,url:[pattern]});
+                                const policy=await chrome.alarms.get('retry-native');
+                                const result={matches:!!t,focused:win.focused,pending:!!t?.pendingUrl,status:t?.status,retry:!!policy};
+                                const p=chrome.runtime.connectNative('ch.imelayoutrouter.numeric');
+                                result.transport=await new Promise(resolve=>{
+                                  p.onDisconnect.addListener(()=>resolve(chrome.runtime.lastError?.message || 'closed'));
+                                  p.onMessage.addListener(message=>resolve(message.op));
+                                  setTimeout(()=>resolve('connected without challenge'),2500);
+                                });
+                                p.disconnect();
+                                return result;
+                            }""", page.evaluate("location.origin")))
                             print("Extension context:", w.evaluate("""async origin => {
                                 const win=await chrome.windows.getLastFocused({windowTypes:['normal']});
                                 const [tab]=await chrome.tabs.query({active:true,windowId:win.id});
