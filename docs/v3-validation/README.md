@@ -5,6 +5,19 @@ This record distinguishes passing evidence from failed investigations. See the
 
 ## Validation gates
 
+- On 2026-11-04 JST, [run 41774873573](https://github.com/31916/ImeLayoutRouter/actions/runs/41774873573)
+  at `13f44ee` successfully preserved the pre-sleep checkpoint. Windows
+  measured the real popup at `0,0` / 96 DPI and `-1280,0` / 120 DPI; both
+  monitors passed off/on suppression, normal-position restoration and the
+  identical committed text. QEMU 10.2.1 observed actual S3 in the **V3-off**
+  baseline and accepted the wake request, but Windows did not acknowledge
+  resume within 180 seconds. This is a failed run, not a passing sleep test.
+  For comparison, the hardware-timer test boots the same installed guest
+  without Hyper-V synthetic timers following driver preparation. This keeps
+  Windows Setup's known working configuration and changes no Windows boot
+  policy. Timer causation is unproven. [Google IME](https://github.com/31916/ImeLayoutRouter/actions/runs/41774873564)
+  and the [packaged lifecycle/native checks](https://github.com/31916/ImeLayoutRouter/actions/runs/41774873562)
+  independently passed at the same revision.
 - The mixed-monitor fixture initially failed while setting a disabled QXL
   source through the legacy mode API. `280c4c5` first activates Windows' actual
   extended topology, then requires the requested monitor rectangles and scales.

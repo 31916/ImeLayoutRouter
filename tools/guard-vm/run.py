@@ -29,6 +29,9 @@ evidence.mkdir(parents=True, exist_ok=True)
 payload = Path("artifacts/vm").resolve()
 token = secrets.token_urlsafe(32)
 password = secrets.token_urlsafe(24)
+timer_mode = os.environ.get("GUARD_VM_TIMERS", "direct")
+if timer_mode not in ("direct", "hardware"):
+    raise SystemExit("Unsupported disposable VM timer mode")
 phase = "preparing"
 finished = threading.Event()
 resume_cycles = 0
@@ -76,7 +79,8 @@ class Receiver(http.server.BaseHTTPRequestHandler):
 
 server = http.server.ThreadingHTTPServer(("127.0.0.1", 8000), Receiver)
 threading.Thread(target=server.serve_forever, daemon=True).start()
-(payload / "config.json").write_text(json.dumps({"endpoint": "http://10.0.2.2:8000", "token": token}))
+(payload / "config.json").write_text(json.dumps({"endpoint": "http://10.0.2.2:8000", "token": token,
+                                                  "postsetupHardware": timer_mode == "hardware"}))
 
 # The Windows build job validates Authenticode before uploading this payload.
 # Preserve that exact verified file through both transfers. A fresh guest's
@@ -201,15 +205,13 @@ qmp_path = root / "qmp.sock"
 # Windows otherwise uses expensive emulated timer/APIC paths under KVM. These
 # documented guest interfaces preserve Secure Boot, TPM and OS security policy.
 # https://www.qemu.org/docs/master/system/i386/hyperv.html
-timer_mode = os.environ.get("GUARD_VM_TIMERS", "direct")
-if timer_mode not in ("direct", "hardware"):
-    raise SystemExit("Unsupported disposable VM timer mode")
-cpu = "host,hv-relaxed,hv-vapic,hv-spinlocks=0x1fff,hv-vpindex,hv-time"
-if timer_mode == "direct":
-    # Compare the documented direct-interrupt option for nested timers. The
-    # classic-timer baseline hung at S3; timer causation is not yet established.
-    cpu += ",hv-synic,hv-stimer,hv-stimer-direct"
-(evidence / "vm-timers.txt").write_text(cpu + "\n")
+hardware_cpu = "host,hv-relaxed,hv-vapic,hv-spinlocks=0x1fff,hv-vpindex,hv-time"
+# Setup previously stalled at 30% without synthetic timers. Always install
+# with the known working CPU, then cold-boot the same installed disk without
+# synthetic timers for the hardware comparison. Windows boot policy, Secure
+# Boot and TPM stay intact. No virtual disk or password leaves this runner.
+cpu = hardware_cpu + ",hv-synic,hv-stimer,hv-stimer-direct"
+(evidence / "vm-timers.txt").write_text(f"setup={cpu}\ntest_mode={timer_mode}\n")
 print("Disposable VM timer mode:", timer_mode, flush=True)
 command = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35,smm=on", "-cpu",
            cpu, "-smp", "4", "-m", "8192",
@@ -222,18 +224,24 @@ command = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35,smm=on", "-cpu"
            "-device", "e1000,netdev=net0", "-netdev", "user,id=net0", "-vga", "qxl",
            "-device", "qxl,id=secondary", "-spice", "unix=on,addr=" + str(root / "spice.sock") + ",disable-ticketing=on",
            "-display", "none", "-qmp", f"unix:{qmp_path},server=on,wait=off"]
+def connect_qmp(process):
+    deadline = time.monotonic() + 60
+    while not qmp_path.exists() and time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError("QEMU exited during setup")
+        time.sleep(1)
+    connection = socket.socket(socket.AF_UNIX)
+    connection.settimeout(30)
+    connection.connect(str(qmp_path))
+    stream = connection.makefile("rwb", buffering=0)
+    json.loads(stream.readline())
+    return connection, stream
+
+
 with (evidence / "qemu.txt").open("w") as log:
     process = subprocess.Popen(command, stdout=log, stderr=log)
     try:
-        deadline = time.monotonic() + 60
-        while not qmp_path.exists() and time.monotonic() < deadline:
-            if process.poll() is not None:
-                raise RuntimeError("QEMU exited during setup")
-            time.sleep(1)
-        connection = socket.socket(socket.AF_UNIX)
-        connection.connect(str(qmp_path))
-        stream = connection.makefile("rwb", buffering=0)
-        json.loads(stream.readline())
+        connection, stream = connect_qmp(process)
 
         def qmp(name, arguments=None):
             stream.write((json.dumps({"execute": name, "arguments": arguments or {}}) + "\n").encode())
@@ -253,8 +261,27 @@ with (evidence / "qemu.txt").open("w") as log:
         resumed_at = None
         resumed_phase = None
         resume_cycles = 0
+        test_cpu_active = timer_mode == "direct"
+        sampled_wake = False
         while not finished.wait(1):
             elapsed = time.monotonic() - started
+            if phase == "poweroff-for-hardware-timers" and not test_cpu_active:
+                if process.wait(timeout=120) != 0:
+                    raise RuntimeError("Prepared Windows guest did not power off cleanly")
+                stream.close()
+                connection.close()
+                qmp_path.unlink(missing_ok=True)
+                command[command.index("-cpu") + 1] = hardware_cpu
+                command[command.index("-boot") + 1] = "order=c,menu=off"
+                process = subprocess.Popen(command, stdout=log, stderr=log)
+                connection, stream = connect_qmp(process)
+                qmp("qmp_capabilities")
+                if not qmp("query-current-machine").get("wakeup-suspend-support"):
+                    raise RuntimeError("Post-setup machine cannot wake from S3")
+                test_cpu_active = True
+                with (evidence / "vm-timers.txt").open("a") as record:
+                    record.write("tested_cpu=" + hardware_cpu + "\n")
+                print("Booted the installed guest without synthetic timers", flush=True)
             # Two virtual GPUs and Secure Boot can delay the optical boot
             # prompt beyond 35 seconds. Its acceptance window is only seconds.
             # All keys remain inside this newly created, empty disposable VM.
@@ -262,7 +289,7 @@ with (evidence / "qemu.txt").open("w") as log:
                 qmp("send-key", {"keys": [{"type": "qcode", "data": "ret"}]})
             state = qmp("query-status")["status"]
             if state == "suspended":
-                if not phase.startswith("suspend-ready-"):
+                if not test_cpu_active or not phase.startswith("suspend-ready-"):
                     raise RuntimeError("Unexpected guest suspend outside the input lifecycle test")
                 if suspended_at is None:
                     suspended_at = time.monotonic()
@@ -273,13 +300,23 @@ with (evidence / "qemu.txt").open("w") as log:
                     suspended_at = None
                     resumed_at = time.monotonic()
                     resumed_phase = phase
-                    (evidence / "hypervisor-resume.txt").write_text(f"actual_s3_resume_cycles={resume_cycles}\n")
-                    print("Resumed actual guest ACPI S3, cycle", resume_cycles, flush=True)
+                    sampled_wake = False
+                    (evidence / "hypervisor-resume.txt").write_text(f"qmp_wake_requests={resume_cycles}\n")
+                    print("QMP accepted wake request for actual S3 cycle", resume_cycles, flush=True)
             if resumed_at is not None:
                 if phase != resumed_phase:
                     resumed_at = None
                 elif time.monotonic() - resumed_at > 180:
                     raise TimeoutError("The Windows guest did not acknowledge S3 wakeup within three minutes")
+                elif not sampled_wake and time.monotonic() - resumed_at > 30:
+                    # Only instruction addresses and SMM state, never a register
+                    # dump or guest memory. Distinguish firmware from kernel stalls.
+                    sampled_wake = True
+                    for index in range(4):
+                        registers = qmp("human-monitor-command", {"command-line": "info registers", "cpu-index": index})
+                        pc = re.search(r"\b(?:RIP|EIP)=([0-9a-fA-F]+)", registers)
+                        smm = re.search(r"\bSMM=([01])", registers)
+                        print(f"Wake probe CPU {index}: IP={pc[1] if pc else 'unknown'} SMM={smm[1] if smm else 'unknown'}", flush=True)
             if elapsed - last_report >= 60:
                 last_report = elapsed
                 # Allocation and CPU counters distinguish slow setup from a

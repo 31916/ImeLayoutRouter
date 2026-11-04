@@ -125,11 +125,15 @@ try {
         $taskTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:COMPUTERNAME\V3Test"
         Register-ScheduledTask -TaskName 'V3DisposableResume' -Action $taskAction -Principal $taskPrincipal -Trigger $taskTrigger -Force | Out-Null
         'Driver installation complete; activation must be verified after reboot.' | Set-Content C:/V3Fixture/display-reboot.marker
-        Report 'rebooting-display-driver'
+        if ($taskConfig.postsetupHardware) { Report 'poweroff-for-hardware-timers' }
+        else { Report 'rebooting-display-driver' }
         Stop-Transcript
         $taskTranscriptStopped = $true
         $taskRebooting = $true
-        try { Restart-Computer -Force } catch { $taskRebooting = $false; throw }
+        try {
+            if ($taskConfig.postsetupHardware) { Stop-Computer -Force }
+            else { Restart-Computer -Force }
+        } catch { $taskRebooting = $false; throw }
         return
     }
     Unregister-ScheduledTask -TaskName 'V3DisposableResume' -Confirm:$false -ErrorAction SilentlyContinue
