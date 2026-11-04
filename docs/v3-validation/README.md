@@ -310,13 +310,15 @@ The hosted ARM image has a separately reported
 The preparation script's workaround is restricted to this repository's
 GitHub-hosted ARM VM. It is not compiled into V3 or applied to a developer PC.
 
-### Reviewed screenshots (2026-10-23–24 JST)
+### Reviewed screenshots
 
 These contain only fixed fixture input on disposable VMs. They are evidence for
 the tested environment, not a promise for every application.
 
 | IME | V3 off | V3 on |
 | --- | --- | --- |
+| Microsoft Japanese IME / Windows 11 x64 (2026-11-04 JST) | [Composition and candidates](windows11-x64-before.png) | [Only the composition popup is hidden](windows11-x64-after.png) |
+| Microsoft Japanese IME / Windows 11 x64 borderless fullscreen (2026-11-04 JST) | [Composition and candidates](windows11-x64-fullscreen-before.png) | [Candidates remain drawable](windows11-x64-fullscreen-after.png) |
 | Microsoft Japanese IME / Windows 11 ARM | [Composition and candidates](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/microsoft-before.png) | [Candidates preserved, composition hidden](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/microsoft-after.png) |
 | Microsoft Japanese IME / borderless fullscreen fixture | [Composition and candidates](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/microsoft-fullscreen-before.png) | [Candidates preserved, composition hidden](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/microsoft-fullscreen-after.png) |
 | Google Japanese Input / Windows Server 2025 | [Composition and candidates](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/google-before.png) | [Candidates preserved, composition hidden](https://github.com/31916/ImeLayoutRouter/blob/V3/docs/v3-validation/google-after.png) |

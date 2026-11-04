@@ -95,11 +95,16 @@ shutil.copyfile(payload / "browser-signature.txt", evidence / "browser-signature
 
 # Fixed preinstalled SDK directories on this disposable Linux image only.
 # They contain no repository data and are not needed by this VM-only job.
-if shutil.disk_usage(root).free < 45 * 1024**3:
-    for entry in ("/usr/local/lib/android", "/usr/share/dotnet", "/opt/ghc"):
-        path = Path(entry)
-        if path.exists() and path.resolve() == path:
-            subprocess.run(["sudo", "rm", "--recursive", "--force", "--one-file-system", "--", entry], check=True)
+print(f"Disposable free space before preparation: {shutil.disk_usage(root).free // 1024**2} MiB", flush=True)
+for entry in ("/opt/hostedtoolcache", "/usr/local/lib/android", "/usr/share/dotnet", "/opt/ghc",
+              "/usr/local/.ghcup", "/usr/share/swift", "/usr/local/share/powershell", "/opt/az",
+              "/usr/lib/google-cloud-sdk", "/opt/google/chrome", "/opt/microsoft/msedge"):
+    if shutil.disk_usage(root).free >= 42 * 1024**3:
+        break
+    path = Path(entry)
+    if path.is_dir() and path.resolve() == path:
+        subprocess.run(["sudo", "rm", "--recursive", "--force", "--one-file-system", "--", entry], check=True)
+        print(f"After removing unused {entry}: {shutil.disk_usage(root).free // 1024**2} MiB free", flush=True)
 if shutil.disk_usage(root).free < 35 * 1024**3:
     raise SystemExit("Insufficient disposable disk space for Windows evaluation")
 
@@ -300,6 +305,11 @@ with (evidence / "qemu.txt").open("w") as log:
                 tpm_process = start_tpm()
                 command[command.index("-cpu") + 1] = hardware_cpu
                 command[command.index("-boot") + 1] = "order=c,menu=off"
+                # Windows and the signed driver are already installed. Boot
+                # only its disk and test CD; release the 8 GB setup image.
+                setup_medium = command.index(f"file={iso},media=cdrom,readonly=on,if=ide")
+                del command[setup_medium - 1:setup_medium + 1]
+                iso.unlink()
                 process = subprocess.Popen(command, stdout=log, stderr=log)
                 connection, stream = connect_qmp(process)
                 qmp("qmp_capabilities")
