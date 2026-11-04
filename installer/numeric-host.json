@@ -1,0 +1,7 @@
+{
+  "name": "ch.imelayoutrouter.numeric",
+  "description": "IMELayoutRouter numeric field companion",
+  "path": "ImeLayoutRouter.exe",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://feaapoghfchepkmogdmdkcedfimopbpl/"]
+}

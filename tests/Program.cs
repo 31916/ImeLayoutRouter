@@ -235,6 +235,19 @@ static class Tests
             Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes(null));
             Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes(@"placeholder:some\;text-input-type:email;"));
         });
+        Test("Explicit numeric input mode wins only on an eligible text control", () =>
+        {
+            foreach (var mode in new[] { "numeric", "decimal" })
+            {
+                Equal(FocusedFieldKind.Direct, FocusedInputProbe.ClassifyAttributes($"tag:input;text-input-type:text;inputmode:{mode};"));
+                Equal(FocusedFieldKind.Direct, FocusedInputProbe.ClassifyAttributes($"inputmode:{mode};tag:textarea;"));
+            }
+            Equal(FocusedFieldKind.Text, FocusedInputProbe.ClassifyAttributes("tag:textarea;"));
+            Equal(FocusedFieldKind.Text, FocusedInputProbe.ClassifyAttributes(@"tag:input;text-input-type:text;placeholder:foo\;inputmode:numeric;"));
+            Equal(FocusedFieldKind.Text, FocusedInputProbe.ClassifyAttributes("tag:input;text-input-type:text;autocomplete:one-time-code;"));
+            Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes("tag:input;text-input-type:date;inputmode:numeric;"));
+            Equal(FocusedFieldKind.Unknown, FocusedInputProbe.ClassifyAttributes("tag:div;inputmode:numeric;"));
+        });
         Test("All Chinese locales and Korean are selectable", () =>
         {
             foreach (ushort id in new ushort[] { 0x0411, 0x0412, 0x0404, 0x0804, 0x0C04, 0x1004, 0x1404 })

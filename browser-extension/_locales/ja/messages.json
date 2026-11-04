@@ -1,0 +1,12 @@
+{
+  "name": {"message": "IMELayoutRouter 数字欄の判定"},
+  "description": {"message": "有効にしたサイトの数字欄をIMELayoutRouter V1・V2で判定します。"},
+  "enabled": {"message": "このサイトでは有効です。"},
+  "disabled": {"message": "このサイトでは無効です。"},
+  "enable": {"message": "このサイトで有効にする"},
+  "disable": {"message": "このサイトで無効にする"},
+  "unsupported": {"message": "許可するサイトのHTTPまたはHTTPSページを開いてください。"},
+  "denied": {"message": "サイトへのアクセスは許可されませんでした。"},
+  "failure": {"message": "設定を変更できませんでした。この画面を開き直して再度お試しください。"},
+  "privacy": {"message": "Windowsアプリへ渡すのは欄の種類だけです。入力した文字や認証コードは読み取りません。"}
+}

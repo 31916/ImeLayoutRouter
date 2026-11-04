@@ -7,6 +7,7 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
+        if (NumericBrowserHost.TryRun(args, out int hostExit)) { Environment.ExitCode = hostExit; return; }
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);

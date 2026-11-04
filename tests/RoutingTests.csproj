@@ -16,6 +16,8 @@
     <Compile Include="../InputProfile.cs" Link="InputProfile.cs" />
     <Compile Include="../ImeLanguage.cs" Link="ImeLanguage.cs" />
     <Compile Include="../FocusedInputProbe.cs" Link="FocusedInputProbe.cs" />
+    <Compile Include="../NumericBrowserBridge.cs" Link="NumericBrowserBridge.cs" />
+    <Compile Include="../NumericBrowserHost.cs" Link="NumericBrowserHost.cs" />
     <Compile Include="../FocusEventListener.cs" Link="FocusEventListener.cs" />
     <Compile Include="../RoutingPreferences.cs" Link="RoutingPreferences.cs" />
     <Compile Include="../RoutingSession.cs" Link="RoutingSession.cs" />

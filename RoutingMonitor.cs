@@ -11,7 +11,7 @@ static class RoutingMonitor
     {
         var policy = new RoutingPolicy(configuration);
         using var wake = new AutoResetEvent(false);
-        using var fields = new FocusedInputProbe(() => wake.Set());
+        using var fields = new FocusedInputProbe(() => wake.Set(), useBrowserCompanion: true);
         var waits = new[] { cancellationToken.WaitHandle, wake };
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -36,7 +36,7 @@ static class RoutingMonitor
         using var ownedSession = session == null ? new RoutingSession() : null;
         session ??= ownedSession!;
         var policy = new RoutingPolicy(configuration);
-        using var fields = new FocusedInputProbe(() => session.Wake.Set());
+        using var fields = new FocusedInputProbe(() => session.Wake.Set(), useBrowserCompanion: true);
         var applications = new ForegroundApplication();
         var manual = new ManualRoutingState();
         (InputContext Context, IntPtr Layout, bool Native, long At)? pending = null;
@@ -213,7 +213,7 @@ static class RoutingMonitor
         }
         var context = new InputContext(foreground, info.hwndFocus, focusedThread,
             FocusVersion: focusVersion);
-        var hint = fields?.Read(context) ?? (FocusedFieldKind.Unknown, 0);
+        var hint = fields?.Read(context, checkBrowser: configuration.IsSourceLayout(layout)) ?? (FocusedFieldKind.Unknown, 0);
         context = context with { ElementId = hint.Item2 };
         var snapshot = new InputSnapshot(context, layout, mode, hint.Item1 == FocusedFieldKind.Direct);
         return IsStillFocused(snapshot) && (fields == null || fields.FocusVersion == context.FocusVersion) ? snapshot : null;
@@ -235,7 +235,7 @@ static class RoutingMonitor
 
     private static bool IsCurrent(InputSnapshot current, FocusedInputProbe fields) =>
         IsStillFocused(current) && fields.FocusVersion == current.Context.FocusVersion
-        && (!current.RequiresDirectInput || fields.Read(current.Context) == (FocusedFieldKind.Direct, current.Context.ElementId));
+        && (!current.RequiresDirectInput || fields.Read(current.Context, verify: true) == (FocusedFieldKind.Direct, current.Context.ElementId));
 
     private static bool IsStillFocused(InputSnapshot snapshot)
     {

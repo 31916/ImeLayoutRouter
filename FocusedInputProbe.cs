@@ -17,12 +17,14 @@ sealed class FocusedInputProbe : IDisposable
     private readonly AutoResetEvent wake = new(false);
     private readonly object gate = new();
     private readonly Action? changed;
+    private readonly NumericBrowserBridge? numericBrowser;
     public long FocusVersion => Interlocked.Read(ref focusVersion);
     private sealed record Observation(IntPtr Foreground, IntPtr Focus, long At, FocusedFieldKind Kind, int ElementId);
 
-    public FocusedInputProbe(Action? changed = null)
+    public FocusedInputProbe(Action? changed = null, bool useBrowserCompanion = false)
     {
         this.changed = changed;
+        if (useBrowserCompanion) numericBrowser = NumericBrowserBridge.CreateIfInstalled(changed);
         events = new FocusEventListener(() =>
         {
             lock (gate)
@@ -39,12 +41,18 @@ sealed class FocusedInputProbe : IDisposable
         worker.Start();
     }
 
-    public (FocusedFieldKind Kind, int ElementId) Read(InputContext context)
+    public (FocusedFieldKind Kind, int ElementId) Read(InputContext context, bool checkBrowser = true, bool verify = false)
     {
         var value = Volatile.Read(ref latest);
         if (value == null || value.Foreground != context.Foreground || value.Focus != context.Focus
             || Environment.TickCount64 - value.At > 350)
             return (FocusedFieldKind.Unknown, 0);
+        if (checkBrowser && value.Kind == FocusedFieldKind.Text && value.ElementId != 0 && numericBrowser != null)
+        {
+            var field = context with { ElementId = value.ElementId };
+            if (verify ? numericBrowser.Matches(field) : numericBrowser.Read(field))
+                return (FocusedFieldKind.Direct, value.ElementId);
+        }
         return (value.Kind, value.ElementId);
     }
 
@@ -193,28 +201,37 @@ sealed class FocusedInputProbe : IDisposable
             var getAttributes = Marshal.GetDelegateForFunctionPointer<GetAttributes>(Marshal.ReadIntPtr(table, 45 * IntPtr.Size));
             if (getId(ia2, out int id) != 0) id = 0;
             hr = getAttributes(ia2, out string attributes);
-            trace?.Invoke($"IA2 attributes hr=0x{hr:X8} kind={ClassifyAttributes(attributes)} element={id}");
-            if (hr != 0) return (FocusedFieldKind.Unknown, id);
-            return (ClassifyAttributes(attributes), id);
+            var kind = hr == 0 ? ClassifyAttributes(attributes) : FocusedFieldKind.Unknown;
+            trace?.Invoke($"IA2 attributes hr=0x{hr:X8} kind={kind} element={id}");
+            return (kind, id);
         }
         finally { Marshal.Release(ia2); }
     }
 
     internal static FocusedFieldKind ClassifyAttributes(string? attributes)
     {
-        // Match complete attributes, never labels or user-entered values.
+        // Only explicit structural attributes. Chromium does not expose the
+        // HTML inputmode of an ordinary text field here.
+        string? type = null;
+        bool textControl = false, numericMode = false, textarea = false;
         foreach (string attribute in SplitAttributes(attributes ?? ""))
         {
             const string prefix = "text-input-type:";
-            if (attribute.Contains('\\') || !attribute.StartsWith(prefix, StringComparison.Ordinal)) continue;
-            return attribute[prefix.Length..] switch
-            {
-                "email" or "url" or "tel" or "number" or "password" => FocusedFieldKind.Direct,
-                "text" or "search" => FocusedFieldKind.Text,
-                _ => FocusedFieldKind.Unknown
-            };
+            if (attribute.Contains('\\')) continue;
+            if (attribute.StartsWith(prefix, StringComparison.Ordinal)) type = attribute[prefix.Length..];
+            else if (attribute == "tag:input") textControl = true;
+            else if (attribute == "tag:textarea") textarea = true;
+            else if (attribute is "inputmode:numeric" or "inputmode:decimal") numericMode = true;
         }
-        return FocusedFieldKind.Unknown;
+        if (numericMode && (textControl || textarea) && type is null or "text" or "search" or "textarea")
+            return FocusedFieldKind.Direct;
+        if (textarea && type is null or "textarea") return FocusedFieldKind.Text;
+        return type switch
+        {
+            "email" or "url" or "tel" or "number" or "password" => FocusedFieldKind.Direct,
+            "text" or "search" => FocusedFieldKind.Text,
+            _ => FocusedFieldKind.Unknown
+        };
     }
 
     private static System.Collections.Generic.IEnumerable<string> SplitAttributes(string text)
@@ -252,6 +269,7 @@ sealed class FocusedInputProbe : IDisposable
     {
         lock (gate) { if (!stopping) { stopping = true; wake.Set(); } }
         events.Dispose(); // Do not join a potentially stuck COM provider.
+        numericBrowser?.Dispose();
     }
 
     [ComImport, Guid("6D5140C1-7436-11CE-8034-00AA006009FA"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]

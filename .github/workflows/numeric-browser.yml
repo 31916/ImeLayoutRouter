@@ -41,7 +41,7 @@ jobs:
       - name: Build the previous and current routing monitors
         shell: pwsh
         run: |
-          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m pip install --disable-pip-version-check playwright==1.56.0 pywinauto==0.6.9
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           foreach ($copy in 'previous','current') {
             dotnet build "$copy/tests/WindowsSmoke/WindowsSmoke.csproj" -c Release "-p:Edition=$env:EDITION" --warnaserror
@@ -56,3 +56,19 @@ jobs:
             python -u current/tests/numeric-browser.py ${{ matrix.browser }} "$copy/tests/WindowsSmoke/bin/$env:EDITION/Release/net8.0-windows/WindowsSmoke.dll" $copy
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+      - name: Check the installed optional browser extension and native host
+        shell: pwsh
+        env:
+          PYTHONUTF8: '1'
+        run: |
+          dotnet publish current/ImeLayoutRouter.csproj -c Release "-p:Edition=$env:EDITION" -r win-x64 --self-contained true --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DEdition=$env:EDITION" current/installer/ImeLayoutRouter.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $installer = @(Get-ChildItem -LiteralPath current/installer/output -Filter '*-Setup.exe')
+          if ($installer.Count -ne 1) { throw 'Expected one packaged installer' }
+          $dir = Join-Path $env:RUNNER_TEMP 'installed-numeric-router'
+          $proc = Start-Process -FilePath $installer[0].FullName -ArgumentList @('/VERYSILENT','/NORESTART','/SUPPRESSMSGBOXES','/TASKS=numericbrowser',"/DIR=`"$dir`"") -WindowStyle Hidden -PassThru -Wait
+          if ($proc.ExitCode -ne 0) { exit $proc.ExitCode }
+          python -u current/tests/numeric-browser.py ${{ matrix.browser }} "current/tests/WindowsSmoke/bin/$env:EDITION/Release/net8.0-windows/WindowsSmoke.dll" addon "$dir/ImeLayoutRouter.exe" $env:EDITION
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

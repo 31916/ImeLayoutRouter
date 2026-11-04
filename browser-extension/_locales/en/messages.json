@@ -1,0 +1,12 @@
+{
+  "name": {"message": "IMELayoutRouter numeric fields"},
+  "description": {"message": "Recognize numeric fields on sites you enable for IMELayoutRouter V1 or V2."},
+  "enabled": {"message": "Enabled on this site."},
+  "disabled": {"message": "Disabled on this site."},
+  "enable": {"message": "Enable on this site"},
+  "disable": {"message": "Disable on this site"},
+  "unsupported": {"message": "Open an HTTP or HTTPS page to choose a site."},
+  "denied": {"message": "Site permission was not granted."},
+  "failure": {"message": "Could not change the site setting. Reopen this panel and try again."},
+  "privacy": {"message": "Only the field type is sent to the Windows app. Typed characters and verification codes are never read."}
+}
