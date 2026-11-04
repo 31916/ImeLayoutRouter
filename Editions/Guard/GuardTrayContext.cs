@@ -19,7 +19,7 @@ internal sealed class GuardTrayContext : ApplicationContext
         menu.Items.Add(status);
         menu.Items.Add(T("設定", "Settings"), null, (_, _) => ShowSettings());
         menu.Items.Add(T("終了して表示を戻す", "Exit and restore display"), null, (_, _) => ExitThread());
-        icon = new NotifyIcon { Icon = appIcon, Text = "IME Layout Router V3 Preview", ContextMenuStrip = menu, Visible = true };
+        icon = new NotifyIcon { Icon = appIcon, Text = "IME Layout Router V3", ContextMenuStrip = menu, Visible = true };
         icon.DoubleClick += (_, _) => ShowSettings();
         var settings = GuardSettings.Load();
         bool showInitialSettings = firstRun || settings == null;

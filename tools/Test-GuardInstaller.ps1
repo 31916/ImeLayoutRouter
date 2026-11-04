@@ -42,9 +42,11 @@ try {
     Set-ItemProperty -Path $runKey -Name ImeLayoutRouter -Value 'preserved V2 startup'
     Invoke-Setup $Installer @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=""', "/DIR=`"$testRoot`"")
     $executable = Join-Path $testRoot 'ImeLayoutRouter.exe'
-    if (!(Test-Path -LiteralPath $executable) -or !(Test-Path -LiteralPath (Join-Path $testRoot 'Assets/app.ico'))) { throw 'Installed application or original icon missing.' }
+    if (!(Test-Path -LiteralPath $executable)) { throw 'Installed application missing.' }
+    $sourceIcon = Join-Path $PSScriptRoot '../Assets/app.ico'
+    if ((Get-FileHash -LiteralPath (Join-Path $testRoot 'Assets/app.ico')).Hash -ne (Get-FileHash -LiteralPath $sourceIcon).Hash) { throw 'Installed application icon differs from the original.' }
     $readme = Get-Content -Raw -LiteralPath (Join-Path $testRoot 'README.md')
-    if ($readme -notmatch 'V3' -or $readme -notmatch 'not a released') { throw 'V3-specific development documentation missing.' }
+    if ($readme -notmatch '^# IMELayoutRouter V3' -or $readme -notmatch '3\.0\.0' -or $readme -notmatch 'Hide the corner composition popup') { throw 'Packaged V3 guide or version missing.' }
     if ((Get-StartupValue 'ImeLayoutRouter') -ne 'preserved V2 startup') { throw 'V2 startup was changed.' }
     if (Get-StartupValue 'ImeLayoutRouterV3') { throw 'Installer enabled startup without a user choice.' }
     # The initial settings dialog must not trap --shutdown before the tray's

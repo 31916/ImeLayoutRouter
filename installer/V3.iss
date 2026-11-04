@@ -1,8 +1,8 @@
-#define AppVersion "3.0.0-preview.1"
+#define AppVersion "3.0.0"
 
 [Setup]
 AppId={{FE9A7A80-FB65-4212-8E5E-A6EA250336B8}
-AppName=IME Layout Router V3 Preview
+AppName=IME Layout Router V3
 AppVersion={#AppVersion}
 VersionInfoVersion=3.0.0
 AppPublisher=31916
@@ -28,11 +28,11 @@ Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 [CustomMessages]
 english.DesktopShortcut=Create a desktop shortcut
 english.Shortcuts=Additional shortcuts:
-english.Launch=Launch IME Layout Router V3 Preview
+english.Launch=Launch IME Layout Router V3
 english.RestoreFailed=V3 could not restore the composition windows. Close the affected input application and try again.
 japanese.DesktopShortcut=デスクトップにショートカットを作成する
 japanese.Shortcuts=追加のショートカット:
-japanese.Launch=IME Layout Router V3 試験版を起動する
+japanese.Launch=IME Layout Router V3を起動する
 japanese.RestoreFailed=V3が未確定文字の表示を復元できませんでした。入力先のアプリを終了してから、もう一度実行してください。
 
 [Files]

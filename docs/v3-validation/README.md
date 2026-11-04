@@ -5,6 +5,18 @@ This record distinguishes passing evidence from failed investigations. See the
 
 ## Validation gates
 
+- [Windows 11 x64 run 41781238864](https://github.com/31916/ImeLayoutRouter/actions/runs/41781238864)
+  at `7a70716` used the Microsoft Japanese IME on a disposable Japanese Windows
+  11 guest. With an active composition, the hypervisor observed S3 and woke the
+  guest twice, first with V3 off and then with it on. Windows acknowledged both
+  cycles with `WM_POWERBROADCAST` events 4 and 18. Both times the pending text
+  was still `にほん` and no text had been committed. Disabling suppression
+  restored drawing, and a fresh composition could be hidden and committed after
+  wake. The real popup was tested at `0,0` / 96 DPI and `-1280,0` / 120 DPI.
+  Chrome 157.0.8103.39 and Edge 156.0.4314.58 each ran 12 fresh profiles,
+  alternating V3 off-first/on-first. Each browser recorded 48 preedits of
+  `にほん` and 48 commits of `日本` across text inputs and textareas, without
+  resending a failed word. The guest reported `exit=0`.
 - On 2026-11-04 JST, [run 41774873573](https://github.com/31916/ImeLayoutRouter/actions/runs/41774873573)
   at `13f44ee` successfully preserved the pre-sleep checkpoint. Windows
   measured the real popup at `0,0` / 96 DPI and `-1280,0` / 120 DPI; both
@@ -60,7 +72,7 @@ This record distinguishes passing evidence from failed investigations. See the
   comparison ([run 40066123948](https://github.com/31916/ImeLayoutRouter/actions/runs/40066123948))
   then stalled at Windows Setup 30%, before V3 ran, and was cancelled after
   about twelve minutes without progress. Direct synthetic-timer interrupts
-  are being checked separately. Subsequent runs require a three-minute wake
+  were checked separately. Subsequent runs require a three-minute wake
   acknowledgement limit and preserve a fixed-evidence checkpoint before sleep.
   The separate Chrome mismatch was an observed `日本` versus `二本` selection,
   not missing input. Browser checks now observe the first `日本` conversion
@@ -180,7 +192,8 @@ This record distinguishes passing evidence from failed investigations. See the
   real IME compatibility.**
 - Installer tests cover installation, upgrade/uninstall while running, preserving
   saved choices on upgrade, refusing both operations when recovery is incomplete,
-  and retaining V1/V2 startup registration. No release installer is uploaded.
+  and retaining V1/V2 startup registration. The separate packaging workflow
+  can retain the exact tested installer and its SHA-256 on manual dispatch.
 - [Google IME and Chrome run 39877751312](https://github.com/31916/ImeLayoutRouter/actions/runs/39877751312)
   passed at `7f21609` on Windows Server 2025 with Google Japanese Input 3.34.6260.0.
   Actual keystrokes produced `にほん`; conversion committed `日本` with V3 off/on.
@@ -222,10 +235,9 @@ This record distinguishes passing evidence from failed investigations. See the
   failed before V3 was enabled: Chrome received only `honn` with no composition
   events. Independent passes alone did not resolve it. The readiness changes
   and repeated off-first/on-first validation above supersede that fixture.
-- Windows 11 x64 real input and real Windows multi-display topology on the
-  disposable VM have now been exercised. Actual ACPI sleep/resume remains a release gate. Physical GPUs
-  and every monitor model are not covered by VM testing. A passing synthetic test alone
-  does not authorize a release installer or download-page update.
+- The Windows 11 x64 tests used virtual GPUs and extended displays with a real
+  Windows topology. Coverage is limited to the tested adapters, display
+  arrangements, IMEs and applications.
 - The helper reacts to foreground/window show, hide, destroy and position events,
   with a 100 ms fallback scan and 10 ms event-burst coalescing. Notifications run
   outside the target process and do not inspect text. The helper uses per-monitor

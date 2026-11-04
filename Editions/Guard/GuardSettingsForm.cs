@@ -10,7 +10,7 @@ internal sealed class GuardSettingsForm : Form
     internal bool StartWithWindows => startup.Checked;
     internal GuardSettingsForm(GuardSettings? current, bool startWithWindows)
     {
-        Text = T("IME Layout Router V3 — 小窓非表示・試験版", "IME Layout Router V3 — Composition Guard Preview");
+        Text = T("IME Layout Router V3 — 小窓非表示", "IME Layout Router V3 — Composition Guard");
         Icon = appIcon;
         AutoScaleMode = AutoScaleMode.Dpi;
         ClientSize = new Size(570, 340);
@@ -22,7 +22,7 @@ internal sealed class GuardSettingsForm : Form
         panel.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(520, 0),
             Text = T("画面左上へ出るWindows標準の未確定文字ウィンドウを隠す単体版です。IMEやキーボード配列は切り替えません。",
                 "Hides the Windows fallback composition popup when it appears at a screen's top-left corner. Does not switch IMEs or keyboard layouts.") });
-        enabled.Text = T("左上の未確定文字の小窓を隠す（試験機能）", "Hide the corner composition popup (experimental)");
+        enabled.Text = T("左上の未確定文字の小窓を隠す", "Hide the corner composition popup");
         enabled.Checked = current?.Enabled ?? true;
         panel.Controls.Add(enabled);
         panel.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(520, 0), Margin = new Padding(3, 12, 3, 12),

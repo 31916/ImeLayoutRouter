@@ -5,8 +5,8 @@ on:
       timers:
         description: Isolated VM timer path for Windows S3 compatibility
         type: choice
-        options: [direct, hardware]
-        default: direct
+        options: [hardware, direct]
+        default: hardware
 # A full OS install is expensive. Dispatch explicitly; in-flight prepared VMs
 # can validate corrected V3 revisions without starting another OS installation.
 permissions:

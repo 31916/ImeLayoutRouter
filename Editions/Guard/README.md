@@ -1,8 +1,8 @@
-# IMELayoutRouter V3 — development version
+# IMELayoutRouter V3 — Composition Guard 3.0.0
 
 V3 is a standalone utility for hiding the Windows fallback composition popup
-when it appears at the top-left of a monitor. V1/V2 integration is deferred.
-This branch is **not a released or fully validated product**.
+when it appears at the top-left of a monitor. The self-contained Windows x64
+installer is `ImeLayoutRouter-3.0.0-Setup.exe`.
 
 ## 日本語
 
@@ -20,7 +20,7 @@ Windowsの未確定文字ウィンドウと、その部品を内包すること�
 候補ウィンドウ、通常のアプリウィンドウ、独自の描画方式のIMEは対象外です。
 WindowsやIMEの全バージョンに対応することは確認できていません。
 V3より高い権限で動くアプリの小窓は、Windowsのアクセス制限により変更できません。
-現在の試験版は、その制限を回避したり自動で管理者権限を要求したりしません。
+V3は通常のユーザー権限で動作します。
 
 設定をオフにする、入力位置が正常な場所へ移る、アプリを切り替える、または
 V3を終了すると、変更した描画領域を戻します。補助プロセスは親アプリの終了を検出して
@@ -49,11 +49,11 @@ V1・V2とは設定・起動登録を分けているため、既存版と同時�
 | 項目 | 確認できたこと |
 | --- | --- |
 | 入力・変換 | Google日本語入力とMicrosoft日本語IMEで、未確定文字を隠しても候補の選択・確定・取消しができました。Google日本語入力では200回の連続入力・取消しも確認しました。 |
-| Chrome・Edgeの初回入力 | Google日本語入力で各ブラウザーを12回新規起動し、それぞれ48回の未確定文字と変換確定を確認しました。Windows 11 x64のMicrosoft日本語IMEでも、通常欄・複数行欄でオン・オフの結果が一致しました。 |
+| Chrome・Edgeの初回入力 | Windows 11 x64のMicrosoft日本語IME、Windows Server 2025のGoogle日本語入力ともに、Chrome・Edgeをそれぞれ12回新規起動しました。各ブラウザーで通常欄・複数行欄に計48回入力し、オン・オフともに「にほん」から「日本」を確定できました。 |
 | 画面の位置・倍率 | Windows 11 x64の100%・125%の2画面で、左上の小窓を隠し、通常位置へ移すと描画が戻ることを確認しました。1画面の100%・150%でも検証済みです。 |
 | 全画面表示 | 枠なし全画面で候補一覧が残ることを確認しました。OpenTTD 15.3ではウィンドウ表示・Win32全画面の双方で「日本」を確定できました。 |
 | インストーラー | x64版の導入、初回設定中の終了、起動中の上書き・アンインストール、設定の保持を確認しました。Windows 11 ARMではx64エミュレーションで導入・起動しています。 |
-| スリープ復帰 | 検証中です。正式版の配布はこの確認が済むまで保留しています。 |
+| スリープ復帰 | Windows 11 x64仮想マシンで、未確定文字がある状態から実際のS3スリープと復帰をオフ・オン各1回確認しました。復帰直後の入力結果が一致し、表示の復元と新しい入力の確定にも成功しました。 |
 
 初回入力の試験では、ページが描画され、Windows側のフォーカスとIMEが準備できてから最初の文字を1回だけ送ります。失敗した文字の再送は行いません。本体では、IMEの小窓自身が持つカーソルを入力先アプリのカーソルと誤認する問題を修正しました。
 
@@ -100,7 +100,7 @@ are in the [validation record](https://github.com/31916/ImeLayoutRouter/blob/V3/
 | Packaged x64 installer on x64 and ARM Windows | First-run shutdown, running upgrade/uninstall and saved choices passed |
 | Actual display scale on one display | 100% and 150% passed |
 | Microsoft Japanese IME / Windows 11 x64 | Chrome and Edge first input passed; real popup suppression, correction and commit passed on 100%/125% virtual monitors |
-| Actual Windows S3 resume | Not yet verified; the stable installer remains gated |
+| Actual Windows S3 resume | Windows 11 x64 guest entered and resumed from S3 with suppression off and on. Both preserved the same input state. Display restoration and new input passed after resume. |
 
 Tests use disposable GitHub-hosted environments. They do not establish support
 for every physical GPU, game, IME or language. Chinese and Korean IMEs have not

@@ -1,4 +1,4 @@
-name: V3 development checks
+name: V3 installer and regression checks
 on:
   push:
     branches: [V3]
@@ -41,12 +41,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v3-development-validation
+          name: v3-native-validation
           path: |
             ${{ runner.temp }}/v3-native-checks.txt
             ${{ runner.temp }}/v3-settings-*.png
           if-no-files-found: warn
-      - name: Build and validate the development installer (not published)
+      - name: Build and validate the V3 installer
         shell: pwsh
         run: |
           dotnet publish -c Release -p:Edition=Guard -r win-x64 --self-contained true --warnaserror
@@ -72,5 +72,5 @@ jobs:
           path: |
             installer/output-v3/ImeLayoutRouter-3.0.0-Setup.exe
             installer/output-v3/SHA256SUMS.txt
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: error

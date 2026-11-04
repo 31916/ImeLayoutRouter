@@ -4,8 +4,8 @@ Windowsで、入力途中の文字が画面左上の小窓に出る現象を対�
 対象の小窓を隠し、オフにしたときや終了時には元の表示へ戻します。
 **IMEやキーボード配列の切り替え、入力内容の削除・確定は行いません。**
 
-現在は完成前の検証中です。V3の公開インストーラーはまだ配布していません。
-[仕様・検証記録](Editions/Guard/README.md)で、実際に通ったテストと残っている確認を公開しています。
+**Ver3.0.0** はWindows用の単体版です。日本語・英語対応のx64インストーラーは `ImeLayoutRouter-3.0.0-Setup.exe` です。
+[使い方・確認済みの環境](Editions/Guard/README.md)と[検証記録・画面比較](docs/v3-validation/README.md)を参照してください。
 
 ## 使い方と範囲
 
@@ -57,9 +57,9 @@ custom IME rendering and higher-privilege applications may be unsupported.
 A brief initial appearance remains possible. Settings are available in Japanese
 and English, using the existing application icon.
 
-V3 is still undergoing final validation; no public V3 installer is available.
-See [scope and recorded validation](Editions/Guard/README.md). The V1 and V2
-branches contain the existing layout-routing editions and remain separate.
+Version 3.0.0 has a self-contained Windows x64 installer with Japanese and English
+setup. See the [user guide](Editions/Guard/README.md) and [tested configurations and screenshots](docs/v3-validation/README.md).
+The V1 and V2 branches contain the layout-routing editions.
 
 ## 不具合・脆弱性の報告 / Reporting
 

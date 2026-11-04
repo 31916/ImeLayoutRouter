@@ -55,7 +55,7 @@ evidence.mkdir(parents=True, exist_ok=True)
 payload = Path("artifacts/vm").resolve()
 token = secrets.token_urlsafe(32)
 password = secrets.token_urlsafe(24)
-timer_mode = os.environ.get("GUARD_VM_TIMERS", "direct")
+timer_mode = os.environ.get("GUARD_VM_TIMERS", "hardware")
 if timer_mode not in ("direct", "hardware"):
     raise SystemExit("Unsupported disposable VM timer mode")
 phase = "preparing"

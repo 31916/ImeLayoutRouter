@@ -1,5 +1,16 @@
 # Change log
 
+## 2026-11-04 — Ver3.0.0
+
+- Added a standalone Windows utility to hide the misplaced top-left composition
+  popup while preserving input and conversion candidates. Its original drawing
+  region is restored when suppression is disabled or the utility exits.
+- Fixed recognition of the popup's own caret and shutdown during first-run
+  settings. The Japanese/English x64 installer uses the original application
+  icon and preserves saved choices during upgrades.
+- The [validation record](docs/v3-validation/README.md) covers Chrome and Edge
+  first input, fullscreen candidates, mixed display scales and S3 wake.
+
 ## 2026-10-20 — Ver1.1.2 / Ver2.0.2
 
 - Handle failures while reading accessibility focus metadata without allowing
@@ -68,7 +79,7 @@
 - Extend regression and noninteractive settings UI checks. Browser/CJK composition,
   real shortcut conflicts and actual latency still require interactive validation.
 
-## 3.0.0-preview.1
+## 3.0.0-preview.1 (historical layout-routing prototype)
 
 - Optional routing for all enabled Japanese, Chinese and Korean IMEs.
 - Make language-level routing explicit in settings and documentation.
@@ -93,6 +104,6 @@
 - Bound native restoration and cross-process IME message waits.
 - Add deterministic regression traces and read-only diagnostics.
 
-The preview entries above are historical internal milestones. Public installers
-are available only from https://31916.ch/IMELayoutRouter/; GitHub Releases is no
-longer used. Browser/CJK acceptance remains follow-up work, not a completed check.
+These preview entries describe earlier layout-routing prototypes. The current
+V3 Composition Guard has its own [user guide and compatibility results](Editions/Guard/README.md).
+Public V1 and V2 installers are available from the [download page](https://31916.ch/IMELayoutRouter/).
