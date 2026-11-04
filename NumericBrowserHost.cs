@@ -20,12 +20,14 @@ static class NumericBrowserHost
     {
         exitCode = 0;
         if (args.Length == 0 || !args[0].StartsWith("chrome-extension://", StringComparison.Ordinal)) return false;
+        NumericCiTrace.Mark("host-start");
         exitCode = 1;
         if (args[0] != Origin) return true;
         try
         {
-            if (!NumericPeer.Installed(Environment.ProcessPath) || NumericPeer.BrowserAncestor(Environment.ProcessId) is not { } browser)
-                return true;
+            if (!NumericPeer.Installed(Environment.ProcessPath)) { NumericCiTrace.Mark("host-marker-missing"); return true; }
+            if (NumericPeer.BrowserAncestor(Environment.ProcessId) is not { } browser) { NumericCiTrace.Mark("host-browser-parent-rejected"); return true; }
+            NumericCiTrace.Mark("host-browser-parent-confirmed");
             nint parentWindow = 0;
             foreach (string argument in args.Skip(1))
             {
@@ -38,7 +40,7 @@ static class NumericBrowserHost
             new Session(browser, parentWindow).RunAsync().GetAwaiter().GetResult();
             exitCode = 0;
         }
-        catch (Exception ex) when (NumericPeer.ExpectedFailure(ex)) { }
+        catch (Exception ex) when (NumericPeer.ExpectedFailure(ex)) { NumericCiTrace.Mark("host-stop", ex); }
         return true;
     }
 
@@ -75,6 +77,7 @@ static class NumericBrowserHost
                         || !root.TryGetProperty("kind", out var kind) || kind.ValueKind != JsonValueKind.String) break;
                     string? classification = kind.GetString();
                     if (classification is not ("numeric" or "unknown")) break;
+                    NumericCiTrace.Mark(classification == "numeric" ? "browser-replied-numeric" : "browser-replied-unknown");
                     lock (gate)
                         if (waiting != null && replyId == serial) waiting.TrySetResult(classification == "numeric");
                 }
@@ -98,9 +101,14 @@ static class NumericBrowserHost
                         PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly, TokenImpersonationLevel.Identification);
                     channel.Set(pipe);
                     await pipe.ConnectAsync(1000, token);
-                    if (NumericPeer.TrustedServer(pipe, edition)) await ServeAsync(pipe, output, token);
+                    if (NumericPeer.TrustedServer(pipe, edition))
+                    {
+                        NumericCiTrace.Mark("host-connected-" + edition);
+                        await ServeAsync(pipe, output, token);
+                    }
+                    else NumericCiTrace.Mark("host-rejected-router-" + edition);
                 }
-                catch (Exception ex) when (NumericPeer.ExpectedFailure(ex)) { }
+                catch (Exception ex) when (NumericPeer.ExpectedFailure(ex)) { NumericCiTrace.Mark("host-pipe-" + edition, ex); }
                 if (!token.IsCancellationRequested)
                 {
                     try { await Task.Delay(1500, token); }
@@ -117,8 +125,9 @@ static class NumericBrowserHost
             {
                 await pipe.ReadExactlyAsync(request, token);
                 var window = (nint)BinaryPrimitives.ReadInt64LittleEndian(request);
-                bool numeric = (parentWindow == 0 || NumericPeer.TopLevel(parentWindow) == window) && NumericPeer.IsForeground(window, browser) &&
-                    await AskBrowserAsync(window, output, token) && NumericPeer.IsForeground(window, browser);
+                bool current = (parentWindow == 0 || NumericPeer.TopLevel(parentWindow) == window) && NumericPeer.IsForeground(window, browser);
+                NumericCiTrace.Mark(current ? "host-window-matches" : "host-window-rejected");
+                bool numeric = current && await AskBrowserAsync(window, output, token) && NumericPeer.IsForeground(window, browser);
                 answer[0] = numeric ? (byte)1 : (byte)0;
                 await pipe.WriteAsync(answer, token);
             }
@@ -139,8 +148,9 @@ static class NumericBrowserHost
                 body.CopyTo(packet, 4);
                 await output.WriteAsync(packet, token);
                 await output.FlushAsync(token);
+                NumericCiTrace.Mark("host-sent-challenge");
                 try { return await reply.Task.WaitAsync(TimeSpan.FromMilliseconds(240), token); }
-                catch (TimeoutException) { return false; }
+                catch (TimeoutException) { NumericCiTrace.Mark("host-challenge-timeout"); return false; }
             }
             finally
             {
@@ -164,6 +174,33 @@ static class NumericBrowserHost
             }
         }
         public void Dispose() { lock (this) { closed = true; stream?.Dispose(); } }
+    }
+}
+
+// Per-process, opt-in diagnostics for the repository's disposable CI runner.
+// Only distinct structural milestones and error codes are recorded.
+static class NumericCiTrace
+{
+    private static readonly bool Enabled =
+        Environment.GetEnvironmentVariable("IME_NUMERIC_CI_TRACE") == "1" &&
+        Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
+        Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") == "github-hosted" &&
+        Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") == "31916/ImeLayoutRouter";
+    private static readonly HashSet<string> Seen = new(StringComparer.Ordinal);
+    internal static void Mark(string stage, Exception? error = null)
+    {
+        if (!Enabled || Environment.GetEnvironmentVariable("RUNNER_TEMP") is not string directory) return;
+        if (error != null) stage += $" {error.GetType().Name} 0x{error.HResult:X8}";
+        lock (Seen)
+        {
+            if (Seen.Count >= 64 || !Seen.Add(stage)) return;
+            try
+            {
+                File.AppendAllText(Path.Combine(directory, $"imelayout-numeric-ci-{Environment.ProcessId}.txt"),
+                    $"{DateTime.UtcNow:HH:mm:ss.fff} {stage}{Environment.NewLine}");
+            }
+            catch (Exception ex) when (NumericPeer.ExpectedFailure(ex)) { }
+        }
     }
 }
 
@@ -216,29 +253,25 @@ static class NumericPeer
         // Some Chromium versions launch the host via cmd.exe. Never infer
         // the browser from its name alone: the same process must own the
         // actual foreground HWND at both ends of each classification request.
-        ProcessIdentity? browser = null;
         long childTime = long.MaxValue;
         int pid = hostPid;
-        for (int i = 0; i < 12 && pid > 0; i++)
+        for (int i = 0; i < 3 && pid > 0; i++)
         {
             using var handle = OpenProcess(0x1000, false, pid);
             var process = ReadProcess(handle, pid);
             if (process == null || process.CreationTime > childTime) break;
             string name = Path.GetFileName(process.Path);
-            if (name.Equals("chrome.exe", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("msedge.exe", StringComparison.OrdinalIgnoreCase))
-            {
-                if (browser != null && !process.Path.Equals(browser.Path, StringComparison.OrdinalIgnoreCase)) break;
-                browser = process;
-            }
-            else if (i != 0 && (browser != null || !name.Equals("cmd.exe", StringComparison.OrdinalIgnoreCase))) break;
+            if (i != 0 && (name.Equals("chrome.exe", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("msedge.exe", StringComparison.OrdinalIgnoreCase)))
+                return process; // The launching browser, never an older same-name relaunch wrapper.
+            if (i != 0 && !name.Equals("cmd.exe", StringComparison.OrdinalIgnoreCase)) break;
             childTime = process.CreationTime;
             if (NtQueryInformationProcess(handle, 0, out var info, Marshal.SizeOf<ProcessBasicInformation>(), out _) < 0) break;
             int parent = (int)info.Parent;
             if (parent == pid) break;
             pid = parent;
         }
-        return browser;
+        return null;
     }
 
     internal static int WindowProcess(nint hwnd)

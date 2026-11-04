@@ -33,8 +33,12 @@ sealed class NumericBrowserBridge : IDisposable
         _ = Task.Run(ListenAsync);
     }
 
-    internal static NumericBrowserBridge? CreateIfInstalled(Action? changed = null) =>
-        NumericPeer.Installed(Environment.ProcessPath, Edition) ? new(changed) : null;
+    internal static NumericBrowserBridge? CreateIfInstalled(Action? changed = null)
+    {
+        bool installed = NumericPeer.Installed(Environment.ProcessPath, Edition);
+        NumericCiTrace.Mark(installed ? "router-marker-confirmed" : "router-marker-missing");
+        return installed ? new(changed) : null;
+    }
 
     private async Task ListenAsync()
     {
@@ -47,8 +51,10 @@ sealed class NumericBrowserBridge : IDisposable
                 pipe = new NamedPipeServerStream(NumericPeer.PipeName(Edition), PipeDirection.InOut,
                     NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte,
                     PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                NumericCiTrace.Mark("router-listening");
                 await pipe.WaitForConnectionAsync(token);
                 var browser = NumericPeer.TrustedClient(pipe);
+                NumericCiTrace.Mark(browser != null ? "router-accepted-host" : "router-rejected-host");
                 lock (gate)
                 {
                     if (!disposed && browser != null)
@@ -63,6 +69,7 @@ sealed class NumericBrowserBridge : IDisposable
             }
             catch (Exception ex) when (NumericPeer.ExpectedFailure(ex))
             {
+                NumericCiTrace.Mark("router-listener", ex);
                 if (!token.IsCancellationRequested)
                     try { await Task.Delay(1000, token); } catch (OperationCanceledException) { return; }
             }
@@ -105,6 +112,7 @@ sealed class NumericBrowserBridge : IDisposable
     {
         lock (gate)
         {
+            NumericCiTrace.Mark("router-eligible-field");
             if (disposed || clients.Count == 0 || context.Foreground == 0 ||
                 NumericPeer.GetForegroundWindow() != context.Foreground) return false;
             int pid = NumericPeer.WindowProcess(context.Foreground);
@@ -113,6 +121,7 @@ sealed class NumericBrowserBridge : IDisposable
             foreach (var client in clients)
             {
                 if (client.Browser.Pid != pid) continue;
+                NumericCiTrace.Mark("router-browser-matches");
                 numeric |= client.Positive == context && now - client.ObservedAt <= FreshMilliseconds;
                 if (client.Busy || (client.LastQuery == context && now < client.NextQueryAt)) continue;
                 client.Busy = true;
@@ -154,9 +163,11 @@ sealed class NumericBrowserBridge : IDisposable
             var frame = new byte[8];
             BinaryPrimitives.WriteInt64LittleEndian(frame, context.Foreground);
             await client.Pipe.WriteAsync(frame, timeout.Token);
+            NumericCiTrace.Mark("router-sent-request");
             byte reply = await pending.Task.WaitAsync(timeout.Token);
             long now = Environment.TickCount64;
             bool numeric = reply == 1 && now - started <= 350 && NumericPeer.IsForeground(context.Foreground, client.Browser);
+            NumericCiTrace.Mark(numeric ? "router-fresh-numeric" : reply == 1 ? "router-stale-numeric" : "router-unknown");
             lock (gate)
             {
                 if (disposed) return;
@@ -173,6 +184,7 @@ sealed class NumericBrowserBridge : IDisposable
         }
         catch (Exception ex) when (NumericPeer.ExpectedFailure(ex))
         {
+            NumericCiTrace.Mark("router-query", ex);
             Disconnect(client);
         }
     }
