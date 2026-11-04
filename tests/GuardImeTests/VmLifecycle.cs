@@ -28,10 +28,18 @@ internal static class VmLifecycle
             throw new InvalidOperationException("Exact revision required for the pre-suspend checkpoint");
         using (var memory = new MemoryStream())
         {
+            Console.Out.Flush();
             using (var archive = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
                 foreach (string file in Directory.GetFiles(Environment.GetEnvironmentVariable("RUNNER_TEMP")!, "v3-ime-*")
                     .Where(f => Path.GetExtension(f) is ".txt" or ".png"))
-                    archive.CreateEntryFromFile(file, Path.GetFileName(file));
+                {
+                    // The fixture's auto-flushed writer remains open until
+                    // Main returns. Permit that existing writer while taking
+                    // a read-only snapshot; CreateEntryFromFile denies it.
+                    using var source = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using var target = archive.CreateEntry(Path.GetFileName(file)).Open();
+                    source.CopyTo(target);
+                }
             using var checkpoint = new ByteArrayContent(memory.ToArray());
             http.PostAsync("http://10.0.2.2:8000/result-" + revision, checkpoint).GetAwaiter().GetResult().EnsureSuccessStatusCode();
         }

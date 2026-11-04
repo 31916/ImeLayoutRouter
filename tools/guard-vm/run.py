@@ -206,8 +206,8 @@ if timer_mode not in ("direct", "hardware"):
     raise SystemExit("Unsupported disposable VM timer mode")
 cpu = "host,hv-relaxed,hv-vapic,hv-spinlocks=0x1fff,hv-vpindex,hv-time"
 if timer_mode == "direct":
-    # Use direct interrupts for nested synthetic timers, not the classic
-    # SynIC-message delivery path that hung the V3-off S3 baseline.
+    # Compare the documented direct-interrupt option for nested timers. The
+    # classic-timer baseline hung at S3; timer causation is not yet established.
     cpu += ",hv-synic,hv-stimer,hv-stimer-direct"
 (evidence / "vm-timers.txt").write_text(cpu + "\n")
 print("Disposable VM timer mode:", timer_mode, flush=True)

@@ -178,6 +178,14 @@ try {
             Invoke-Fixture 'ime' @('--configure-vm-display') 'display-setup.txt'
             $script:taskStageFailures = [Collections.Generic.List[string]]::new()
             Invoke-Stage 'native-checks' { Invoke-Fixture 'native' @() 'policy.txt' }
+            # Exercise the outstanding ACPI gate first so a fixture failure is
+            # immediately actionable. Both browser stages are still required.
+            $env:GUARD_TEST_BROWSER = ''
+            Invoke-Stage 'composition-input' {
+                $env:GUARD_TEST_VM_SLEEP = '1'
+                $env:GUARD_TEST_VM_DISPLAYS = '1'
+                Invoke-Fixture 'ime' @() 'composition-console.txt'
+            }
             foreach ($taskBrowser in @('chrome', 'edge')) {
                 $env:GUARD_TEST_BROWSER = $taskBrowser
                 Invoke-Stage "$taskBrowser-input" {
@@ -190,12 +198,6 @@ try {
                         }
                     }
                 }
-            }
-            $env:GUARD_TEST_BROWSER = ''
-            Invoke-Stage 'composition-input' {
-                $env:GUARD_TEST_VM_SLEEP = '1'
-                $env:GUARD_TEST_VM_DISPLAYS = '1'
-                Invoke-Fixture 'ime' @() 'composition-console.txt'
             }
             if ($taskStageFailures.Count) { throw ('Validation stages failed: ' + ($taskStageFailures -join ', ')) }
             $taskExit = 0
