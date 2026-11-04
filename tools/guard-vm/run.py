@@ -1,5 +1,6 @@
 """Disposable nested Windows VM; never provision on a developer machine."""
 import hashlib
+import atexit
 import http.server
 import json
 import os
@@ -21,6 +22,31 @@ if (os.environ.get("GITHUB_ACTIONS") != "true"
         or os.environ.get("GITHUB_REPOSITORY") != "31916/ImeLayoutRouter"
         or os.name != "posix" or not Path("/dev/kvm").exists()):
     raise SystemExit("Only the disposable GitHub-hosted Linux VM is permitted")
+
+def acquire_kvm():
+    # Apply exactly the runner-user ACL used by the workflow to the current
+    # device node, including after the first QEMU instance has exited.
+    node = Path("/dev/kvm")
+    before = node.stat()
+    print(f"Preparing KVM for uid={os.getuid()} inode={before.st_ino} mode={oct(before.st_mode & 0o777)}", flush=True)
+    subprocess.run(["sudo", "setfacl", "-m", f"u:{os.getuid()}:rw", str(node)], check=True)
+    return os.open(node, os.O_RDWR | os.O_CLOEXEC)
+
+
+# Keep a reference to the KVM device across both boots. Check a real pair of
+# short KVM launches before spending time installing Windows. Neither smoke
+# launch runs guest code or counts as an application/power test.
+kvm_pin = acquire_kvm()
+atexit.register(os.close, kvm_pin)
+for probe in range(2):
+    os.close(acquire_kvm())
+    check = subprocess.run(["qemu-system-x86_64", "-machine", "q35,accel=kvm,smm=on", "-cpu", "host",
+                            "-nodefaults", "-no-user-config", "-display", "none", "-S", "-qmp", "stdio"],
+                           input='{"execute":"qmp_capabilities"}\n{"execute":"quit"}\n',
+                           text=True, stdout=subprocess.PIPE, timeout=20, check=True)
+    if sum("return" in json.loads(line) for line in check.stdout.splitlines() if line.strip()) != 2:
+        raise RuntimeError("The KVM cold-launch preflight did not acknowledge both QMP commands")
+    print(f"KVM cold-launch preflight {probe + 1}/2 passed", flush=True)
 
 root = Path(os.environ["RUNNER_TEMP"]) / "v3-windows-vm"
 root.mkdir()
@@ -266,6 +292,7 @@ def connect_qmp(process):
 
 with (evidence / "qemu.txt").open("w") as log:
     tpm_process = start_tpm()
+    os.close(acquire_kvm())
     process = subprocess.Popen(command, stdout=log, stderr=log)
     try:
         connection, stream = connect_qmp(process)
@@ -310,6 +337,7 @@ with (evidence / "qemu.txt").open("w") as log:
                 setup_medium = command.index(f"file={iso},media=cdrom,readonly=on,if=ide")
                 del command[setup_medium - 1:setup_medium + 1]
                 iso.unlink()
+                os.close(acquire_kvm())
                 process = subprocess.Popen(command, stdout=log, stderr=log)
                 connection, stream = connect_qmp(process)
                 qmp("qmp_capabilities")
