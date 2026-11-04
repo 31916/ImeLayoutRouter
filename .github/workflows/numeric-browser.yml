@@ -1,0 +1,58 @@
+name: Numeric field routing in a Windows browser
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  numeric:
+    runs-on: windows-2025
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, msedge]
+    env:
+      EDITION: ${{ github.ref_name == 'V1' && 'Simple' || 'Full' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: current
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name == 'V1' && '4527c8e3e1de478abaefb96895e78b2e5a6d820f' || '0c04f2f4df93216fd15a112501b7cca5b95a3f7a' }}
+          path: previous
+      - uses: actions/checkout@v4
+        with:
+          ref: e5151841994ea2664ea17d9a3278f424df0ec245
+          path: ime-setup
+          sparse-checkout: |
+            tools/Install-GuardGoogleIme.ps1
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - shell: powershell
+        run: |
+          ./ime-setup/tools/Install-GuardGoogleIme.ps1
+          Set-WinDefaultInputMethodOverride -InputTip '0411:{D5A86FD5-5308-47EA-AD16-9C4EB160EC3C}{773EB24E-CA1D-4B1B-B420-FA985BB0B80D}'
+      - name: Build the previous and current routing monitors
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($copy in 'previous','current') {
+            dotnet build "$copy/tests/WindowsSmoke/WindowsSmoke.csproj" -c Release "-p:Edition=$env:EDITION" --warnaserror
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Compare real numeric input and Japanese composition
+        shell: pwsh
+        env:
+          PYTHONUTF8: '1'
+        run: |
+          foreach ($copy in 'previous','current') {
+            python -u current/tests/numeric-browser.py ${{ matrix.browser }} "$copy/tests/WindowsSmoke/bin/$env:EDITION/Release/net8.0-windows/WindowsSmoke.dll" $copy
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
