@@ -162,4 +162,13 @@ chrome.windows.onFocusChanged.addListener(windowId => {
 });
 chrome.runtime.onStartup.addListener(() => { void reconcile(); });
 chrome.runtime.onInstalled.addListener(() => { void reconcile(); });
+chrome.action.onClicked.addListener(tab => {
+  if (!Number.isInteger(tab.id) || tab.incognito) return;
+  // Preserve Chrome's explicit activeTab grant for the clicked site. The
+  // stable extension tab receives no URL, title or origin in its own address.
+  return chrome.tabs.create({
+    url: chrome.runtime.getURL("setup.html"), openerTabId: tab.id,
+    windowId: tab.windowId, index: tab.index + 1, active: true
+  }).catch(() => { /* The originating window closed. */ });
+});
 void reconcile();

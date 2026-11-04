@@ -72,6 +72,7 @@ test("the native reply carries only a nonce and classification; stale focus and 
     postMessage(message) { replies.push(message); } };
   const entries = { ["site:"+topSite]: true };
   globalThis.chrome = {
+    action: {onClicked: event()},
     runtime: { connectNative(host) { assert.equal(host, "ch.imelayoutrouter.numeric"); signalReady(); return port; },
       onStartup: event(), onInstalled: event() },
     storage: { local: { get: async () => entries, remove: async () => {} }, onChanged: event() },
@@ -117,6 +118,55 @@ test("the native reply carries only a nonce and classification; stale focus and 
   assert.deepEqual(replies, []);
 });
 
+test("a durable setup tab enrolls only after approval for its unchanged opener", async () => {
+  function button() {
+    const click = event();
+    return { disabled: true, addEventListener(type, fn) { assert.equal(type, "click"); click.addListener(fn); }, click };
+  }
+  for (const outcome of ["approved", "denied", "source moved", "source closed"]) {
+    let answer;
+    const decision = new Promise(resolve => { answer = resolve; });
+    const entries = {};
+    const controls = { "#site": {}, "#status": {}, "#privacy": {}, "#toggle": button(), "#done": button() };
+    globalThis.document = { documentElement: {}, querySelector: id => controls[id] };
+    let source = { id: 8, windowId: 1, url: topSite+"/private-page" }, grant = false, requested;
+    const closed = [], activated = [];
+    globalThis.chrome = {
+      i18n: { getMessage: name => name, getUILanguage: () => "en" },
+      tabs: { getCurrent: async () => ({ id: 9, windowId: 1, openerTabId: 8 }),
+        get: async id => { assert.equal(id, 8); if (!source) throw Error("closed"); return source; },
+        update: async (id, props) => { assert.deepEqual(props, { active: true }); activated.push(id); },
+        remove: async id => closed.push(id), onRemoved: event(), onUpdated: event() },
+      permissions: { contains: async () => grant,
+        request: async permission => { requested = permission; grant = await decision; return grant; },
+        remove: async () => { grant = false; } },
+      storage: { local: { get: async () => entries, set: async changed => Object.assign(entries, changed),
+        remove: async key => { delete entries[key]; } } }
+    };
+    await import("../browser-extension/setup.js?case="+encodeURIComponent(outcome));
+    assert.equal(controls["#site"].textContent, topSite);
+    assert.equal(controls["#toggle"].disabled, false);
+    const click = controls["#toggle"].click.fire();
+    assert.deepEqual(requested, { origins: [topSite+"/*"] }, "permission requested directly in the click");
+    assert.deepEqual(entries, {}, "permission dialog is still open");
+    if (outcome === "source moved") source.url = "https://other.example/private";
+    if (outcome === "source closed") source = null;
+    answer(outcome !== "denied");
+    await click;
+    assert.deepEqual(entries, outcome === "approved" ? {["site:"+topSite]: true} : {});
+    assert.equal(grant, outcome === "approved");
+    if (outcome === "approved") {
+      assert.equal(controls["#status"].textContent, "enabled");
+      await controls["#toggle"].click.fire();
+      assert.deepEqual(entries, {});
+      assert.equal(grant, false);
+      await controls["#done"].click.fire();
+      assert.deepEqual(activated, [8]);
+      assert.deepEqual(closed, [9]);
+    }
+  }
+});
+
 test("the host runs only for an eligible foreground tab; leaving also cancels its retry", async () => {
   let origin = "https://not-enabled.example";
   let tabId = 20, loading = false, grant = true;
@@ -127,6 +177,7 @@ test("the host runs only for an eligible foreground tab; leaving also cancels it
   let alarm;
   const tick = () => new Promise(resolve => setImmediate(resolve));
   globalThis.chrome = {
+    action: {onClicked: event()},
     runtime: { connectNative() {
       const port = { closed: false, onMessage: event(), onDisconnect: event(),
         disconnect() { this.closed = true; } };

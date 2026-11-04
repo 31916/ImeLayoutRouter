@@ -7,6 +7,8 @@
   "disable": {"message": "Disable on this site"},
   "unsupported": {"message": "Open an HTTP or HTTPS page to choose a site."},
   "denied": {"message": "Site permission was not granted."},
-  "failure": {"message": "Could not change the site setting. Reopen this panel and try again."},
+  "failure": {"message": "Could not change the site setting. Open the extension again on the original site and retry."},
+  "sourceChanged": {"message": "The original tab changed or closed. Open the extension again on the site you want to configure."},
+  "done": {"message": "Back to site"},
   "privacy": {"message": "Only the field type is sent to the Windows app. Typed characters and verification codes are never read."}
 }

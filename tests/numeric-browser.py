@@ -274,11 +274,13 @@ def press_browser_button(hwnd, labels, approved=None):
     user32.GetWindowThreadProcessId(user32.WindowFromPoint(W.POINT(point.x, point.y)), ctypes.byref(owner))
     if owner.value != pid.value:
         raise AssertionError("Permission button is obscured by another process")
+    print("Clicking the owned browser control:", button.window_text(), point.x, point.y)
     mouse.click(coords=(point.x, point.y))
 
 
 def toggle_site(context, page, hwnd, ext_id, enable):
     browser = context.browser.new_browser_cdp_session()
+    origin = page.evaluate("location.origin")
     try:
         # triggerAction accepts the browser's outer 'tab' target, not
         # Playwright's inner 'page' target for its current main frame.
@@ -286,43 +288,39 @@ def toggle_site(context, page, hwnd, ext_id, enable):
         matches = [target["targetId"] for target in targets if target["url"] == page.url and target["type"] == "tab"]
         if len(matches) != 1:
             raise AssertionError(f"Expected one outer tab for the owned local fixture: {targets}")
-        browser.send("Extensions.triggerAction", {"id": ext_id, "targetId": matches[0]})
+        with context.expect_page(timeout=10000) as new_tab:
+            browser.send("Extensions.triggerAction", {"id": ext_id, "targetId": matches[0]})
+        setup = new_tab.value
     finally:
         browser.detach()
-    labels = ({"Enable on this site", "このサイトで有効にする"} if enable
-              else {"Disable on this site", "このサイトで無効にする"})
-    origin = page.evaluate("location.origin")
-    def granted():
-        return extension_worker(context, ext_id).evaluate("""async origin => {
+    setup.wait_for_url("chrome-extension://" + ext_id + "/setup.html*")
+    toggle = setup.locator("#toggle")
+    toggle.wait_for(state="visible")
+    def state():
+        # Read the actual saved exact-origin opt-in and the actual Chrome
+        # host grant independently. This inspection never changes either.
+        return setup.evaluate("""async origin => {
           const pattern = new URL(origin);
-          return !!(await chrome.storage.local.get('site:'+origin))['site:'+origin] &&
-            await chrome.permissions.contains({origins:[pattern.protocol+'//'+pattern.hostname+'/*']})
+          return {enrolled: !!(await chrome.storage.local.get('site:'+origin))['site:'+origin],
+            permission: await chrome.permissions.contains({origins:[pattern.protocol+'//'+pattern.hostname+'/*']})};
         }""", origin)
-    press_browser_button(hwnd, labels)
+    def granted():
+        value = state()
+        return value["enrolled"] and value["permission"]
+    assert state() == {"enrolled": not enable, "permission": not enable}
+    toggle.click()
     if enable:
         press_browser_button(hwnd, {"Allow", "許可", "Allow access", "アクセスを許可"}, granted)
-    until(lambda: granted() == enable, "The production popup did not update its origin's opt-in and permission")
-    # Dismiss the actual browser popup before the extension inspects focus.
-    # A CDP page click alone may leave the toolbar holding native focus.
-    foreground = user32.GetForegroundWindow()
-    popup_pid = W.DWORD()
-    browser_pid = W.DWORD()
-    user32.GetWindowThreadProcessId(foreground, ctypes.byref(popup_pid))
-    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(browser_pid))
-    if popup_pid.value != browser_pid.value:
-        raise AssertionError("Refusing to dismiss a window outside this fixture's browser")
-    key(foreground, 0x1b)
-    page.bring_to_front()
+    try:
+        until(lambda: state() == {"enrolled": enable, "permission": enable},
+              "The production setup page did not update its origin's opt-in and permission")
+    finally:
+        print("Site grant state for the fixture origin:", origin, state(), "setup status:", setup.locator("#status").inner_text())
+    with setup.expect_event("close", timeout=5000):
+        setup.locator("#done").click()
+    page.wait_for_function("document.hasFocus()", timeout=5000)
     page.locator("#normal").click()
-    print("PASS production popup", "enabled" if enable else "disabled", "only", origin)
-
-
-def extension_worker(context, ext_id):
-    prefix = "chrome-extension://" + ext_id + "/"
-    for worker in context.service_workers:
-        if worker.url.startswith(prefix):
-            return worker
-    return context.wait_for_event("serviceworker", predicate=lambda w: w.url.startswith(prefix), timeout=8000)
+    print("PASS production setup", "enabled" if enable else "disabled", "only", origin, "and returned to the input tab")
 
 
 def addon(context, channel, dll, app, edition, root):
