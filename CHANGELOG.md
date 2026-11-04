@@ -1,5 +1,15 @@
 # Change log
 
+## 2026-11-04 — Ver1.1.3 / Ver2.0.3
+
+- Fixed routing for numeric web inputs that Chrome and Edge expose as ordinary
+  text fields. The optional extension reports the kind of the focused control
+  on explicitly enabled sites. It reads the input mode or a simple ASCII-digit
+  pattern without accessing typed text or sending site addresses to the app.
+- The Windows app checks the foreground browser, focused field and freshness
+  of the result before requesting the user's configured target layout.
+  [Installation and per-site setup](https://github.com/31916/ImeLayoutRouter/blob/V2/browser-extension/README.md)
+
 ## 2026-10-20 — Ver1.1.2 / Ver2.0.2
 
 - Handle failures while reading accessibility focus metadata without allowing

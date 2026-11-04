@@ -16,6 +16,7 @@ sealed class NumericBrowserBridge : IDisposable
         public readonly NamedPipeServerStream Pipe = pipe;
         public readonly NumericPeer.ProcessIdentity Browser = browser;
         public InputContext? Positive;
+        public InputContext? LastQuery;
         public long ObservedAt, NextQueryAt;
         public bool Busy;
         public TaskCompletionSource<byte>? Pending;
@@ -113,8 +114,9 @@ sealed class NumericBrowserBridge : IDisposable
             {
                 if (client.Browser.Pid != pid) continue;
                 numeric |= client.Positive == context && now - client.ObservedAt <= FreshMilliseconds;
-                if (client.Busy || now < client.NextQueryAt) continue;
+                if (client.Busy || (client.LastQuery == context && now < client.NextQueryAt)) continue;
                 client.Busy = true;
+                client.LastQuery = context;
                 client.NextQueryAt = now + 90;
                 _ = Task.Run(() => QueryAsync(client, context, now));
             }
@@ -126,10 +128,14 @@ sealed class NumericBrowserBridge : IDisposable
     {
         lock (gate)
         {
-            if (disposed) return false;
+            if (disposed || !NumericPeer.Installed(Environment.ProcessPath, Edition)) return false;
             long now = Environment.TickCount64;
-            return clients.Any(c => c.Positive == context && now - c.ObservedAt <= FreshMilliseconds
-                && NumericPeer.IsForeground(context.Foreground, c.Browser));
+            try
+            {
+                return clients.Any(c => c.Positive == context && now - c.ObservedAt <= FreshMilliseconds
+                    && NumericPeer.TrustedClient(c.Pipe) == c.Browser && NumericPeer.IsForeground(context.Foreground, c.Browser));
+            }
+            catch (Exception ex) when (NumericPeer.ExpectedFailure(ex)) { return false; }
         }
     }
 
@@ -157,6 +163,9 @@ sealed class NumericBrowserBridge : IDisposable
                 var before = client.Positive;
                 client.Positive = numeric ? context : null;
                 client.ObservedAt = now;
+                // Stable ordinary text does not need a browser query on every
+                // monitor tick. A new focus generation or element bypasses this delay.
+                if (!numeric) client.NextQueryAt = now + 750;
                 client.Busy = false;
                 client.Pending = null;
                 if (client.Positive != before) changed?.Invoke();
