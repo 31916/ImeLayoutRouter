@@ -8,7 +8,7 @@
   "incognito": "not_allowed",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwEd7mOO2X1oKX2iRMmmy8NGODFFyO09s/RrMhjZ5TcTRuqkcIJOZ2CnSDQjjoyyIP378rQqp/pCLe0qcTKVzSEKqwY7SZNeM9kYtYybquF+t0VAO/mYbLoX0NE5/MDYXBa/bUvr8Dn6TsE64tC8QpUG0JerHhOnWzzLz0Y11DE1sJWlJGXDD8JlED1t863ZA1hLWuzFZ5AEqWPsZdo0HExF/Re8EwB8pQPwa90SdcQCzy86VsJPleFWtOxDLBKtPjxXgZU7Asx6En9GfnlpYihWbL1DtyuIQCtHaZMVruygfMY9fWysdiRDWyNsbD1n10bIfQVLWzpa4xuGnvtHqFQIDAQAB",
   "icons": { "256": "icon.png" },
-  "action": { "default_popup": "popup.html", "default_icon": "icon.png" },
+  "action": { "default_icon": "icon.png" },
   "background": { "service_worker": "worker.js", "type": "module" },
   "permissions": ["activeTab", "alarms", "nativeMessaging", "scripting", "storage"],
   "optional_host_permissions": ["http://*/*", "https://*/*"]
