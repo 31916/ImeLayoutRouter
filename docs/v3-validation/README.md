@@ -3,6 +3,19 @@
 This record distinguishes passing evidence from failed investigations. See the
 [V3 user guide](../../Editions/Guard/README.md) for behavior and limitations.
 
+## Ver3.0.0 installer
+
+The [x64 packaging run](https://github.com/31916/ImeLayoutRouter/actions/runs/41784876997)
+tested and retained `ImeLayoutRouter-3.0.0-Setup.exe` from
+[source revision `e515184`](https://github.com/31916/ImeLayoutRouter/tree/e5151841994ea2664ea17d9a3278f424df0ec245).
+The unsigned installer is 51,368,540 bytes. Its SHA-256 is
+`1756715c8cee4936e960df84dff31fc15600db70ae0faa3f80d6483925ad94f2`.
+The Actions artifact contains the installer and `SHA256SUMS.txt` and has a
+30-day retention period. A [separate Windows 11 Arm run](https://github.com/31916/ImeLayoutRouter/actions/runs/41784880485)
+built and exercised the x64 package under emulation at the same source revision.
+Both checked first-run shutdown, running upgrade and uninstall, saved settings
+and the installed icon's hash against the original icon.
+
 ## Validation gates
 
 - [Windows 11 x64 run 41781238864](https://github.com/31916/ImeLayoutRouter/actions/runs/41781238864)
