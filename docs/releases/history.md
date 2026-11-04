@@ -10,6 +10,7 @@ publication time is not inferred from its commit or tag.
 
 | 日時 / Date and time (JST) | 内容 / Event | Gitの記録 / Evidence |
 | --- | --- | --- |
+| 2026/11/04 16:41:05 | Ver1.1.3・Ver2.0.3を配布サイトへ追加。許可したサイトの数字欄に対応 / Added both numeric-field patch installers | [配布コミット](https://github.com/31916/31916.github.io/commit/72565e108cdb9cdb51757e4aa1d005102d433aaa)・[V1 Chrome / Edge](https://github.com/31916/ImeLayoutRouter/actions/runs/41792738369)・[V2 Chrome / Edge](https://github.com/31916/ImeLayoutRouter/actions/runs/41792726201) |
 | 2026/10/21 00:12:44 | Ver1.1.2・Ver2.0.2のインストーラーを配布サイトへ追加。入力欄情報の取得時に終了する不具合を修正 / Added Ver1.1.2 and Ver2.0.2 with the accessibility-monitor crash fix | [配布コミット / Website commit](https://github.com/31916/31916.github.io/commit/dc727c465cc211cb22af5c562f68703d1a123f15) |
 | 2026/09/26 22:59:23 | Ver1.1.1・Ver2.0.1のインストーラーを配布サイトへ追加。ブラウザーの入力欄検出処理を修正 / Added the Ver1.1.1 and Ver2.0.1 installers with corrected browser field detection | [配布コミット / Website commit](https://github.com/31916/31916.github.io/commit/4fcf6bc59d2c7e4ad1a95cafdc50a9c931f2dbba) |
 | 2026/09/20 11:02:08 | V1 1.1.0・V2 2.0.0のインストーラーを配布サイトへ追加 / Added both installers to the distribution website | [配布コミット / Website commit](https://github.com/31916/31916.github.io/commit/56d553938fcbe38631daf3435f195ee2960b94b5) |
