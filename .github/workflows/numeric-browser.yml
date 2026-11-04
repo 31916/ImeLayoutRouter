@@ -104,4 +104,8 @@ jobs:
           $dir = Join-Path $env:RUNNER_TEMP 'installed-numeric-router'
           $proc = Start-Process -FilePath $installer[0].FullName -ArgumentList @('/VERYSILENT','/NORESTART','/SUPPRESSMSGBOXES','/TASKS=numericbrowser',"/DIR=`"$dir`"") -WindowStyle Hidden -PassThru -Wait
           if ($proc.ExitCode -ne 0) { exit $proc.ExitCode }
-          ./current/tools/Test-NumericBrowserAsUser.ps1 -Browser '${{ matrix.browser }}' -InstallDir $dir
+          $env:IME_NUMERIC_CI_TRACE = '1'
+          python -u current/tests/numeric-browser.py ${{ matrix.browser }} "current/tests/WindowsSmoke/bin/$env:EDITION/Release/net8.0-windows/WindowsSmoke.dll" addon "$dir/ImeLayoutRouter.exe" $env:EDITION
+          $result = $LASTEXITCODE
+          Get-ChildItem -LiteralPath $env:RUNNER_TEMP -Filter 'imelayout-numeric-ci-*.txt' | ForEach-Object { Get-Content -LiteralPath $_.FullName }
+          exit $result
