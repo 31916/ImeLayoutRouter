@@ -4,19 +4,21 @@ import { inspectField } from "./probe.js";
 const host = "ch.imelayoutrouter.numeric";
 const retryAlarm = "retry-native";
 let port;
+let connectedPage;
+let windowBlurred = false;
 let retryAfter = 0;
 let revision = 0;
 let hostRevision = 0;
 
 async function activePage(sites) {
-  if (!sites.length) return null;
+  if (!sites.length || windowBlurred) return null;
   const win = await chrome.windows.getLastFocused({ windowTypes: ["normal"] });
-  if (!win.focused || win.incognito) return null;
+  if (!win.focused || win.incognito || win.state === "minimized") return null;
   // Query only hosts the user has enrolled. Never inspect a title or page content.
   const urls = [...new Set(sites.map(site => permissionFor(site).origins[0]))];
   const [tab] = await chrome.tabs.query({ active: true, windowId: win.id, url: urls });
   const origin = pageOrigin(tab?.url);
-  if (!tab || tab.incognito || tab.pendingUrl || !sites.includes(origin)) return null;
+  if (!tab || tab.incognito || tab.discarded || tab.pendingUrl || tab.status === "loading" || !sites.includes(origin)) return null;
   return { tabId: tab.id, windowId: win.id, origin };
 }
 
@@ -42,7 +44,11 @@ async function classify() {
   // the asynchronous frame lookup. A navigation invalidates its documentId.
   const [verified] = await inspect({ documentIds: [candidate.documentId] });
   if (verified?.result !== "numeric") return "unknown";
-  const current = await activePage(sites);
+  // A permission change can precede its event. Recheck grants, including
+  // subframe origins, before accepting the result of either injected probe.
+  const currentSites = await enabledOrigins();
+  if (!sites.every(site => currentSites.includes(site))) return "unknown";
+  const current = await activePage(currentSites);
   return start === revision && current?.windowId === page.windowId &&
     current.tabId === page.tabId && current.origin === page.origin ? "numeric" : "unknown";
 }
@@ -67,32 +73,60 @@ function attach(connection) {
     void chrome.runtime.lastError;
     if (port !== connection) return;
     port = undefined;
+    connectedPage = undefined;
     retryAfter = Date.now() + 60000;
     void reconcile();
   });
 }
 
+function disconnect() {
+  const previous = port;
+  port = undefined;
+  connectedPage = undefined;
+  previous?.disconnect();
+}
+
 async function reconcile() {
   const request = ++hostRevision;
-  const sites = await enabledOrigins();
+  let page = null;
+  try { page = await activePage(await enabledOrigins()); }
+  catch { /* Closing the last window can invalidate an in-flight query. */ }
   if (request !== hostRevision) return;
-  if (!sites.length) {
-    const previous = port;
-    port = undefined;
-    previous?.disconnect();
-    retryAfter = 0;
+  if (!page) {
+    disconnect();
     await chrome.alarms.clear(retryAlarm);
-  } else if (!port) {
-    if (Date.now() < retryAfter) {
-      chrome.alarms.create(retryAlarm, { when: retryAfter });
-      return;
-    }
+    return;
+  }
+  if (port && connectedPage?.tabId === page.tabId && connectedPage.windowId === page.windowId &&
+      connectedPage.origin === page.origin) return;
+  disconnect();
+  if (Date.now() < retryAfter) {
+    chrome.alarms.create(retryAlarm, { when: retryAfter });
+    return;
+  }
+  // A suspended worker loses its JS timer state; Chrome retains the alarm.
+  const retry = await chrome.alarms.get(retryAlarm);
+  if (request !== hostRevision || retry?.scheduledTime > Date.now()) return;
+  try {
     port = chrome.runtime.connectNative(host);
+    connectedPage = page;
     attach(port);
+  } catch {
+    disconnect();
+    retryAfter = Date.now() + 60000;
+    chrome.alarms.create(retryAlarm, { when: retryAfter });
   }
 }
 
+function changed() {
+  revision++;
+  return reconcile();
+}
+
 async function permissionsRemoved() {
+  disconnect();
+  revision++;
+  hostRevision++;
   const entries = await chrome.storage.local.get(null);
   const enabled = new Set((await enabledOrigins()).map(siteKey));
   const stale = Object.keys(entries).filter(key => key.startsWith("site:") && !enabled.has(key));
@@ -101,13 +135,31 @@ async function permissionsRemoved() {
 }
 
 chrome.storage.onChanged.addListener((_, area) => {
-  if (area === "local") { revision++; void reconcile(); }
+  if (area === "local") return changed();
 });
-chrome.permissions.onRemoved.addListener(() => { revision++; void permissionsRemoved(); });
+chrome.permissions.onAdded.addListener(changed);
+chrome.permissions.onRemoved.addListener(permissionsRemoved);
 chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === retryAlarm) void reconcile(); });
-chrome.tabs.onActivated.addListener(() => { revision++; });
-chrome.tabs.onUpdated.addListener((_, change) => { if (change.status === "loading") revision++; });
-chrome.windows.onFocusChanged.addListener(() => { revision++; });
+chrome.tabs.onActivated.addListener(info => {
+  if (connectedPage && info.windowId === connectedPage.windowId && info.tabId !== connectedPage.tabId) disconnect();
+  return changed();
+});
+chrome.tabs.onUpdated.addListener((tabId, update, tab) => {
+  if (!tab.active || (!update.status && !("url" in update))) return;
+  if (connectedPage?.tabId === tabId && (update.status === "loading" || "url" in update)) disconnect();
+  return changed();
+});
+chrome.tabs.onRemoved.addListener(tabId => {
+  if (!connectedPage || connectedPage.tabId === tabId) {
+    disconnect();
+    return changed();
+  }
+});
+chrome.windows.onFocusChanged.addListener(windowId => {
+  windowBlurred = windowId === chrome.windows.WINDOW_ID_NONE;
+  if (connectedPage && connectedPage.windowId !== windowId) disconnect();
+  return changed();
+});
 chrome.runtime.onStartup.addListener(() => { void reconcile(); });
 chrome.runtime.onInstalled.addListener(() => { void reconcile(); });
 void reconcile();

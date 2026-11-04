@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
@@ -25,14 +26,23 @@ static class NumericBrowserHost
         {
             if (!NumericPeer.Installed(Environment.ProcessPath) || NumericPeer.BrowserAncestor(Environment.ProcessId) is not { } browser)
                 return true;
-            new Session(browser).RunAsync().GetAwaiter().GetResult();
+            nint parentWindow = 0;
+            foreach (string argument in args.Skip(1))
+            {
+                const string prefix = "--parent-window=";
+                if (!argument.StartsWith(prefix, StringComparison.Ordinal)) continue;
+                if (!ulong.TryParse(argument.AsSpan(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out var handle))
+                    return true;
+                parentWindow = unchecked((nint)handle);
+            }
+            new Session(browser, parentWindow).RunAsync().GetAwaiter().GetResult();
             exitCode = 0;
         }
         catch (Exception ex) when (NumericPeer.ExpectedFailure(ex)) { }
         return true;
     }
 
-    private sealed class Session(NumericPeer.ProcessIdentity browser)
+    private sealed class Session(NumericPeer.ProcessIdentity browser, nint parentWindow)
     {
         private readonly object gate = new();
         private readonly SemaphoreSlim send = new(1);
@@ -107,7 +117,7 @@ static class NumericBrowserHost
             {
                 await pipe.ReadExactlyAsync(request, token);
                 var window = (nint)BinaryPrimitives.ReadInt64LittleEndian(request);
-                bool numeric = NumericPeer.IsForeground(window, browser) &&
+                bool numeric = (parentWindow == 0 || NumericPeer.TopLevel(parentWindow) == window) && NumericPeer.IsForeground(window, browser) &&
                     await AskBrowserAsync(window, output, token) && NumericPeer.IsForeground(window, browser);
                 answer[0] = numeric ? (byte)1 : (byte)0;
                 await pipe.WriteAsync(answer, token);
@@ -160,9 +170,14 @@ static class NumericBrowserHost
 static class NumericPeer
 {
     internal sealed record ProcessIdentity(int Pid, long CreationTime, string Path);
-    private static readonly int SessionId = Process.GetCurrentProcess().SessionId;
-    private static readonly string? UserSid = WindowsIdentity.GetCurrent().User?.Value;
-    internal static string PipeName(string edition) => $"ImeLayoutRouter.Numeric.{UserSid}.{SessionId}.{edition}";
+    private static readonly Lazy<(int Session, string? Sid)> UserSession = new(() =>
+    {
+        using var process = Process.GetCurrentProcess();
+        using var identity = WindowsIdentity.GetCurrent();
+        return (process.SessionId, identity.User?.Value);
+    });
+    internal static string PipeName(string edition) =>
+        $"ImeLayoutRouter.Numeric.{UserSession.Value.Sid}.{UserSession.Value.Session}.{edition}";
 
     internal static bool ExpectedFailure(Exception ex) => ex is IOException or OperationCanceledException
         or UnauthorizedAccessException or System.Security.SecurityException or TimeoutException
@@ -178,10 +193,9 @@ static class NumericPeer
             foreach (string id in edition == null ? new[] { "V1", "V2" } : new[] { edition })
             {
                 if (key?.GetValue(id) is not string manifest || !Path.IsPathFullyQualified(manifest)
-                    || !Path.GetFileName(manifest).Equals("numeric-host.json", StringComparison.OrdinalIgnoreCase)
-                    || !File.Exists(manifest)) continue;
+                    || !Path.GetFileName(manifest).Equals("numeric-host.json", StringComparison.OrdinalIgnoreCase)) continue;
                 string expected = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(manifest))!, "ImeLayoutRouter.exe");
-                if (expected.Equals(Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase)) return true;
+                if (expected.Equals(Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase) && File.Exists(manifest)) return true;
             }
         }
         catch (Exception ex) when (ExpectedFailure(ex)) { }
@@ -235,6 +249,7 @@ static class NumericPeer
     internal static bool IsForeground(nint hwnd, ProcessIdentity browser) =>
         hwnd != 0 && GetForegroundWindow() == hwnd && WindowProcess(hwnd) == browser.Pid &&
         Identity(browser.Pid) == browser;
+    internal static nint TopLevel(nint window) => GetAncestor(window, 2);
 
     private static ProcessIdentity? Identity(int pid)
     {
@@ -243,7 +258,7 @@ static class NumericPeer
     }
     private static ProcessIdentity? ReadProcess(SafeProcessHandle handle, int pid)
     {
-        if (handle.IsInvalid || !ProcessIdToSessionId(pid, out int session) || session != SessionId ||
+        if (handle.IsInvalid || !ProcessIdToSessionId(pid, out int session) || session != UserSession.Value.Session ||
             !GetProcessTimes(handle, out long created, out _, out _, out _)) return null;
         var path = new StringBuilder(1024);
         int size = path.Capacity;
@@ -264,5 +279,6 @@ static class NumericPeer
     private static extern bool QueryFullProcessImageNameW(SafeProcessHandle process, int flags, StringBuilder name, ref int size);
     [DllImport("ntdll.dll")] private static extern int NtQueryInformationProcess(SafeProcessHandle process, int infoClass, out ProcessBasicInformation information, int size, out int used);
     [DllImport("user32.dll")] internal static extern nint GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern nint GetAncestor(nint window, uint flags);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint window, out int pid);
 }

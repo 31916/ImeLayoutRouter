@@ -15,6 +15,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - uses: actions/setup-node@v4
+        if: matrix.edition == 'Full'
+        with:
+          node-version: '22'
+      - if: matrix.edition == 'Full'
+        run: node --test tests/NumericBrowserExtension.test.mjs
       - run: dotnet build -c Release -p:Edition=${{ matrix.edition }} --warnaserror
       - if: matrix.edition == 'Full'
         run: |

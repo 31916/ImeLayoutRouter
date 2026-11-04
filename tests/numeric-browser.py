@@ -278,12 +278,15 @@ def press_browser_button(hwnd, labels, approved=None):
 
 
 def toggle_site(context, page, hwnd, ext_id, enable):
-    tab = context.new_cdp_session(page)
-    target = tab.send("Target.getTargetInfo")["targetInfo"]["targetId"]
-    tab.detach()
     browser = context.browser.new_browser_cdp_session()
     try:
-        browser.send("Extensions.triggerAction", {"id": ext_id, "targetId": target})
+        # triggerAction accepts the browser's outer 'tab' target, not
+        # Playwright's inner 'page' target for its current main frame.
+        targets = browser.send("Target.getTargets", {"filter": [{"type": "tab"}]})["targetInfos"]
+        matches = [target["targetId"] for target in targets if target["url"] == page.url and target["type"] == "tab"]
+        if len(matches) != 1:
+            raise AssertionError(f"Expected one outer tab for the owned local fixture: {targets}")
+        browser.send("Extensions.triggerAction", {"id": ext_id, "targetId": matches[0]})
     finally:
         browser.detach()
     labels = ({"Enable on this site", "このサイトで有効にする"} if enable
@@ -299,8 +302,16 @@ def toggle_site(context, page, hwnd, ext_id, enable):
     if enable:
         press_browser_button(hwnd, {"Allow", "許可", "Allow access", "アクセスを許可"}, granted)
     until(lambda: granted() == enable, "The production popup did not update its origin's opt-in and permission")
-    # The production popup remains open after a toggle. A native click on
-    # the page returns focus without directing Escape to an unrelated window.
+    # Dismiss the actual browser popup before the extension inspects focus.
+    # A CDP page click alone may leave the toolbar holding native focus.
+    foreground = user32.GetForegroundWindow()
+    popup_pid = W.DWORD()
+    browser_pid = W.DWORD()
+    user32.GetWindowThreadProcessId(foreground, ctypes.byref(popup_pid))
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(browser_pid))
+    if popup_pid.value != browser_pid.value:
+        raise AssertionError("Refusing to dismiss a window outside this fixture's browser")
+    key(foreground, 0x1b)
     page.bring_to_front()
     page.locator("#normal").click()
     print("PASS production popup", "enabled" if enable else "disabled", "only", origin)

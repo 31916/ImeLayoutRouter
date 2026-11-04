@@ -18,7 +18,7 @@ export function inspectField(allowed, topOrigin) {
       ancestors.at(-1) !== topOrigin || !ancestors.every(origin => allowed.includes(origin))) return "unknown";
 
   let doc = document;
-  for (let depth = 0; depth < 32 && doc.hasFocus(); depth++) {
+  for (let depth = 0; depth < 32 && !doc.hidden && doc.hasFocus(); depth++) {
     let field = doc.activeElement;
     while (field?.shadowRoot?.activeElement) field = field.shadowRoot.activeElement;
     if (!field || field.namespaceURI !== "http://www.w3.org/1999/xhtml") return "unknown";

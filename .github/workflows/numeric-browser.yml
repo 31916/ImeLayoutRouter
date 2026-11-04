@@ -3,16 +3,48 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  EDITION: ${{ github.ref_name == 'V1' && 'Simple' || 'Full' }}
 jobs:
+  installer:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Package once for both browsers and test upgrade from the published installer
+        shell: pwsh
+        run: |
+          dotnet publish -c Release "-p:Edition=$env:EDITION" -r win-x64 --self-contained true --warnaserror
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DEdition=$env:EDITION" installer/ImeLayoutRouter.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $setup = @(Get-ChildItem installer/output/*-Setup.exe)
+          if ($setup.Count -ne 1) { throw 'Expected one packaged installer' }
+          $version = if ($env:EDITION -eq 'Simple') { '1.1.2' } else { '2.0.2' }
+          $expected = if ($env:EDITION -eq 'Simple') { 'a979309513f61bf5dde1baec2fdcb62a4b4467d090b5577616347b912e630c4c' } else { 'e648a6cef8086caea3b302d031a5009669a02524487a8fc9957b05b39aeafe0d' }
+          $previousName = "ImeLayoutRouter-$version-Setup.exe"
+          $previous = Join-Path $env:RUNNER_TEMP $previousName
+          Invoke-WebRequest "https://31916.ch/IMELayoutRouter/downloads/$previousName" -OutFile $previous
+          if ((Get-FileHash $previous).Hash -ne $expected) { throw 'Previous installer hash mismatch' }
+          ./tools/Test-Installer.ps1 -Installer $setup[0].FullName -Edition $env:EDITION -TestRoot "$env:RUNNER_TEMP/installer-lifecycle" -PreviousInstaller $previous
+          "$((Get-FileHash $setup[0].FullName).Hash.ToLowerInvariant())  $($setup[0].Name)" | Set-Content installer/output/SHA256SUMS.txt -Encoding ascii
+      - uses: actions/upload-artifact@v4
+        with:
+          name: numeric-browser-installer
+          path: installer/output/
+          compression-level: 0
+          retention-days: 30
+          if-no-files-found: error
   numeric:
+    needs: installer
     runs-on: windows-2025
     timeout-minutes: 18
     strategy:
       fail-fast: false
       matrix:
         browser: [chrome, msedge]
-    env:
-      EDITION: ${{ github.ref_name == 'V1' && 'Simple' || 'Full' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,17 +88,19 @@ jobs:
             python -u current/tests/numeric-browser.py ${{ matrix.browser }} "$copy/tests/WindowsSmoke/bin/$env:EDITION/Release/net8.0-windows/WindowsSmoke.dll" $copy
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+      - uses: actions/download-artifact@v4
+        with:
+          name: numeric-browser-installer
+          path: tested-installer
       - name: Check the installed optional browser extension and native host
         shell: pwsh
         env:
           PYTHONUTF8: '1'
         run: |
-          dotnet publish current/ImeLayoutRouter.csproj -c Release "-p:Edition=$env:EDITION" -r win-x64 --self-contained true --warnaserror
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DEdition=$env:EDITION" current/installer/ImeLayoutRouter.iss
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $installer = @(Get-ChildItem -LiteralPath current/installer/output -Filter '*-Setup.exe')
+          $installer = @(Get-ChildItem -LiteralPath tested-installer -Filter '*-Setup.exe')
           if ($installer.Count -ne 1) { throw 'Expected one packaged installer' }
+          $manifest = (Get-Content -Raw tested-installer/SHA256SUMS.txt).Trim()
+          if ($manifest -cne "$((Get-FileHash $installer[0].FullName).Hash.ToLowerInvariant())  $($installer[0].Name)") { throw 'Tested installer hash mismatch' }
           $dir = Join-Path $env:RUNNER_TEMP 'installed-numeric-router'
           $proc = Start-Process -FilePath $installer[0].FullName -ArgumentList @('/VERYSILENT','/NORESTART','/SUPPRESSMSGBOXES','/TASKS=numericbrowser',"/DIR=`"$dir`"") -WindowStyle Hidden -PassThru -Wait
           if ($proc.ExitCode -ne 0) { exit $proc.ExitCode }
